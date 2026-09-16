@@ -7,10 +7,12 @@
 namespace Neuron
 {
 
-/// What NOMAD_ASSERT calls when its condition is false. The default reports through the debugger's output stream,
-/// breaks if a debugger is attached and aborts otherwise. A test suite installs its own with SetAssertHandler to
-/// observe an assert without ending the process.
-using AssertHandler = void (*)(const char* _expression, const char* _file, int _line);
+/// What NOMAD_ASSERT calls when its condition is false, with the expression, the file and the line. The default reports
+/// through the debugger's output stream, breaks if a debugger is attached and aborts otherwise. A test suite installs
+/// its own with SetAssertHandler to observe an assert without ending the process. The parameters of the alias are
+/// unnamed on purpose: a name inside a function type has no function scope, so clang-tidy (bugprone-reserved-identifier)
+/// reads `_expression` there as a global-namespace identifier, which R1 also forbids.
+using AssertHandler = void (*)(const char*, const char*, int);
 
 /// Installs a handler and returns the previous one; nullptr restores the default. Not thread-safe by contract:
 /// install it before anything else runs.
