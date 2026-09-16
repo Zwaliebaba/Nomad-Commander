@@ -23,6 +23,12 @@
     <ClCompile Include="IdTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MemoryTransportTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ProtocolTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="SimulationTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

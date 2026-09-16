@@ -23,6 +23,12 @@
     <ClCompile Include="Debug.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MemoryTransport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Protocol.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Random.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -55,6 +61,12 @@
     <ClInclude Include="IntegerMath.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MemoryTransport.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Protocol.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Random.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -65,6 +77,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TickSchedule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Transport.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Tick.h">

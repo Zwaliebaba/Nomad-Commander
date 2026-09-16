@@ -81,6 +81,8 @@
     <ClCompile Include="ByteReader.cpp" />
     <ClCompile Include="ByteWriter.cpp" />
     <ClCompile Include="Debug.cpp" />
+    <ClCompile Include="MemoryTransport.cpp" />
+    <ClCompile Include="Protocol.cpp" />
     <ClCompile Include="Random.cpp" />
     <ClCompile Include="TickSchedule.cpp" />
   </ItemGroup>
@@ -93,10 +95,13 @@
     <ClInclude Include="Hundredths.h" />
     <ClInclude Include="Id.h" />
     <ClInclude Include="IntegerMath.h" />
+    <ClInclude Include="MemoryTransport.h" />
+    <ClInclude Include="Protocol.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="Serializable.h" />
     <ClInclude Include="Simulation.h" />
     <ClInclude Include="TickSchedule.h" />
+    <ClInclude Include="Transport.h" />
     <ClInclude Include="Tick.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

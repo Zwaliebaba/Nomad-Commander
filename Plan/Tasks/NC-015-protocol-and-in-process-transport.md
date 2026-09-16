@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronCore | M | no | **yes** | Open |
+| 1 | NeuronCore | M | no | **yes** | Done (PR #3) |
 
 **Depends on:** NC-013
 **Read first:** GDD §4 (the AI and the client see through the same fog), §9 (reality, belief, evidence distinct), §14 (the hosting model is deferred); AGENTS.md §2 (the wire protocol, `GameLogic` is host-side), R2 (the `Transport` illustration), R18, R23; `Plan/Roadmap.md` A2
@@ -20,10 +20,10 @@ The message envelope the client and the host exchange, and the transport that ca
 
 ## Acceptance criteria
 
-- [ ] Frame then unframe returns the same channel and payload bytes for a zero-length and a 1 MiB payload.
-- [ ] A header with an unknown version, or a payload length beyond the buffer, is rejected without reading past the end.
-- [ ] Ten thousand messages sent on one endpoint are received on the other in order, and `Receive` on an empty queue returns `false` without blocking.
-- [ ] Nothing in the three headers names a game type or includes anything outside NeuronCore.
+- [x] Frame then unframe returns the same channel and payload bytes for a zero-length and a 1 MiB payload.
+- [x] A header with an unknown version, or a payload length beyond the buffer, is rejected without reading past the end.
+- [x] Ten thousand messages sent on one endpoint are received on the other in order, and `Receive` on an empty queue returns `false` without blocking.
+- [x] Nothing in the three headers names a game type or includes anything outside NeuronCore.
 
 ## Verification
 
@@ -45,4 +45,10 @@ Sockets, threads, reconnection, encryption, compression.
 
 ## Report
 
-_Filled in on hand-back._
+**Verified here (Linux):** `Protocol.cpp`, `MemoryTransport.cpp` and the byte streams were compiled under GCC (`-std=c++23`) and Clang (`-std=c++2c`) with `-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Werror`, in `_DEBUG` and `NDEBUG`, against a driver mirroring every `TEST_METHOD`; all four pass. A zero-length and a one-mebibyte payload round-trip with their channel; three messages back to back unframe in order; an unknown version, an unknown channel value, a length beyond the buffer and a length beyond the limit are each refused, and every prefix of a framed message is refused. Ten thousand messages sent on one endpoint arrive whole and in order on the other, `Receive` on an empty queue returns false without touching the caller's buffer, and disconnecting one end disconnects both and drops what was queued. clang-tidy 22.1.8 with the repository's configuration is clean, including the `EnumCastOutOfRange` path the workflow's comments warn about: the channel value is checked against the known channels before it becomes one. `grep` finds no game vocabulary in the four headers, and they include only NeuronCore. **Verified by CI, not here:** the MSVC build and the tests under vstest.
+
+**Assumed:** nothing. The transport is now a decision rather than an assumption (ADR-006 supersedes `Plan/Roadmap.md` A2).
+
+**Refined:** `Transport::Receive` hands back one whole *framed* message and the caller splits it with `Protocol::Unframe`, rather than the transport unframing on the receiver's behalf: that is the contract a socket implementation can keep, and it keeps `Transport` ignorant of the envelope's shape. `MAX_PAYLOAD_BYTES` (64 MiB) and `HEADER_BYTES` are named constants, so a corrupt length is refused before it becomes an allocation. `MemoryTransport` gained `Disconnect()` and `PendingCount()`: the first is what a socket's close will be, and the second is what a test and the debug overlay (NC-070) ask. The pairing holds the peer's queue through a `std::weak_ptr`, so one endpoint's disconnection or destruction leaves the other correctly unconnected rather than sending into a queue nobody reads.
+
+**Bent:** one task per PR (the batch NC-012 to NC-020 on one branch), and `Plan/README.md`'s rule that an owner-visible task lands alone and first. ADR-006 and ADR-005 are the two decisions in this PR most worth a careful read.

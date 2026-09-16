@@ -89,6 +89,8 @@
     <ClCompile Include="ByteStreamTests.cpp" />
     <ClCompile Include="HundredthsTests.cpp" />
     <ClCompile Include="IdTests.cpp" />
+    <ClCompile Include="MemoryTransportTests.cpp" />
+    <ClCompile Include="ProtocolTests.cpp" />
     <ClCompile Include="SimulationTests.cpp" />
     <ClCompile Include="TickScheduleTests.cpp" />
     <ClCompile Include="IntegerMathTests.cpp" />
