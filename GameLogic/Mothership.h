@@ -2,6 +2,9 @@
 #pragma once
 
 #include "EntityIds.h"
+#include "ShipClass.h"
+
+#include "Tick.h"
 
 #include <cstdint>
 
@@ -34,9 +37,10 @@ struct Mothership
   /// nearest harbour". The deadlock state is not reachable, and this is the fuel that makes that true.
   std::uint32_t reserveFuel;
 
-  /// NC-046 fills the fabricator, which builds the smallest hull classes from salvage and bought metals. Here it is
-  /// only the progress a day of work leaves behind, so the record exists before the system that advances it.
-  std::uint32_t fabricatorProgress;
+  /// The fabricator, which builds the smallest hull classes from salvage and bought metals (GDD §5, NC-046). A
+  /// queue of one: it is a floor, not an industry, and the player's own production is Tier 3 and waits.
+  ShipClass fabricatorClass;
+  Neuron::Tick fabricatorRemainingTicks;
 };
 
 } // namespace Nomad

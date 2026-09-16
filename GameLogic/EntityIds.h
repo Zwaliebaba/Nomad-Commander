@@ -23,6 +23,7 @@ struct OutpostTag;
 struct SystemTag;
 struct LaneTag;
 struct EventTag;
+struct MothballTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -39,5 +40,8 @@ using LaneId = Neuron::Id<LaneTag>;
 /// NC-042 brings Event. A Company's record and a Fleet's history are lists of these from this commit, because the
 /// record is what GDD §8 and §11 refer back to and an entity that gains a history later gains it everywhere.
 using EventId = Neuron::Id<EventTag>;
+
+/// A hull whose crew deserted, waiting out its grace period (NC-046).
+using MothballId = Neuron::Id<MothballTag>;
 
 } // namespace Nomad

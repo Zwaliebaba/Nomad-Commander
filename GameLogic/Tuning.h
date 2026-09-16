@@ -67,10 +67,39 @@ inline constexpr Credits MOTHERSHIP_UPKEEP_CREDITS_PER_DAY = 40;
 
 /// "A small standing income from what its crew can do without a fleet: survey work, courier runs and information
 /// sales." This is the floor that makes the deadlock state unreachable, and NC-046 is what pays it.
-inline constexpr Credits MOTHERSHIP_STANDING_INCOME_CREDITS_PER_DAY = 60;
+inline constexpr Credits MOTHERSHIP_STANDING_INCOME_CREDITS_PER_DAY = 80;
 
 /// "The mothership can always jump once on reserve fuel to the nearest harbour."
 inline constexpr std::uint32_t MOTHERSHIP_RESERVE_FUEL = 4;
+
+/// "Insolvency is a decline, not a game over, and it is announced on the board days in advance" (GDD §5).
+inline constexpr Credits INSOLVENCY_WARNING_DAYS = 4;
+
+/// What the local metals market does to a hull's price: "cheap where metals are in surplus, expensive under
+/// blockade" (GDD §5).
+inline constexpr std::int64_t HULL_PRICE_GLUT_HUNDREDTHS = 80;
+inline constexpr std::int64_t HULL_PRICE_SHORTAGE_HUNDREDTHS = 140;
+inline constexpr std::int64_t HULL_PRICE_BLOCKADE_HUNDREDTHS = 200;
+
+/// The fabricator: what a hull costs in bought metals, and how long it takes. Scout and Raider only, and slowly --
+/// "always rebuild a scout and a raider within days" is the promise, and days is what it is.
+inline constexpr Credits FABRICATOR_METALS_COST[SHIP_CLASS_COUNT] = {60, 120, 0, 0};
+inline constexpr Neuron::Tick FABRICATOR_TICKS[SHIP_CLASS_COUNT] = {2 * Neuron::TICKS_PER_DAY, 4 * Neuron::TICKS_PER_DAY, 0, 0};
+
+/// What "within days" has to mean for the floor test to pass (GDD §5, and §15's "whether rebuilding after a loss
+/// feels like a new chapter").
+inline constexpr std::uint32_t REBUILD_DAYS_TARGET = 12;
+
+/// **How many hulls a company has before it is off the floor.** GDD §5 pays the standing income to a crew working
+/// "without a fleet" -- but it also promises the player can "always rebuild a scout and a raider within days", and a
+/// cutoff at the first hull makes that impossible: the income stops, upkeep does not, and the hull that was just
+/// built is mothballed the next day. That is not a decline, it is a trap, and it is the opposite of what the floor is
+/// for.
+///
+/// So the floor pays until the company holds the two hulls §5 names. **NC-056 is what replaces this**: survey work,
+/// courier runs and information sales are contracts, and once a fleetless nomad can take one, the income is a
+/// contract's pay and this constant goes.
+inline constexpr std::uint32_t FLOOR_HULL_COUNT = 2;
 
 /// "Mothballed hulls can be recovered for a fee within a grace period, after which they are gone."
 inline constexpr Neuron::Tick MOTHBALL_GRACE_TICKS = 5 * Neuron::TICKS_PER_DAY;

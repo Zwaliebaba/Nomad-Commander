@@ -109,8 +109,8 @@ private:
 
   Nomad::Company company;
   company.name = "Sedu Compact";
-  company.mothership =
-    Nomad::Mothership{Nomad::SystemId::FromIndex(0), Nomad::MothershipState::Healthy, Nomad::Tuning::MOTHERSHIP_RESERVE_FUEL, 0};
+  company.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(0), Nomad::MothershipState::Healthy,
+                                         Nomad::Tuning::MOTHERSHIP_RESERVE_FUEL, Nomad::ShipClass::Scout, 0};
   company.treasury = 2500;
   company.activeWindow =
     Nomad::ActiveWindow{Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_START_TICK_OF_DAY, Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_LENGTH_TICKS};

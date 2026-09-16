@@ -3,8 +3,10 @@
 #include "TickResolver.h"
 
 #include "Economy.h"
+#include "Fabricator.h"
 #include "LogEvent.h"
 #include "Mobility.h"
+#include "Upkeep.h"
 #include "Tuning.h"
 
 #include <array>
@@ -106,6 +108,8 @@ void ResolveDaily(World& _world, [[maybe_unused]] std::vector<Event>& _outEvents
   // Economy NC-045, then upkeep NC-046, empires NC-047, inference NC-052, contracts NC-056, outposts NC-066, in
   // that order, because inference reads what the economy and the empires did today.
   Economy::ResolveDaily(_world, _outEvents);
+  Upkeep::ResolveDaily(_world, _outEvents);
+  Fabricator::ResolveDaily(_world, _outEvents);
 
   // GDD §15 requires "at least two willing employers after two months", which is a series and not a reading, so it
   // is written every day from the first. **This count is a placeholder**: nothing models tolerance yet, so it counts

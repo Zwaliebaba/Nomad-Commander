@@ -7,6 +7,9 @@
     <ClCompile Include="DeterminismTests.cpp" />
     <ClCompile Include="MobilityTests.cpp" />
     <ClCompile Include="EconomyTests.cpp" />
+    <ClCompile Include="FloorTests.cpp" />
+    <ClCompile Include="ShipyardTests.cpp" />
+    <ClCompile Include="UpkeepTests.cpp" />
     <ClCompile Include="TickResolverTests.cpp" />
     <ClCompile Include="WireTests.cpp" />
     <ClCompile Include="pch.cpp" />

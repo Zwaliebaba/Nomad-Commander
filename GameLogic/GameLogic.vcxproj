@@ -85,6 +85,9 @@
     <ClCompile Include="NomadSimulation.cpp" />
     <ClCompile Include="Mobility.cpp" />
     <ClCompile Include="Economy.cpp" />
+    <ClCompile Include="Fabricator.cpp" />
+    <ClCompile Include="Shipyard.cpp" />
+    <ClCompile Include="Upkeep.cpp" />
     <ClCompile Include="TickResolver.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -110,8 +113,12 @@
     <ClInclude Include="LogSink.h" />
     <ClInclude Include="Mobility.h" />
     <ClInclude Include="Economy.h" />
+    <ClInclude Include="Fabricator.h" />
+    <ClInclude Include="Shipyard.h" />
+    <ClInclude Include="Upkeep.h" />
     <ClInclude Include="Good.h" />
     <ClInclude Include="Market.h" />
+    <ClInclude Include="MothballedHull.h" />
     <ClInclude Include="NomadSimulation.h" />
     <ClInclude Include="TickResolver.h" />
     <ClInclude Include="Tuning.h" />

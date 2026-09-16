@@ -7,6 +7,7 @@
 #include "Fleet.h"
 #include "Lane.h"
 #include "Market.h"
+#include "MothballedHull.h"
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
@@ -62,7 +63,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 4;
+  static constexpr std::uint16_t SCHEMA_VERSION = 5;
 
   explicit World(std::uint64_t _seed);
 
@@ -143,6 +144,18 @@ public:
     return m_markets;
   }
 
+  /// Hulls whose crews deserted, waiting out their grace period (GDD §5, NC-046). Rows stay after they expire, like
+  /// every other entity here, because the record refers to them.
+  [[nodiscard]] Table<MothballedHull, MothballId>& Mothballs() noexcept
+  {
+    return m_mothballs;
+  }
+
+  [[nodiscard]] const Table<MothballedHull, MothballId>& Mothballs() const noexcept
+  {
+    return m_mothballs;
+  }
+
   /// What JumpsBetween answers when there is no route at all. A disconnected map is a generator bug (NC-041 asserts
   /// connectivity), but a route to a system that does not exist is an ordinary caller error and gets an answer.
   static constexpr std::uint32_t UNREACHABLE = 0xFFFFFFFFu;
@@ -209,6 +222,7 @@ private:
   Table<StarSystem, SystemId> m_systems;
   Table<Lane, LaneId> m_lanes;
   Table<Market, SystemId> m_markets;
+  Table<MothballedHull, MothballId> m_mothballs;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

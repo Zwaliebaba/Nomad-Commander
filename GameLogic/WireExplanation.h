@@ -40,10 +40,18 @@ enum class ReasonCode : std::uint16_t
   PinnedByAnEmpire,
   FleetsSharedASystem,
   SurplusMovedToDeficit,
-  TradedAtAMarket
+  TradedAtAMarket,
+  UpkeepPaidInHulls,
+  RecoveredFromMothballs,
+  GracePeriodRanOut,
+  TheTreasuryIsRunningOut,
+  MothershipWork,
+  BoughtAtAShipyard,
+  BuiltFromSalvage,
+  ReserveFuelSpent
 };
 
-inline constexpr std::uint16_t REASON_CODE_COUNT = 19;
+inline constexpr std::uint16_t REASON_CODE_COUNT = 27;
 
 /// One item of evidence as the player reads it: what it is, and what it was worth (GDD §6's weights, as a fraction of
 /// a full attribution in integer hundredths).

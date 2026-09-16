@@ -36,11 +36,12 @@ namespace
                                                                  0,
                                                                  {Nomad::SystemId::FromIndex(2), Nomad::SystemId::FromIndex(3)},
                                                                  {Nomad::FleetId::FromIndex(0)},
+                                                                 {},
                                                                  true});
 
   Nomad::Company first;
   first.name = "Sedu Compact";
-  first.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(1), Nomad::MothershipState::Healthy, 4, 17};
+  first.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(1), Nomad::MothershipState::Healthy, 4, Nomad::ShipClass::Scout, 0};
   first.treasury = 12345;
   first.officers = {officer};
   first.fleets = {Nomad::FleetId::FromIndex(0)};
@@ -265,7 +266,7 @@ public:
     Nomad::World world{3};
     Nomad::Company company;
     company.name.clear();
-    company.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(0), Nomad::MothershipState::Damaged, 0, 0};
+    company.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(0), Nomad::MothershipState::Damaged, 0, Nomad::ShipClass::Scout, 0};
     world.Companies().Add(company);
 
     constexpr std::size_t VERSION_BYTES = sizeof(std::uint16_t);

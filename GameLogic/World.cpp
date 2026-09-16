@@ -138,14 +138,36 @@ void WriteMothership(Neuron::ByteWriter& _writer, const Mothership& _mothership)
   _writer.WriteId(_mothership.location);
   WriteEnum(_writer, _mothership.state);
   _writer.Write(_mothership.reserveFuel);
-  _writer.Write(_mothership.fabricatorProgress);
+  WriteEnum(_writer, _mothership.fabricatorClass);
+  _writer.WriteTick(_mothership.fabricatorRemainingTicks);
+}
+
+void WriteMothballedHull(Neuron::ByteWriter& _writer, const MothballedHull& _hull)
+{
+  _writer.WriteId(_hull.owner);
+  WriteEnum(_writer, _hull.shipClass);
+  _writer.WriteId(_hull.system);
+  _writer.WriteTick(_hull.expiresAtTick);
+  _writer.Write(_hull.recoveryFee);
+  _writer.WriteBool(_hull.recovered);
+  _writer.WriteBool(_hull.expired);
+}
+
+[[nodiscard]] bool ReadMothballedHull(Neuron::ByteReader& _reader, MothballedHull& _outHull)
+{
+  constexpr auto SHIP_CLASSES = static_cast<std::uint8_t>(SHIP_CLASS_COUNT);
+  return _reader.ReadId(_outHull.owner) && ReadEnum(_reader, _outHull.shipClass, SHIP_CLASSES) && _reader.ReadId(_outHull.system) &&
+         _reader.ReadTick(_outHull.expiresAtTick) && _reader.Read(_outHull.recoveryFee) && _reader.ReadBool(_outHull.recovered) &&
+         _reader.ReadBool(_outHull.expired);
 }
 
 [[nodiscard]] bool ReadMothership(Neuron::ByteReader& _reader, Mothership& _outMothership)
 {
   constexpr std::uint8_t MOTHERSHIP_STATE_COUNT = 5;
+  constexpr auto SHIP_CLASSES = static_cast<std::uint8_t>(SHIP_CLASS_COUNT);
   return _reader.ReadId(_outMothership.location) && ReadEnum(_reader, _outMothership.state, MOTHERSHIP_STATE_COUNT) &&
-         _reader.Read(_outMothership.reserveFuel) && _reader.Read(_outMothership.fabricatorProgress);
+         _reader.Read(_outMothership.reserveFuel) && ReadEnum(_reader, _outMothership.fabricatorClass, SHIP_CLASSES) &&
+         _reader.ReadTick(_outMothership.fabricatorRemainingTicks);
 }
 
 void WriteCompany(Neuron::ByteWriter& _writer, const Company& _company)
@@ -178,6 +200,7 @@ void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
   _writer.Write(_empire.colorSlot);
   WriteIds(_writer, _empire.systemsHeld);
   WriteIds(_writer, _empire.fleets);
+  WriteIds(_writer, _empire.revokedCompanies);
   _writer.WriteBool(_empire.alive);
 }
 
@@ -185,7 +208,7 @@ void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
 {
   return _reader.ReadString(_outEmpire.name) && _reader.ReadId(_outEmpire.leader) && _reader.ReadId(_outEmpire.homeSystem) &&
          _reader.Read(_outEmpire.colorSlot) && ReadIds(_reader, _outEmpire.systemsHeld) && ReadIds(_reader, _outEmpire.fleets) &&
-         _reader.ReadBool(_outEmpire.alive);
+         ReadIds(_reader, _outEmpire.revokedCompanies) && _reader.ReadBool(_outEmpire.alive);
 }
 
 /// The variant's alternative index, then its payload. The index is the schema: appending an alternative is safe and
@@ -519,6 +542,7 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_systems, WriteStarSystem);
   WriteTable(_writer, m_lanes, WriteLane);
   WriteTable(_writer, m_markets, WriteMarket);
+  WriteTable(_writer, m_mothballs, WriteMothballedHull);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -545,7 +569,8 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
   if (!ReadTable(_reader, loaded.m_companies, ReadCompany) || !ReadTable(_reader, loaded.m_empires, ReadEmpire) ||
       !ReadTable(_reader, loaded.m_fleets, ReadFleet) || !ReadTable(_reader, loaded.m_characters, ReadCharacter) ||
       !ReadTable(_reader, loaded.m_outposts, ReadOutpost) || !ReadTable(_reader, loaded.m_systems, ReadStarSystem) ||
-      !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket))
+      !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket) ||
+      !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull))
   {
     return false;
   }

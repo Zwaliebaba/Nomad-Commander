@@ -51,6 +51,22 @@ namespace
     return "an empire moved a surplus to where it was short";
   case ReasonCode::TradedAtAMarket:
     return "goods changed hands at a market";
+  case ReasonCode::UpkeepPaidInHulls:
+    return "your crews deserted and a hull was mothballed";
+  case ReasonCode::RecoveredFromMothballs:
+    return "a mothballed hull was recovered";
+  case ReasonCode::GracePeriodRanOut:
+    return "a mothballed hull was gone before anyone came back for it";
+  case ReasonCode::TheTreasuryIsRunningOut:
+    return "your treasury runs out within days at the current burn";
+  case ReasonCode::MothershipWork:
+    return "the mothership's crew earned its keep without a fleet";
+  case ReasonCode::BoughtAtAShipyard:
+    return "a hull was bought at a shipyard";
+  case ReasonCode::BuiltFromSalvage:
+    return "the fabricator built a hull from salvage and bought metals";
+  case ReasonCode::ReserveFuelSpent:
+    return "the mothership jumped on its reserve fuel";
   }
   return "something happened that nobody recorded a reason for";
 }

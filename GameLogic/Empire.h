@@ -28,8 +28,11 @@ struct Empire
   std::vector<SystemId> systemsHeld;
   std::vector<FleetId> fleets;
 
-  /// NC-047 brings goals, wars and truces; NC-051 and NC-066 bring the tolerance and the fees an empire charges a
-  /// company. Named here, built there.
+  /// Companies this empire has revoked (GDD §5: hulls are "unavailable from an empire that has revoked the
+  /// player's tolerance"). A list on the empire until NC-051 gives tolerance a belief behind it.
+  std::vector<CompanyId> revokedCompanies;
+
+  /// NC-047 brings goals, wars and truces; NC-066 brings the fees an empire charges. Named here, built there.
   bool alive;
 };
 
