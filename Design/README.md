@@ -6,9 +6,10 @@ Three kinds of document live under `Design/`, and the pull-request template asks
 |---|---|---|---|
 | [`GameDesign.md`](GameDesign.md) | What the game *is*: the loop, every system and why it exists, the v0.1 scope, the measured outcomes, and the appendix of what is settled and what is open. Version 1.6. | The owner, and nobody else. | An agent that finds the code and the GDD disagree, or a settled item that cannot be built as written, says so in its report with the section number. The owner moves the design. |
 | `ADR/ADR-nnn-<slug>.md` | An engineering decision the GDD leaves open or a rule of `AGENTS.md` that a change had to bend: a file format, a wire encoding, the clock, a subsystem's model, an exception. | The agent making the decision, in the same commit as the change that implements it (`AGENTS.md` §6). | Numbered one above the highest on `main` when you push; renumber on rebase if someone got there first. A decision is never edited into a different decision: a new ADR supersedes it and says so in both files. |
+| [`UI/`](UI/README.md) | Reference screens for the Phase 5 desk client: the layout grid, the palette, per-screen anatomy, interaction and copy rules, and the three authored screens. Cited as *UI §n*. Design *context*, not a design document — where it and the GDD disagree, the GDD wins. | The owner. An agent reconciles it against `AGENTS.md` when a rule it quotes changes, and says so in its report. | With the task that implements the screen, or on the owner's own commit. |
 | [`../Plan/`](../Plan/README.md) | What to build next and in what order, derived from the GDD, `AGENTS.md` and the ADRs. Not authoritative on anything. | Any agent, per `Plan/README.md`. | Status, reports and refinements ride the task's own PR; scope changes are the owner's. |
 
-Cite the GDD by section as *GDD §n* and an ADR by number as *ADR-nnn*. The GDD is prose and spells `flavour`; an identifier spells `flavor` (`AGENTS.md` R11).
+Cite the GDD by section as *GDD §n*, an ADR by number as *ADR-nnn*, and the UI package by section as *UI §n*. The GDD is prose and spells `flavour`; an identifier spells `flavor` (`AGENTS.md` R11).
 
 ## ADR format
 

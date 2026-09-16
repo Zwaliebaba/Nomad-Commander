@@ -5,7 +5,7 @@
 | 5 | NomadCommander | L | **yes** | no | Open |
 
 **Depends on:** NC-077
-**Read first:** GDD §4 (*The receipt* whole), §8 (every receipt names the template; replays searchable by admiral), §13 ("simple battle visualisation"), §15 ("whether they can explain the outcome"); AGENTS.md §5 (dimensionality is a design question now, and GDD §13 is where it is answered)
+**Read first:** GDD §4 (*The receipt* whole), §8 (every receipt names the template; replays searchable by admiral), §13 ("simple battle visualisation"), §15 ("whether they can explain the outcome"); AGENTS.md §5 (dimensionality is a design question now, and GDD §13 is where it is answered); `Design/UI/UI-Spec.md` §1, §2, §6; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 
@@ -22,6 +22,7 @@ What the player finds on return: the receipt's sentences, the events of the oper
 - [ ] The §4 receipt renders word for word from the wire and the owner read it on screen.
 - [ ] The replay shows every round of a twelve-round record and the fired triggers with their delays; nothing in it comes from outside `WireBattleRecord`.
 - [ ] The visualisation is bars, glyphs and text on the primitive batch — no sprite, no mesh, no camera. This is this task's own scope, not a rule: AGENTS.md §5 stopped forbidding them on 2026-09-16. A replay that needs more says why in its report.
+- [ ] The chrome this task draws matches UI §1 and the palette names in UI §2, and every string follows UI §6; deviations are listed in the report with their UI § reference.
 
 ## Verification
 

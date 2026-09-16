@@ -5,7 +5,7 @@
 | 5 | NomadCommander | M | **yes** | no | Open |
 
 **Depends on:** NC-073
-**Read first:** GDD §4 (*Intelligence*: who said it and when, never how likely it is right), §8 (*Readability*: the dossier seeded from the news and purchases, receipts naming the template, replays searchable by admiral), §3 (7:00: the dossier on Varik "built from two engagements and the news"), §13 (one tap behind)
+**Read first:** GDD §4 (*Intelligence*: who said it and when, never how likely it is right), §8 (*Readability*: the dossier seeded from the news and purchases, receipts naming the template, replays searchable by admiral), §3 (7:00: the dossier on Varik "built from two engagements and the news"), §13 (one tap behind); `Design/UI/UI-Spec.md` §1, §2, §6; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 
@@ -22,6 +22,7 @@ The panels that show what the company knows and where it came from: a report wit
 - [ ] No panel shows a probability of a report being right; it shows the record (GDD §4). The reviewer checks the strings.
 - [ ] The Varik dossier of §3 renders from two engagements and one news item (NC-090 supplies; a synthetic model here).
 - [ ] Replays are reachable from the dossier by engagement (NC-078 renders them).
+- [ ] The chrome this task draws matches UI §1 and the palette names in UI §2, and every string follows UI §6; deviations are listed in the report with their UI § reference.
 
 ## Verification
 

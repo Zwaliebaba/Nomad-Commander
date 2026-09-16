@@ -5,7 +5,7 @@
 | 5 | NomadCommander | L | **yes** | no | Open |
 
 **Depends on:** NC-071
-**Read first:** GDD §13 whole (2D map; the Homeworld feel through fleet identity; decisions, not data), §7 (the graph and the roles), §3 (7:00: the convoy route, the last sighting nine hours old, the picket at the jump point); AGENTS.md §5 (*The client's dimensionality is a design question, not a conformance rule* — and a 2D map camera is available)
+**Read first:** GDD §13 whole (2D map; the Homeworld feel through fleet identity; decisions, not data), §7 (the graph and the roles), §3 (7:00: the convoy route, the last sighting nine hours old, the picket at the jump point); AGENTS.md §5 (*The client's dimensionality is a design question, not a conformance rule* — and a 2D map camera is available); `Design/UI/UI-Spec.md` §1, §2, §4, `Design/UI/screens/02-map-isometric-1920x1080.png`; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 
@@ -23,6 +23,7 @@ The 2D map: systems as nodes with their role and owner, lanes, the company's fle
 - [ ] Nothing drawn for another empire's fleet comes from anywhere but a report in `ClientModel` (the reviewer reads the draw code).
 - [ ] Ages update every frame from the session tick; a nine-hour-old sighting reads "9 h".
 - [ ] No transform other than pixel positions. A camera is permitted now (AGENTS.md §5, 2026-09-16); this task declines one because every system fits on the screen, and says so rather than inheriting a ban.
+- [ ] Rendered beside `Design/UI/screens/02-map-isometric-1920x1080.png`, the owner recognises the screen row for row; every deviation is listed in the report with its UI § reference, and each aspirational effect says which treatment was used.
 
 ## Verification
 
