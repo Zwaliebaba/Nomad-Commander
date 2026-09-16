@@ -11,6 +11,8 @@ Operating instructions for every agent (and human) writing code in this reposito
 3. **`Design/ADR/`** — engineering decisions taken while building, one file per decision (§6). The folder does not exist yet; the first decision creates it.
 4. **The surrounding code** — for anything none of the above covers, match the file you are editing.
 
+**[`Plan/`](Plan/README.md) is deliberately not on that list.** It is the implementation plan — what to build next and in what order, derived from the three documents above — and it is authoritative on nothing: when a task file and the GDD, an ADR or this file disagree, the task file is wrong. `Plan/README.md` says how an agent picks up, works and hands back a task; `Plan/Roadmap.md` says what the tasks are and what each phase proves; `Plan/Glossary.md` fixes the name of every design term in code, so read it before you name a type.
+
 If a rule here conflicts with a habit from another codebase, this file wins. If you think a rule is wrong or your task cannot be done without deviating, **say so in your report — never deviate silently.**
 
 ---
@@ -140,10 +142,13 @@ private:
 | `GameLogic/` | The game itself, in the design's own terms: the universe graph and its generator (GDD §7), empires and their goals, admirals and the eight templates (§8), fleets and the mobility rules (§12), contracts, the economy (§10), evidence and the inference rule (§6), beliefs and opinions (§9), couriers, plans and the branch budget (§4), the tick resolver, and the receipt and the explanation every consequence carries. Host-side; the client never links it | Yes |
 | `NomadCommander/` | The executable and the composition root — the one thing that sees both halves. The situation board and the desk session (GDD §3), the 2D map and battle visualisation (§13), hypothesis and plan authoring, the receipt, the client connection, and the hosted simulation. Where every embedded asset and compiled shader ends up | Yes |
 | `Tests/NeuronCoreTests/`, `Tests/NeuronClientTests/`, `Tests/NeuronServerTests/`, `Tests/GameLogicTests/` | MSVC CppUnitTest DLLs, one per library, each referencing the library it tests and the libraries that library is built on. **CI builds and runs all four** | Yes |
-| `Design/` | The design record: `GameDesign.md` (the design, owner-edited) and `ADR/` (engineering decisions) — see §6 | Yes — see §6 |
+| `Design/` | The design record: `README.md` (which document is which, and the ADR format), `GameDesign.md` (the design, owner-edited) and `ADR/` (engineering decisions) — see §6 | Yes — see §6 |
+| `Plan/` | The implementation plan: `README.md` (how a task is worked), `Roadmap.md` (phases, order, exit criteria, assumptions, expected ADRs), `Glossary.md` (design term → type → project → task) and `Tasks/NC-nnn-<slug>.md`, one file per task carrying its status and its report | Yes — the status, report and refinements of the task you hold, per `Plan/README.md`; scope only with an owner decision |
 | `Build/*.py` | Repository checkers (§6). They gate CI | Yes, carefully |
+| `Tools/*.py` | Development tools that never ship: `MeasureLog.py` counts the GDD §15 outcomes from the instrumentation log (R24) | Yes |
 | `.clang-format`, `.clang-tidy`, `.editorconfig` | Layout and naming, machine-readable (§1, §4) | Yes — with an owner decision |
 | `.github/workflows/build.yml` | CI. All of it blocks | Yes, carefully |
+| `CLAUDE.md` | Points Claude Code at this file and at `Plan/README.md`; it holds no rules of its own | Rarely |
 | `x64/`, `.vs/`, `*.user` | Build and IDE output | **No — and never commit them** |
 
 **Nine projects, and the edges run one way.** `NomadCommander.slnx` is the solution; its only platform is `x64`.
@@ -176,7 +181,7 @@ GameLogicTests.dll      ← GameLogic, NeuronCore
 
 **x64 is the only platform.** There are no Win32/x86 configurations in any `.vcxproj` or in the `.slnx`; do not add them, and do not write code that only works at 32 bits. Toolset `v145` (Visual Studio 2026), `/std:c++latest`, `/permissive-`, `/W4` with **warnings as errors**, and there is no CMake. If a build error tempts you to change the toolset, lower the language standard, turn off `/permissive-` or silence a warning — stop and report instead.
 
-**Debug and Release are aligned by rule, not by luck.** Every setting that is not *about* optimisation reads identically in both configurations: language standard, conformance, warning level, include directories, precompiled header, floating-point model. The two differ in exactly four things — `Optimization`, `_DEBUG` vs `NDEBUG`, `FunctionLevelLinking`/`IntrinsicFunctions`, and the linker's folding and LTCG switches. `Build/CheckProjectFiles.py` fails the build when anything else drifts apart.
+**Debug and Release are aligned by rule, not by luck.** Every setting that is not *about* optimisation reads identically in both configurations: language standard, conformance, warning level, include directories, precompiled header, floating-point model. The two differ in exactly four things — `Optimization`, `_DEBUG` vs `NDEBUG`, `FunctionLevelLinking`/`IntrinsicFunctions`, and the linker's folding and LTCG switches. (The `.vcxproj` text spells those four through a few more MSBuild properties — `UseDebugLibraries`, `RuntimeLibrary` as the debug or release CRT, `LinkIncremental`, `WholeProgramOptimization`, `EnableCOMDATFolding`, `OptimizeReferences` — and that list, as a named constant in the checker, is the whole of what may differ.) `Build/CheckProjectFiles.py` fails the build when anything else drifts apart.
 
 That check matters more than it looks, because **CI builds Debug only** (§6). Release is compiled by whoever ships, and a Release that quietly lost an include directory or sat on an older language standard would not be discovered until then. The static check is what stands in for the build nobody runs.
 
@@ -256,6 +261,8 @@ x64\Debug\NomadCommander.exe
 
 **R14 — No third-party dependencies and no package manager.** The Windows SDK and the MSVC standard library, and nothing else. If you believe something is unavoidable, propose it in your report with what it buys and what it costs — do not add it. This is a closed list, not a high bar.
 
+For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.h`, `DirectXMath.h`, `wrl/client.h` (`Microsoft::WRL::ComPtr` is the COM smart pointer R12 asks for) and the `fxc`/`dxc` compilers that `FXCompile` drives. It excludes what a D3D12 sample reaches for by reflex, because each is NuGet or GitHub content and not SDK content: the DirectX Agility SDK and its `d3dx12.h`, DirectX-Headers, DirectXTK12, DirectXTex, and the DirectX Shader Compiler as a redistributable. Resource barriers and heap descriptions are written by hand.
+
 **R15 — Memory is plain C++.** `new`/`delete` where it must be, RAII everywhere, standard containers by default. No pool, slab or free-list allocator without an owner decision recorded in `Design/ADR/`.
 
 **R16 — Determinism is a property of the simulation, and it is built, not hoped for.** Every project compiles `/fp:precise` with no `/arch`, stated explicitly in the `.vcxproj` rather than inherited from an MSVC default — a default is not a decision, and the symptom of losing one is two builds of the same simulation disagreeing about the same sum with no line to blame. In `GameLogic`, additionally: no `float` where a fixed-point or integer quantity will do (the evidence weights in GDD §6 are fractions of a full attribution — hold them in integer hundredths), no iteration over an unordered container whose order reaches the simulation, and no wall-clock time — the tick is the clock. The design is why this is not optional: the receipt and the replay (§4, §8) are features, a Milestone 2 run of five empires for simulated decades has to reproduce from its seed for a bug in year thirty to be findable, and the sandbox measurements in §15 have to be re-runnable. "A small random spread remains" (§4) is the pinned PRNG in `NeuronCore`, seeded from the universe store — never `std::random_device`, never a hash of an address, inside the simulation.
@@ -285,6 +292,8 @@ The GDD is a design document, not a technical one, but several of its rules are 
 ## 6. Working rules
 
 **Stay in scope.** Do what the task asks. Adjacent code that offends you is not part of the task — note it in your report and move on. Unrequested "while I was in there" changes are the main way a young tree acquires regressions it cannot bisect.
+
+**Work from the plan.** A task is a file in `Plan/Tasks/`, and `Plan/README.md` is the protocol: pick the lowest-numbered `Open` task whose dependencies are `Done`, claim it with a draft PR titled `NC-nnn: <title>`, refine its acceptance criteria against the code as it is, build it, verify it, fill in its *Report* section and set its status to `Done (PR #n)` in the same PR. One task per PR. A task marked *Owner-visible* lands alone and first; nothing is stacked on it until it merges. If the task cannot be done as written, it is set `Blocked` with the reason, never bent quietly — the same rule as for this file.
 
 **Keep the design record true.** `Design/GameDesign.md` is the owner's document: it records what the game *is*, and its appendix says what is settled, what play will answer and what is deferred by decision. Do not rewrite it on your own initiative. If your change reveals that the code and the GDD disagree, or that a settled item cannot be built as written, say so in your report with the section number, and the owner moves the design. Engineering decisions — a file format, a wire protocol, a subsystem the GDD leaves open, an exception to a rule here — go in `Design/ADR/` as one file per decision, numbered in order (`ADR-001-<slug>.md`), stating the context, the decision and what it forecloses, in the same commit as the change that implements it. Figures in an ADR are measured, not estimated — if you quote one, say how you measured it.
 
@@ -317,3 +326,4 @@ The GDD is a design document, not a technical one, but several of its rules are 
 - [ ] Nothing was built that GDD §15 says waits (R23); if the task needed something beyond v0.1, the report says so.
 - [ ] `Design/ADR/` has a new file if the change *was* a decision, and `Design/GameDesign.md` was not edited unless the task said to.
 - [ ] Your report states plainly what you verified, what you assumed, and any rule here you had to bend.
+- [ ] The task's file in `Plan/Tasks/` carries its report and its new status, the PR title starts with its id, and no other task file was touched except to split or add a task per `Plan/README.md`.
