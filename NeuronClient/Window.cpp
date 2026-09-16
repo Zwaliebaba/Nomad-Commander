@@ -3,8 +3,6 @@
 #include "Window.h"
 #include "Debug.h"
 
-#include <string>
-
 namespace Neuron
 {
 
@@ -125,8 +123,7 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
   int top = CW_USEDEFAULT;
   CenterOnPrimaryMonitor(frame, left, top);
 
-  const std::wstring title(_desc.title);
-  HWND handle = CreateWindowExW(WINDOW_EXTENDED_STYLE, WINDOW_CLASS_NAME, title.c_str(), WINDOW_STYLE, left, top,
+  HWND handle = CreateWindowExW(WINDOW_EXTENDED_STYLE, WINDOW_CLASS_NAME, _desc.title, WINDOW_STYLE, left, top,
                                 static_cast<int>(frame.right - frame.left), static_cast<int>(frame.bottom - frame.top), nullptr, nullptr,
                                 GetModuleHandleW(nullptr), &_outWindow);
   if (handle == nullptr)
@@ -223,11 +220,13 @@ LRESULT CALLBACK Window::WindowProcedure(HWND _handle, UINT _message, WPARAM _wp
   // The instance is handed over in the creation parameters and kept in the window's own storage from then on.
   if (_message == WM_NCCREATE)
   {
+    // NOLINTNEXTLINE(performance-no-int-to-ptr) -- WM_NCCREATE's lParam IS a CREATESTRUCTW*; see ADR-007.
     const CREATESTRUCTW* const creation = reinterpret_cast<const CREATESTRUCTW*>(_lparam);
     SetWindowLongPtrW(_handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(creation->lpCreateParams));
     return DefWindowProcW(_handle, _message, _wparam, _lparam);
   }
 
+  // NOLINTNEXTLINE(performance-no-int-to-ptr) -- GWLP_USERDATA round-trips the pointer stored above; see ADR-007.
   Window* const window = reinterpret_cast<Window*>(GetWindowLongPtrW(_handle, GWLP_USERDATA));
   switch (_message)
   {
@@ -262,6 +261,7 @@ LRESULT CALLBACK Window::WindowProcedure(HWND _handle, UINT _message, WPARAM _wp
     // the structure in first, and this raises the one member that would otherwise shrink the client area the caller
     // asked for (see MAX_TRACK_PIXELS).
     DefWindowProcW(_handle, _message, _wparam, _lparam);
+    // NOLINTNEXTLINE(performance-no-int-to-ptr) -- WM_GETMINMAXINFO's lParam IS a MINMAXINFO*; see ADR-007.
     MINMAXINFO* const limits = reinterpret_cast<MINMAXINFO*>(_lparam);
     if (limits != nullptr)
     {

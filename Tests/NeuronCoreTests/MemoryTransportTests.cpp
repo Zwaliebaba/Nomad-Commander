@@ -131,7 +131,8 @@ public:
     Neuron::MemoryTransport host;
     Neuron::MemoryTransport::CreatePair(client, host);
 
-    std::vector<std::byte> payload(256u * 1024u);
+    constexpr std::size_t PAYLOAD_BYTES = std::size_t{256} * 1024;
+    std::vector<std::byte> payload(PAYLOAD_BYTES);
     for (std::size_t index = 0; index < payload.size(); ++index)
     {
       payload[index] = static_cast<std::byte>(index & 0xFFu);

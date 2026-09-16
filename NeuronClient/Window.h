@@ -4,7 +4,6 @@
 #include "NeuronCore.h"
 
 #include <cstdint>
-#include <string_view>
 
 namespace Neuron
 {
@@ -38,7 +37,10 @@ public:
   {
     std::uint32_t clientWidthPixels;
     std::uint32_t clientHeightPixels;
-    std::wstring_view title;
+    // A null-terminated literal, handed to CreateWindowExW as it stands. Not a std::wstring_view: Create is noexcept,
+    // and copying a view into a string to null-terminate it is an allocation, which is a throw, which in a noexcept
+    // function is std::terminate. R13 makes every title in this game a compile-time literal anyway.
+    const wchar_t* title;
   };
 
   Window() = default;

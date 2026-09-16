@@ -65,7 +65,8 @@ public:
 
   TEST_METHOD(AMebibytePayloadRoundTrips)
   {
-    const std::vector<std::byte> payload = MakePayload(1024u * 1024u);
+    constexpr std::size_t PAYLOAD_BYTES = std::size_t{1024} * 1024;
+    const std::vector<std::byte> payload = MakePayload(PAYLOAD_BYTES);
     Neuron::ByteWriter writer;
     Assert::IsTrue(Neuron::Protocol::Frame(Neuron::Channel::SimulationOutput, payload, writer));
     Assert::AreEqual(Neuron::Protocol::HEADER_BYTES + payload.size(), writer.Size());
