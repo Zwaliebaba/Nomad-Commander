@@ -1,8 +1,9 @@
 // Tests/NeuronClientTests/TextRendererTests.cpp
 #include "pch.h"
-#include "BitmapFont.h"
+#include "Font.h"
 #include "GlyphPipeline.h"
 #include "GraphicsDevice.h"
+#include "IconAtlas.h"
 #include "SceneTarget.h"
 #include "TextRenderer.h"
 #include "Window.h"
@@ -22,6 +23,12 @@ using Microsoft::WRL::ComPtr;
 
 constexpr std::uint32_t BACKGROUND = 0xFF000000u;
 constexpr std::uint32_t INK = 0xFFFFFFFFu;
+/// A colour with three different channels, so a blend that mixed them up would show. Red in the low byte.
+constexpr std::uint32_t AMBER = 0xFF2040C0u;
+
+/// The faces, in the order the atlas stacks them, so a test can walk them.
+constexpr Neuron::Font FACES[] = {Neuron::Font::Body, Neuron::Font::Small, Neuron::Font::Title};
+constexpr std::uint32_t FACE_COUNT = 3;
 
 /// A device, a scene target cleared to black, the glyph pipeline and a text renderer.
 class TextFixture
@@ -129,33 +136,59 @@ private:
   return static_cast<std::size_t>(_y) * Neuron::SCREEN_WIDTH_PIXELS + _x;
 }
 
-/// The eight bytes of a codepoint's glyph, straight out of the font array.
-[[nodiscard]] const std::uint8_t* GlyphBits(std::uint32_t _codepoint)
+/// The baked coverage of one texel of a glyph, straight from the face's bytes through the same metrics the renderer
+/// uses.
+[[nodiscard]] std::uint8_t Coverage(Neuron::Font _font, std::uint32_t _codepoint, std::uint32_t _column, std::uint32_t _row)
 {
-  const std::uint32_t index = _codepoint - Neuron::FONT_FIRST_CODEPOINT;
-  return &Neuron::FONT_8X8_GLYPHS[static_cast<std::size_t>(index) * Neuron::FONT_GLYPH_BYTES];
+  const Neuron::FontMetrics metrics = Neuron::MetricsOf(_font);
+  const std::size_t index = _codepoint - Neuron::FONT_FIRST_CODEPOINT;
+  return metrics.coverage[(index * Neuron::FONT_LINE_HEIGHT_PIXELS + _row) * metrics.advancePixels + _column];
 }
 
-/// Compares an 8x8 cell of the readback against a glyph's bits at scale 1. Returns the number of pixels that differ,
-/// and names the first, because "one pixel wrong" is the failure worth reading.
-[[nodiscard]] std::size_t CompareGlyph(const std::vector<std::uint32_t>& _pixels, std::uint32_t _originX, std::uint32_t _originY,
-                                       std::uint32_t _codepoint, std::wstring& _outFirst)
+/// What a channel reads after the ink is blended over the background by a coverage: the straight-alpha formula,
+/// rounded to nearest.
+[[nodiscard]] std::uint32_t Blended(std::uint32_t _ink, std::uint32_t _background, std::uint8_t _coverage)
 {
-  const std::uint8_t* const bits = GlyphBits(_codepoint);
+  return (_ink * _coverage + _background * (255u - _coverage) + 127u) / 255u;
+}
+
+[[nodiscard]] std::uint32_t Channel(std::uint32_t _rgba, unsigned _index)
+{
+  return (_rgba >> (8 * _index)) & 0xFFu;
+}
+
+/// Compares one glyph cell of the readback against its baked coverage blended over black. A texel of full or no
+/// coverage must match exactly; a partial one may differ by one, which is the rounding a blend unit is allowed.
+/// Returns the number of pixels wrong and names the first, because "one pixel wrong" is the failure worth reading.
+[[nodiscard]] std::size_t CompareGlyph(const std::vector<std::uint32_t>& _pixels, std::uint32_t _originX, std::uint32_t _originY,
+                                       Neuron::Font _font, std::uint32_t _codepoint, std::uint32_t _inkRgba, std::wstring& _outFirst)
+{
+  const Neuron::FontMetrics metrics = Neuron::MetricsOf(_font);
   std::size_t wrong = 0;
-  for (std::uint32_t row = 0; row < Neuron::TextRenderer::GLYPH_HEIGHT_PIXELS; ++row)
+  for (std::uint32_t row = 0; row < Neuron::FONT_LINE_HEIGHT_PIXELS; ++row)
   {
-    for (std::uint32_t column = 0; column < Neuron::TextRenderer::GLYPH_WIDTH_PIXELS; ++column)
+    for (std::uint32_t column = 0; column < metrics.advancePixels; ++column)
     {
-      const bool set = ((bits[row] >> (7 - column)) & 1u) != 0;
-      const std::uint32_t expected = set ? INK : BACKGROUND;
+      const std::uint8_t coverage = Coverage(_font, _codepoint, column, row);
+      const std::uint32_t tolerance = (coverage == 0 || coverage == 0xFF) ? 0u : 1u;
       const std::uint32_t actual = _pixels[PixelIndex(_originX + column, _originY + row)];
-      if (actual != expected)
+      bool matches = true;
+      for (unsigned channel = 0; channel < 3; ++channel)
+      {
+        const std::uint32_t expected = Blended(Channel(_inkRgba, channel), Channel(BACKGROUND, channel), coverage);
+        const std::uint32_t got = Channel(actual, channel);
+        const std::uint32_t difference = expected > got ? expected - got : got - expected;
+        if (difference > tolerance)
+        {
+          matches = false;
+        }
+      }
+      if (!matches)
       {
         if (wrong == 0)
         {
-          _outFirst = L"codepoint 0x" + std::to_wstring(_codepoint) + L" row " + std::to_wstring(row) + L" column " +
-                      std::to_wstring(column) + L": expected " + (set ? L"ink" : L"background");
+          _outFirst = L"codepoint " + std::to_wstring(_codepoint) + L" row " + std::to_wstring(row) + L" column " +
+                      std::to_wstring(column) + L": coverage " + std::to_wstring(coverage) + L", pixel " + std::to_wstring(actual);
         }
         ++wrong;
       }
@@ -164,102 +197,119 @@ private:
   return wrong;
 }
 
+/// Every character of the set, once each, in codepoint order.
+[[nodiscard]] std::string EveryCharacter()
+{
+  std::string everything;
+  for (std::uint32_t codepoint = Neuron::FONT_FIRST_CODEPOINT; codepoint < Neuron::FONT_FIRST_CODEPOINT + Neuron::FONT_GLYPH_COUNT;
+       ++codepoint)
+  {
+    everything.push_back(static_cast<char>(codepoint));
+  }
+  return everything;
+}
+
 } // namespace
 
 TEST_CLASS(TextRendererTests)
 {
 public:
-  TEST_METHOD(TheLetterAMatchesItsGlyphBitsExactly)
+  TEST_METHOD(TheLetterAMatchesItsBakedCoverageExactly)
   {
-    // The task's own case: "A" at (0, 0), scale 1, read back against the eight bytes it was authored as.
+    // "A" at (0, 0) in Body, white on black: with those two colours a channel reads the coverage byte itself, so this
+    // is the atlas read back byte for byte.
     TextFixture fixture;
     Assert::IsTrue(fixture.Create(), fixture.Why());
-
-    std::vector<std::uint32_t> pixels;
-    Assert::IsTrue(fixture.DrawAndReadBack([](Neuron::TextRenderer& _text) { _text.Draw(0.0f, 0.0f, "A", INK, 1); }, pixels),
-                   L"the draw could not be submitted");
-
-    std::wstring first;
-    const std::size_t wrong = CompareGlyph(pixels, 0, 0, 'A', first);
-    Assert::AreEqual(std::size_t{0}, wrong, first.c_str());
-  }
-
-  TEST_METHOD(EveryPrintableCharacterMatchesItsGlyphBits)
-  {
-    // The whole font, not a sample of it: all 96 glyphs drawn at scale 1 and compared bit for bit. This is what
-    // catches an atlas laid out wrong, an off-by-one in the codepoint index, or a row pitch mishandled on upload —
-    // none of which a single letter would show.
-    TextFixture fixture;
-    Assert::IsTrue(fixture.Create(), fixture.Why());
-
-    std::string everything;
-    for (std::uint32_t codepoint = Neuron::FONT_FIRST_CODEPOINT; codepoint < Neuron::FONT_FIRST_CODEPOINT + Neuron::FONT_GLYPH_COUNT;
-         ++codepoint)
-    {
-      everything.push_back(static_cast<char>(codepoint));
-    }
 
     std::vector<std::uint32_t> pixels;
     Assert::IsTrue(
-      fixture.DrawAndReadBack([&everything](Neuron::TextRenderer& _text) { _text.Draw(0.0f, 0.0f, everything, INK, 1); }, pixels),
+      fixture.DrawAndReadBack([](Neuron::TextRenderer& _text) { _text.Draw(0.0f, 0.0f, "A", INK, Neuron::Font::Body); }, pixels),
       L"the draw could not be submitted");
-    Assert::AreEqual(Neuron::FONT_GLYPH_COUNT, fixture.Text().GlyphCount());
+
+    std::wstring first;
+    const std::size_t wrong = CompareGlyph(pixels, 0, 0, Neuron::Font::Body, 'A', INK, first);
+    Assert::AreEqual(std::size_t{0}, wrong, first.c_str());
+  }
+
+  TEST_METHOD(EveryGlyphOfEveryFaceMatchesItsCoverage)
+  {
+    // All 96 glyphs of all three faces, one face a row. This is what catches an atlas laid out wrong, a face at the
+    // wrong origin, an off-by-one in the codepoint index or a row pitch mishandled on upload — none of which one letter
+    // of one face would show.
+    TextFixture fixture;
+    Assert::IsTrue(fixture.Create(), fixture.Why());
+    const std::string everything = EveryCharacter();
+
+    std::vector<std::uint32_t> pixels;
+    Assert::IsTrue(fixture.DrawAndReadBack(
+                     [&everything](Neuron::TextRenderer& _text)
+                     {
+                       for (std::uint32_t face = 0; face < FACE_COUNT; ++face)
+                       {
+                         _text.Draw(0.0f, static_cast<float>(face * Neuron::FONT_LINE_HEIGHT_PIXELS), everything, INK, FACES[face]);
+                       }
+                     },
+                     pixels),
+                   L"the draw could not be submitted");
+    Assert::AreEqual(FACE_COUNT * Neuron::FONT_GLYPH_COUNT, fixture.Text().GlyphCount());
 
     std::size_t totalWrong = 0;
     std::wstring first;
-    for (std::uint32_t index = 0; index < Neuron::FONT_GLYPH_COUNT; ++index)
+    for (std::uint32_t face = 0; face < FACE_COUNT; ++face)
     {
-      std::wstring thisFirst;
-      const std::size_t wrong =
-        CompareGlyph(pixels, index * Neuron::TextRenderer::GLYPH_WIDTH_PIXELS, 0, Neuron::FONT_FIRST_CODEPOINT + index, thisFirst);
-      if (wrong != 0 && first.empty())
+      const std::uint32_t advance = Neuron::MetricsOf(FACES[face]).advancePixels;
+      for (std::uint32_t index = 0; index < Neuron::FONT_GLYPH_COUNT; ++index)
       {
-        first = thisFirst;
+        std::wstring thisFirst;
+        const std::size_t wrong = CompareGlyph(pixels, index * advance, face * Neuron::FONT_LINE_HEIGHT_PIXELS, FACES[face],
+                                               Neuron::FONT_FIRST_CODEPOINT + index, INK, thisFirst);
+        if (wrong != 0 && first.empty())
+        {
+          first = L"face " + std::to_wstring(face) + L" " + thisFirst;
+        }
+        totalWrong += wrong;
       }
-      totalWrong += wrong;
     }
     Assert::AreEqual(std::size_t{0}, totalWrong,
-                     (L"pixels wrong across the whole font: " + std::to_wstring(totalWrong) + L"; first at " + first).c_str());
+                     (L"pixels wrong across the three faces: " + std::to_wstring(totalWrong) + L"; first at " + first).c_str());
   }
 
-  TEST_METHOD(ScalingIsExactlyIntegerSoATexelIsASquareBlock)
+  TEST_METHOD(PartialCoverageBlendsTheInkTowardWhatIsUnderIt)
   {
-    // The point of Load over a sampler. At scale 3 every texel must be a 3x3 block of identical pixels: no blending
-    // at the edges, no half-lit pixel anywhere. A sampler would put one in, which is what AGENTS.md §5 warns about.
+    // The point of coverage over bits: an edge texel is a mix of the ink and the background in the texel's own
+    // proportion, per channel, which is what anti-aliased type is. Amber has three different channels, so a blend
+    // that mixed them up, or applied the coverage to the wrong one, would show.
     TextFixture fixture;
     Assert::IsTrue(fixture.Create(), fixture.Why());
 
-    constexpr std::uint32_t SCALE = 3;
-    std::vector<std::uint32_t> pixels;
-    Assert::IsTrue(fixture.DrawAndReadBack([](Neuron::TextRenderer& _text) { _text.Draw(0.0f, 0.0f, "A", INK, SCALE); }, pixels),
-                   L"the draw could not be submitted");
-
-    const std::uint8_t* const bits = GlyphBits('A');
-    for (std::uint32_t row = 0; row < Neuron::TextRenderer::GLYPH_HEIGHT_PIXELS; ++row)
+    std::size_t partial = 0;
+    const Neuron::FontMetrics metrics = Neuron::MetricsOf(Neuron::Font::Body);
+    for (std::uint32_t row = 0; row < Neuron::FONT_LINE_HEIGHT_PIXELS; ++row)
     {
-      for (std::uint32_t column = 0; column < Neuron::TextRenderer::GLYPH_WIDTH_PIXELS; ++column)
+      for (std::uint32_t column = 0; column < metrics.advancePixels; ++column)
       {
-        const bool set = ((bits[row] >> (7 - column)) & 1u) != 0;
-        const std::uint32_t expected = set ? INK : BACKGROUND;
-        for (std::uint32_t subY = 0; subY < SCALE; ++subY)
+        const std::uint8_t coverage = Coverage(Neuron::Font::Body, 'g', column, row);
+        if (coverage != 0 && coverage != 0xFF)
         {
-          for (std::uint32_t subX = 0; subX < SCALE; ++subX)
-          {
-            const std::uint32_t x = column * SCALE + subX;
-            const std::uint32_t y = row * SCALE + subY;
-            Assert::AreEqual(expected, pixels[PixelIndex(x, y)],
-                             (L"texel (" + std::to_wstring(column) + L"," + std::to_wstring(row) + L") sub-pixel (" +
-                              std::to_wstring(subX) + L"," + std::to_wstring(subY) + L") is not a solid block")
-                               .c_str());
-          }
+          ++partial;
         }
       }
     }
+    Assert::IsTrue(partial > 0, L"the glyph has no anti-aliased edge, so this test would prove nothing");
+
+    std::vector<std::uint32_t> pixels;
+    Assert::IsTrue(
+      fixture.DrawAndReadBack([](Neuron::TextRenderer& _text) { _text.Draw(0.0f, 0.0f, "g", AMBER, Neuron::Font::Body); }, pixels),
+      L"the draw could not be submitted");
+
+    std::wstring first;
+    const std::size_t wrong = CompareGlyph(pixels, 0, 0, Neuron::Font::Body, 'g', AMBER, first);
+    Assert::AreEqual(std::size_t{0}, wrong, first.c_str());
   }
 
   TEST_METHOD(AnUnknownCharacterDrawsTheReplacementBox)
   {
-    // A character this font does not have draws 0x7F, the filled box, so a gap in the data is loud on screen.
+    // A character the set does not hold draws 0x7F, the box, so a gap in the data is loud on screen.
     TextFixture fixture;
     Assert::IsTrue(fixture.Create(), fixture.Why());
 
@@ -268,35 +318,34 @@ public:
                      [](Neuron::TextRenderer& _text)
                      {
                        const char unknown[] = {'\x01', '\0'};
-                       _text.Draw(0.0f, 0.0f, unknown, INK, 1);
+                       _text.Draw(0.0f, 0.0f, unknown, INK, Neuron::Font::Body);
                      },
                      pixels),
                    L"the draw could not be submitted");
 
     std::wstring first;
-    Assert::AreEqual(std::size_t{0}, CompareGlyph(pixels, 0, 0, 0x7F, first), first.c_str());
+    Assert::AreEqual(std::size_t{0}, CompareGlyph(pixels, 0, 0, Neuron::Font::Body, 0x7F, INK, first), first.c_str());
   }
 
   TEST_METHOD(MeasureAgreesWithWhatDrawCovers)
   {
     // NC-025 lays text out with Measure and then draws it; if the two disagree, every panel is wrong by a character.
+    // The Small face, because its advance is the one that is not two characters to a cell.
     TextFixture fixture;
     Assert::IsTrue(fixture.Create(), fixture.Why());
 
     const std::string_view sample = "Kessel";
-    constexpr std::uint32_t SCALE = 2;
     constexpr std::uint32_t ORIGIN_X = 40;
     constexpr std::uint32_t ORIGIN_Y = 24;
-    const Neuron::TextExtent extent = Neuron::TextRenderer::Measure(sample, SCALE);
+    const Neuron::TextExtent extent = Neuron::TextRenderer::Measure(sample, Neuron::Font::Small);
 
     std::vector<std::uint32_t> pixels;
-    Assert::IsTrue(fixture.DrawAndReadBack([sample](Neuron::TextRenderer& _text)
-                                           { _text.Draw(static_cast<float>(ORIGIN_X), static_cast<float>(ORIGIN_Y), sample, INK, SCALE); },
-                                           pixels),
+    Assert::IsTrue(fixture.DrawAndReadBack(
+                     [sample](Neuron::TextRenderer& _text)
+                     { _text.Draw(static_cast<float>(ORIGIN_X), static_cast<float>(ORIGIN_Y), sample, INK, Neuron::Font::Small); }, pixels),
                    L"the draw could not be submitted");
 
-    // Nothing may be drawn outside the box Measure named, and the box must be tight enough to matter: every lit pixel
-    // inside it, and at least one within a cell of each edge that carries ink.
+    // Nothing may be drawn outside the box Measure named, and the box must be tight enough to matter.
     std::uint32_t left = Neuron::SCREEN_WIDTH_PIXELS;
     std::uint32_t top = Neuron::SCREEN_HEIGHT_PIXELS;
     std::uint32_t right = 0;
@@ -322,8 +371,45 @@ public:
     Assert::IsTrue(top >= ORIGIN_Y, L"ink above where Draw was asked to start");
     Assert::IsTrue(right < ORIGIN_X + extent.widthPixels, L"ink beyond the width Measure reported");
     Assert::IsTrue(bottom < ORIGIN_Y + extent.heightPixels, L"ink below the height Measure reported");
-    Assert::AreEqual(6u * Neuron::TextRenderer::GLYPH_WIDTH_PIXELS * SCALE, extent.widthPixels);
-    Assert::AreEqual(Neuron::TextRenderer::GLYPH_HEIGHT_PIXELS * SCALE, extent.heightPixels);
+    Assert::AreEqual(6u * Neuron::MetricsOf(Neuron::Font::Small).advancePixels, extent.widthPixels);
+    Assert::AreEqual(Neuron::FONT_LINE_HEIGHT_PIXELS, extent.heightPixels);
+  }
+
+  TEST_METHOD(AnIconIsItsArtAtThreeTexelsABit)
+  {
+    // An icon's bits become a cell of full or no coverage, three texels a bit, so it reaches the glass as exactly the
+    // pixel art it was drawn as: every one of the nine pixels behind a bit is the ink, and behind a clear bit the
+    // background, with no blended edge anywhere.
+    TextFixture fixture;
+    Assert::IsTrue(fixture.Create(), fixture.Why());
+
+    std::vector<std::uint32_t> pixels;
+    Assert::IsTrue(
+      fixture.DrawAndReadBack([](Neuron::TextRenderer& _text) { _text.DrawIcon(0.0f, 0.0f, Neuron::Icon::Warning, INK); }, pixels),
+      L"the draw could not be submitted");
+
+    const auto icon = static_cast<std::size_t>(Neuron::Icon::Warning);
+    for (std::uint32_t bitRow = 0; bitRow < Neuron::ICON_ART_PIXELS; ++bitRow)
+    {
+      const std::uint8_t bits = Neuron::ICON_8X8_ART[icon * Neuron::ICON_BYTES + bitRow];
+      for (std::uint32_t bitColumn = 0; bitColumn < Neuron::ICON_ART_PIXELS; ++bitColumn)
+      {
+        const bool set = ((bits >> (Neuron::ICON_ART_PIXELS - 1 - bitColumn)) & 1u) != 0;
+        const std::uint32_t expected = set ? INK : BACKGROUND;
+        for (std::uint32_t subY = 0; subY < Neuron::TextRenderer::ICON_TEXELS_PER_BIT; ++subY)
+        {
+          for (std::uint32_t subX = 0; subX < Neuron::TextRenderer::ICON_TEXELS_PER_BIT; ++subX)
+          {
+            const std::uint32_t x = bitColumn * Neuron::TextRenderer::ICON_TEXELS_PER_BIT + subX;
+            const std::uint32_t y = bitRow * Neuron::TextRenderer::ICON_TEXELS_PER_BIT + subY;
+            Assert::AreEqual(expected, pixels[PixelIndex(x, y)],
+                             (L"bit (" + std::to_wstring(bitColumn) + L"," + std::to_wstring(bitRow) + L") sub-pixel (" +
+                              std::to_wstring(subX) + L"," + std::to_wstring(subY) + L") is not a solid block")
+                               .c_str());
+          }
+        }
+      }
+    }
   }
 };
 

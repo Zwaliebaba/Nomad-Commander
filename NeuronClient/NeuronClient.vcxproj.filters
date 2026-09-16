@@ -16,6 +16,7 @@
     <ClCompile Include="MeshPipeline.cpp" />
     <ClCompile Include="MeshBuilder.cpp" />
     <ClCompile Include="DepthTarget.cpp" />
+    <ClCompile Include="Font.cpp" />
     <ClCompile Include="InputState.cpp" />
     <ClCompile Include="GlyphPipeline.cpp" />
     <ClCompile Include="TextRenderer.cpp" />
@@ -36,7 +37,9 @@
     <ClInclude Include="DepthTarget.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="InputState.h" />
-    <ClInclude Include="BitmapFont.h" />
+    <ClInclude Include="Font.h" />
+    <ClInclude Include="FontCoverage.h" />
+    <ClInclude Include="FontData.h" />
     <ClInclude Include="GlyphPipeline.h" />
     <ClInclude Include="TextRenderer.h" />
     <ClInclude Include="Palette.h" />

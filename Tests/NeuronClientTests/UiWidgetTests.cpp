@@ -1,6 +1,6 @@
 // Tests/NeuronClientTests/UiWidgetTests.cpp
 #include "pch.h"
-#include "BitmapFont.h"
+#include "Font.h"
 #include "IconAtlas.h"
 #include "InputState.h"
 #include "Rect.h"
@@ -465,9 +465,10 @@ public:
       }
       Assert::IsTrue(litRows >= 3, (L"icon " + std::to_wstring(index) + L" has almost no art; is it finished?").c_str());
     }
-    // The atlas has room for them: two rows of sixteen after the 96 glyphs.
-    Assert::IsTrue(Neuron::ICON_COUNT <= Neuron::TextRenderer::ICON_ROWS * Neuron::TextRenderer::ATLAS_COLUMNS);
-    Assert::AreEqual(Neuron::TextRenderer::ICON_FIRST_CELL, Neuron::FONT_GLYPH_COUNT);
+    // The atlas has room for them: one row of cells after the three faces, three texels a bit (ADR-016).
+    Assert::IsTrue(Neuron::ICON_COUNT <= Neuron::TextRenderer::ATLAS_COLUMNS);
+    Assert::AreEqual(Neuron::FONT_COUNT * Neuron::TextRenderer::FACE_HEIGHT_TEXELS, Neuron::TextRenderer::ICONS_ORIGIN_Y_TEXELS);
+    Assert::AreEqual(3u, Neuron::TextRenderer::ICON_TEXELS_PER_BIT);
   }
 };
 

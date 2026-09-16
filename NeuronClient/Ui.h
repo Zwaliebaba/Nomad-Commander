@@ -22,6 +22,9 @@ namespace Neuron
 /// same call site is the same widget every frame and two buttons labelled "Confirm" in different panels are not.
 using WidgetId = std::uint64_t;
 
+/// The text faces are baked to the cell row (ADR-016), which is what lets a label be a rectangle a cell tall.
+static_assert(FONT_LINE_HEIGHT_PIXELS == static_cast<std::uint32_t>(CELL_PIXELS), "a line of text is a cell tall");
+
 /// The immediate-mode widget layer every screen in Phase 5 is built from (ADR-012).
 ///
 /// **Immediate mode means there is no widget tree.** A screen is a function that runs every frame and calls `Button`
@@ -77,9 +80,10 @@ public:
   /// Returns the rectangle inside the border and padding, which is where the caller puts its contents.
   Rect Panel(const Rect& _rect, std::string_view _title) noexcept;
 
-  /// Text at the rectangle's top left, at GLYPH_SCALE, clipped to nothing — the caller sizes the rectangle with
-  /// `TextRenderer::Measure` if it needs to.
-  void Label(const Rect& _rect, std::string_view _text, std::uint32_t _colorRgba) noexcept;
+  /// Text at the rectangle's top left in the face given, cut at the rectangle's width rather than drawn past it — the
+  /// caller sizes the rectangle with `TextRenderer::Measure` if it needs to. A row of text is a cell tall in every
+  /// face (ADR-016).
+  void Label(const Rect& _rect, std::string_view _text, std::uint32_t _colorRgba, Font _font = Font::Body) noexcept;
 
   /// A button. True on the frame it is clicked, which is a press and a release both inside it.
   ///

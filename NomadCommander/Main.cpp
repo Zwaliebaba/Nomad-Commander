@@ -88,52 +88,26 @@ void DrawTestPattern(Neuron::PrimitiveBatch& _batch)
                   1.0f, CRIMSON);
 }
 
-// NC-023's text pattern: the whole printable set at both scales, so a person can read every glyph and check the
-// scaling, plus a sentence of the kind the desk will actually carry.
+// NC-023's text pattern, re-baked by NC-028: the whole printable set in each of the three faces, so a person can read
+// every glyph of every face, plus sentences of the kind the desk will actually carry.
 void DrawTextPattern(Neuron::TextRenderer& _text)
 {
-  // ASCII 0x20 to 0x7E, in rows of 32, at the screen's own GLYPH_SCALE. This is the whole set the client can draw
-  // (UI §6), so displaying the whole set is the test.
-  char row[33] = {};
-  for (int block = 0; block < 3; ++block)
+  // ASCII 0x20 to 0x7E in one row a face. This is the whole set the client can draw (UI §6), so displaying the whole
+  // set is the test.
+  char row[96] = {};
+  int length = 0;
+  for (int codepoint = 0x20; codepoint <= 0x7E; ++codepoint)
   {
-    int length = 0;
-    for (int index = 0; index < 32; ++index)
-    {
-      const int codepoint = 0x20 + block * 32 + index;
-      if (codepoint > 0x7E)
-      {
-        break;
-      }
-      row[length++] = static_cast<char>(codepoint);
-    }
-    row[length] = '\0';
-    _text.Draw(120.0f, 700.0f + static_cast<float>(block) * 30.0f, row, PALE, Neuron::TextRenderer::GLYPH_SCALE);
+    row[length++] = static_cast<char>(codepoint);
   }
+  row[length] = '\0';
+  _text.Draw(120.0f, 700.0f, row, PALE, Neuron::Font::Body);
+  _text.Draw(120.0f, 730.0f, row, PALE, Neuron::Font::Title);
+  _text.Draw(120.0f, 760.0f, row, AMBER, Neuron::Font::Small);
 
-  // The same set again at scale 1, immediately below, so the two can be compared without moving your head. At scale 1
-  // a glyph is the bit pattern it was authored as, one texel a pixel.
-  for (int block = 0; block < 3; ++block)
-  {
-    int length = 0;
-    for (int index = 0; index < 32; ++index)
-    {
-      const int codepoint = 0x20 + block * 32 + index;
-      if (codepoint > 0x7E)
-      {
-        break;
-      }
-      row[length++] = static_cast<char>(codepoint);
-    }
-    row[length] = '\0';
-    _text.Draw(120.0f, 810.0f + static_cast<float>(block) * 10.0f, row, AMBER, 1);
-  }
-
-  _text.Draw(120.0f, 60.0f, "NOMAD COMMANDER", PALE, Neuron::TextRenderer::GLYPH_SCALE);
-  _text.Draw(120.0f, 880.0f, "The Kessel Combine paid for an escort, not for questions. (jump 3/7)", PALE,
-             Neuron::TextRenderer::GLYPH_SCALE);
-  _text.Draw(120.0f, 930.0f, "Reliability 62% - source: courier, 4 days old - confidence falling", AMBER,
-             Neuron::TextRenderer::GLYPH_SCALE);
+  _text.Draw(120.0f, 60.0f, "NOMAD COMMANDER", PALE, Neuron::Font::Title);
+  _text.Draw(120.0f, 880.0f, "The Kessel Combine paid for an escort, not for questions. (jump 3/7)", PALE);
+  _text.Draw(120.0f, 930.0f, "Reliability 62% - source: courier, 4 days old - confidence falling", AMBER);
 }
 
 // NC-024's visible half: a crosshair where the mouse is, so that "the pointer is here" is a thing a person can see
@@ -166,7 +140,7 @@ void DrawInputReadout(Neuron::TextRenderer& _text, const Neuron::InputState& _in
   char line[96] = {};
   sprintf_s(line, "MOUSE %4d,%-4d  WHEEL %+3d  FOCUS %s", mouse.xPixels, mouse.yPixels, _input.WheelDelta(),
             _input.HasFocus() ? "yes" : "no ");
-  _text.Draw(1200.0f, 620.0f, line, PALE, 2);
+  _text.Draw(1200.0f, 620.0f, line, PALE, Neuron::Font::Small);
 
   // The typed characters, echoed, which is the only way to see that WM_CHAR is arriving at all.
   char typed[Neuron::InputState::MAX_TYPED_CHARACTERS + 1] = {};
@@ -182,7 +156,7 @@ void DrawInputReadout(Neuron::TextRenderer& _text, const Neuron::InputState& _in
   typed[length] = '\0';
   if (length != 0)
   {
-    _text.Draw(1200.0f, 650.0f, typed, AMBER, 2);
+    _text.Draw(1200.0f, 650.0f, typed, AMBER, Neuron::Font::Small);
   }
 }
 

@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient | M | **yes** | no | Done (4ca158a) |
+| 1 | NeuronClient | M | **yes** | no | Done (4ca158a); the font it authored is superseded by NC-028 (ADR-016) |
 
 **Depends on:** NC-022
 **Read first:** AGENTS.md R13 ("a bitmap font is 96 glyphs, 8×8, one bit a pixel, 768 bytes, and nothing to load"), §5 (*A sampler on text costs the 1:1 guarantee* — why the glyph path uses `Texture2D<uint>::Load()`), R14
@@ -71,5 +71,7 @@ Kerning, proportional widths, UTF-8 beyond ASCII (names in the GDD are ASCII), a
 **clang-tidy found four things and none were suppressed:** three `bugprone-implicit-widening-of-multiplication-result` where a byte count was multiplied in 32 bits and then used as a 64-bit index — including the font array's own bound, which is now a `std::size_t FONT_TOTAL_BYTES` — and one integer division used in a floating-point context in `AtlasOrigin`, where the row and column are genuinely integral and are now computed as integers before being converted once.
 
 **Verified:** `CheckFormat.py` (82 files), `CheckProjectFiles.py` (9 projects, clean), `RunClangTidy.py` (**37 translation units clean**). Debug **and** Release rebuild with zero warnings. All four suites: **104 of 104 green**, 26 of them in `NeuronClientTests`, 5 new here. The debug layer said nothing across the desktop run.
+
+**Superseded, and the reason is worth keeping here.** NC-028 replaced this font with three baked faces of IBM Plex Mono ([ADR-016](../../Design/ADR/ADR-016-the-desk-text-faces.md)) on two measurements taken the same day. The font had **two baselines** — every capital and digit ends on row 5, every lowercase letter on row 6 — so a word with both stepped 3 px at `GLYPH_SCALE` 3. And its 24-pixel advance was twice the 12 the `Design/UI` screens were authored at, which made *the owner recognises the screen row for row* unmeetable in three Phase 5 tasks. **The tests below were green over the first of those**, because every one of them compares the screen against the same bytes the defect was in. A readback test proves the renderer drew what it was given; it says nothing about whether what it was given was right. The rest of this task — the atlas, the pipeline, the upload, `Load` over a sampler, `Measure` agreeing with `Draw` — survived unchanged and NC-028 built on it.
 
 **Not done, and worth naming.** ADR-009 still owes its photograph — the same text at 1:1, at 2× point and at a fractional bilinear present scale. **This task is the first that could take it**, because there is finally text to photograph, but this machine's monitor is 1920×1080, so the present step takes its 1:1 copy path and the other two cases cannot be produced here. What can now be said is narrower and worth having: at the present scale of 1, an 8×8 glyph at `GLYPH_SCALE` 3 reaches the glass as exact 3×3 blocks, measured. The comparison ADR-009 wants needs a second monitor or a windowed mode, and ADR-010 removed the second of those on purpose.

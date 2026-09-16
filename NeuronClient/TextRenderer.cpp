@@ -1,7 +1,7 @@
 // NeuronClient/TextRenderer.cpp
 #include "pch.h"
 #include "TextRenderer.h"
-#include "BitmapFont.h"
+#include "Font.h"
 #include "IconAtlas.h"
 #include "Debug.h"
 
@@ -18,11 +18,17 @@ using Microsoft::WRL::ComPtr;
 
 constexpr std::uint32_t VERTICES_PER_GLYPH = 6;
 
-/// The codepoint drawn for anything this font does not have: the filled box at the end of the set.
+/// The codepoint drawn for anything the faces do not hold: the box at the end of the set.
 constexpr std::uint32_t REPLACEMENT_CODEPOINT = 0x7F;
 
 /// A row of a texture copy is aligned to this, which is why the upload buffer is wider than the atlas.
 constexpr std::uint32_t COPY_ROW_ALIGNMENT = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+
+/// What a set bit of icon art becomes: a texel the pixel shader blends at one, which is the text colour exactly.
+constexpr std::uint8_t FULL_COVERAGE = 0xFF;
+
+/// The faces in `Font` order, which is the order they are stacked in the atlas.
+constexpr std::array<Font, FONT_COUNT> FACES = {Font::Body, Font::Small, Font::Title};
 
 [[nodiscard]] D3D12_HEAP_PROPERTIES HeapProperties(D3D12_HEAP_TYPE _type) noexcept
 {
@@ -31,17 +37,6 @@ constexpr std::uint32_t COPY_ROW_ALIGNMENT = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
                                .MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
                                .CreationNodeMask = 1,
                                .VisibleNodeMask = 1};
-}
-
-/// Which texel an atlas cell starts at. Sixteen to a row: cells 0 to 95 are the glyphs in codepoint order from 0x20,
-/// and 96 onward are the icons (NC-026). One helper, because an icon is the same kind of thing as a glyph.
-void AtlasOrigin(std::uint32_t _cellIndex, float& _outTexelX, float& _outTexelY) noexcept
-{
-  const std::uint32_t index = _cellIndex;
-  const std::uint32_t column = index % TextRenderer::ATLAS_COLUMNS;
-  const std::uint32_t row = index / TextRenderer::ATLAS_COLUMNS;
-  _outTexelX = static_cast<float>(column * TextRenderer::GLYPH_WIDTH_PIXELS);
-  _outTexelY = static_cast<float>(row * TextRenderer::GLYPH_HEIGHT_PIXELS);
 }
 
 /// Blocks until the queue has passed the value, on a fence and event this function owns. Used once, for the atlas.
@@ -77,6 +72,16 @@ TextRenderer::~TextRenderer()
   }
 }
 
+void TextRenderer::GlyphOrigin(Font _font, std::uint32_t _glyphIndex, std::uint32_t& _outTexelX, std::uint32_t& _outTexelY) noexcept
+{
+  NOMAD_ASSERT(_glyphIndex < FONT_GLYPH_COUNT);
+  const FontMetrics metrics = MetricsOf(_font);
+  const std::uint32_t column = _glyphIndex % ATLAS_COLUMNS;
+  const std::uint32_t row = _glyphIndex / ATLAS_COLUMNS;
+  _outTexelX = column * metrics.advancePixels;
+  _outTexelY = static_cast<std::uint32_t>(_font) * FACE_HEIGHT_TEXELS + row * FONT_LINE_HEIGHT_PIXELS;
+}
+
 bool TextRenderer::Create(GraphicsDevice& _device, const GlyphPipeline& _pipeline, TextRenderer& _outRenderer) noexcept
 {
   NOMAD_ASSERT(_outRenderer.m_atlas == nullptr);
@@ -84,8 +89,8 @@ bool TextRenderer::Create(GraphicsDevice& _device, const GlyphPipeline& _pipelin
   _outRenderer.m_result = S_OK;
   ID3D12Device* const device = _device.Device();
 
-  // The atlas: one texel a pixel, R8_UINT, so the pixel shader reads a 0 or a 1 and nothing has to be decoded at
-  // draw time. Six kilobytes of texture for 768 bytes of font is a fine trade for a Load per pixel.
+  // The atlas: one texel a pixel, R8_UNORM, so the pixel shader Loads a coverage in [0, 1] and blends by it with
+  // nothing to decode at draw time.
   const D3D12_HEAP_PROPERTIES defaultHeap = HeapProperties(D3D12_HEAP_TYPE_DEFAULT);
   const D3D12_RESOURCE_DESC atlasDesc{.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
                                       .Alignment = 0,
@@ -93,7 +98,7 @@ bool TextRenderer::Create(GraphicsDevice& _device, const GlyphPipeline& _pipelin
                                       .Height = ATLAS_HEIGHT_TEXELS,
                                       .DepthOrArraySize = 1,
                                       .MipLevels = 1,
-                                      .Format = DXGI_FORMAT_R8_UINT,
+                                      .Format = DXGI_FORMAT_R8_UNORM,
                                       .SampleDesc = {1, 0},
                                       .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
                                       .Flags = D3D12_RESOURCE_FLAG_NONE};
@@ -141,37 +146,46 @@ bool TextRenderer::Create(GraphicsDevice& _device, const GlyphPipeline& _pipelin
     return false;
   }
 
-  // The bit array becomes one byte a texel, here and once. Bit 7 is the leftmost pixel, which is what BitmapFont.h's
-  // binary literals read as on the page.
   std::uint8_t* const rows = static_cast<std::uint8_t*>(mappedUpload);
   std::memset(rows, 0, static_cast<std::size_t>(uploadBytes));
-  for (std::uint32_t glyph = 0; glyph < FONT_GLYPH_COUNT; ++glyph)
+  // The faces: each glyph's rows copied into its cell, one byte a texel, exactly as Tools/BakeFont.py left them.
+  for (const Font font : FACES)
   {
-    const std::uint32_t originX = (glyph % ATLAS_COLUMNS) * GLYPH_WIDTH_PIXELS;
-    const std::uint32_t originY = (glyph / ATLAS_COLUMNS) * GLYPH_HEIGHT_PIXELS;
-    for (std::uint32_t row = 0; row < FONT_GLYPH_BYTES; ++row)
+    const FontMetrics metrics = MetricsOf(font);
+    const std::size_t glyphBytes = static_cast<std::size_t>(metrics.advancePixels) * FONT_LINE_HEIGHT_PIXELS;
+    for (std::uint32_t glyph = 0; glyph < FONT_GLYPH_COUNT; ++glyph)
     {
-      const std::uint8_t bits = FONT_8X8_GLYPHS[glyph * FONT_GLYPH_BYTES + row];
-      std::uint8_t* const destination = rows + static_cast<std::size_t>(originY + row) * footprint.Footprint.RowPitch + originX;
-      for (std::uint32_t column = 0; column < GLYPH_WIDTH_PIXELS; ++column)
+      std::uint32_t originX = 0;
+      std::uint32_t originY = 0;
+      GlyphOrigin(font, glyph, originX, originY);
+      const std::uint8_t* const source = metrics.coverage + static_cast<std::size_t>(glyph) * glyphBytes;
+      for (std::uint32_t row = 0; row < FONT_LINE_HEIGHT_PIXELS; ++row)
       {
-        destination[column] = static_cast<std::uint8_t>((bits >> (7 - column)) & 1u);
+        std::memcpy(rows + static_cast<std::size_t>(originY + row) * footprint.Footprint.RowPitch + originX,
+                    source + static_cast<std::size_t>(row) * metrics.advancePixels, metrics.advancePixels);
       }
     }
   }
-  // The icons follow the glyphs in the same cell numbering, decoded the same way from the same kind of bit array.
+  // The icons: 8×8 bits become a cell of full or no coverage, three texels a bit, so the art stays the pixel art it
+  // was drawn as and lands on the glass as exactly that.
   for (std::uint32_t icon = 0; icon < ICON_COUNT; ++icon)
   {
-    const std::uint32_t cell = ICON_FIRST_CELL + icon;
-    const std::uint32_t originX = (cell % ATLAS_COLUMNS) * GLYPH_WIDTH_PIXELS;
-    const std::uint32_t originY = (cell / ATLAS_COLUMNS) * GLYPH_HEIGHT_PIXELS;
-    for (std::uint32_t row = 0; row < ICON_BYTES; ++row)
+    const std::uint32_t originX = icon * ICON_PIXELS;
+    for (std::uint32_t bitRow = 0; bitRow < ICON_ART_PIXELS; ++bitRow)
     {
-      const std::uint8_t bits = ICON_8X8_ART[static_cast<std::size_t>(icon) * ICON_BYTES + row];
-      std::uint8_t* const destination = rows + static_cast<std::size_t>(originY + row) * footprint.Footprint.RowPitch + originX;
-      for (std::uint32_t column = 0; column < GLYPH_WIDTH_PIXELS; ++column)
+      const std::uint8_t bits = ICON_8X8_ART[static_cast<std::size_t>(icon) * ICON_BYTES + bitRow];
+      for (std::uint32_t bitColumn = 0; bitColumn < ICON_ART_PIXELS; ++bitColumn)
       {
-        destination[column] = static_cast<std::uint8_t>((bits >> (7 - column)) & 1u);
+        if (((bits >> (ICON_ART_PIXELS - 1 - bitColumn)) & 1u) == 0)
+        {
+          continue;
+        }
+        const std::size_t texelColumn = originX + static_cast<std::size_t>(bitColumn) * ICON_TEXELS_PER_BIT;
+        for (std::uint32_t sub = 0; sub < ICON_TEXELS_PER_BIT; ++sub)
+        {
+          const std::size_t texelRow = ICONS_ORIGIN_Y_TEXELS + static_cast<std::size_t>(bitRow) * ICON_TEXELS_PER_BIT + sub;
+          std::memset(rows + texelRow * footprint.Footprint.RowPitch + texelColumn, FULL_COVERAGE, ICON_TEXELS_PER_BIT);
+        }
       }
     }
   }
@@ -219,7 +233,7 @@ bool TextRenderer::Create(GraphicsDevice& _device, const GlyphPipeline& _pipelin
   }
 
   D3D12_SHADER_RESOURCE_VIEW_DESC view{};
-  view.Format = DXGI_FORMAT_R8_UINT;
+  view.Format = DXGI_FORMAT_R8_UNORM;
   view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
   view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
   view.Texture2D.MostDetailedMip = 0;
@@ -272,23 +286,23 @@ void TextRenderer::Begin(ID3D12GraphicsCommandList* _commandList, const GlyphPip
   m_overflowed = false;
 }
 
-TextExtent TextRenderer::Measure(std::string_view _text, std::uint32_t _scale) noexcept
+TextExtent TextRenderer::Measure(std::string_view _text, Font _font) noexcept
 {
-  if (_text.empty() || _scale == 0)
+  if (_text.empty())
   {
     return TextExtent{0, 0};
   }
-  return TextExtent{static_cast<std::uint32_t>(_text.size()) * GLYPH_WIDTH_PIXELS * _scale, GLYPH_HEIGHT_PIXELS * _scale};
+  return TextExtent{static_cast<std::uint32_t>(_text.size()) * MetricsOf(_font).advancePixels, FONT_LINE_HEIGHT_PIXELS};
 }
 
-void TextRenderer::Draw(float _xPixels, float _yPixels, std::string_view _text, std::uint32_t _colorRgba, std::uint32_t _scale) noexcept
+void TextRenderer::Draw(float _xPixels, float _yPixels, std::string_view _text, std::uint32_t _colorRgba, Font _font) noexcept
 {
-  if (m_mapped == nullptr || _scale == 0)
+  if (m_mapped == nullptr)
   {
     return;
   }
-  const float cellWidth = static_cast<float>(GLYPH_WIDTH_PIXELS * _scale);
-  const float cellHeight = static_cast<float>(GLYPH_HEIGHT_PIXELS * _scale);
+  const auto cellWidth = static_cast<float>(MetricsOf(_font).advancePixels);
+  const auto cellHeight = static_cast<float>(FONT_LINE_HEIGHT_PIXELS);
 
   for (std::size_t index = 0; index < _text.size(); ++index)
   {
@@ -298,24 +312,23 @@ void TextRenderer::Draw(float _xPixels, float _yPixels, std::string_view _text, 
     {
       codepoint = REPLACEMENT_CODEPOINT;
     }
-    float texelX = 0.0f;
-    float texelY = 0.0f;
-    AtlasOrigin(codepoint - FONT_FIRST_CODEPOINT, texelX, texelY);
-    PushQuad(_xPixels + static_cast<float>(index) * cellWidth, _yPixels, cellWidth, cellHeight, texelX, texelY, _colorRgba);
+    std::uint32_t texelX = 0;
+    std::uint32_t texelY = 0;
+    GlyphOrigin(_font, codepoint - FONT_FIRST_CODEPOINT, texelX, texelY);
+    PushQuad(_xPixels + static_cast<float>(index) * cellWidth, _yPixels, cellWidth, cellHeight, static_cast<float>(texelX),
+             static_cast<float>(texelY), _colorRgba);
   }
 }
 
-void TextRenderer::DrawIcon(float _xPixels, float _yPixels, Icon _icon, std::uint32_t _colorRgba, std::uint32_t _scale) noexcept
+void TextRenderer::DrawIcon(float _xPixels, float _yPixels, Icon _icon, std::uint32_t _colorRgba) noexcept
 {
-  if (m_mapped == nullptr || _scale == 0 || static_cast<std::uint32_t>(_icon) >= ICON_COUNT)
+  if (m_mapped == nullptr || static_cast<std::uint32_t>(_icon) >= ICON_COUNT)
   {
     return;
   }
-  float texelX = 0.0f;
-  float texelY = 0.0f;
-  AtlasOrigin(ICON_FIRST_CELL + static_cast<std::uint32_t>(_icon), texelX, texelY);
-  PushQuad(_xPixels, _yPixels, static_cast<float>(GLYPH_WIDTH_PIXELS * _scale), static_cast<float>(GLYPH_HEIGHT_PIXELS * _scale), texelX,
-           texelY, _colorRgba);
+  const auto cell = static_cast<float>(ICON_PIXELS);
+  PushQuad(_xPixels, _yPixels, cell, cell, static_cast<float>(static_cast<std::uint32_t>(_icon) * ICON_PIXELS),
+           static_cast<float>(ICONS_ORIGIN_Y_TEXELS), _colorRgba);
 }
 
 void TextRenderer::PushQuad(float _leftPixels, float _topPixels, float _widthPixels, float _heightPixels, float _texelX, float _texelY,
@@ -329,8 +342,9 @@ void TextRenderer::PushQuad(float _leftPixels, float _topPixels, float _widthPix
   GlyphVertex* const slice = m_mapped + static_cast<std::size_t>(m_frameSlot) * MAX_GLYPHS_PER_FRAME * VERTICES_PER_GLYPH;
   const float right = _leftPixels + _widthPixels;
   const float bottom = _topPixels + _heightPixels;
-  const float texelRight = _texelX + static_cast<float>(GLYPH_WIDTH_PIXELS);
-  const float texelBottom = _texelY + static_cast<float>(GLYPH_HEIGHT_PIXELS);
+  // One texel a pixel: the cell in the atlas is exactly the size of the quad on the screen.
+  const float texelRight = _texelX + _widthPixels;
+  const float texelBottom = _texelY + _heightPixels;
 
   GlyphVertex* const vertices = slice + static_cast<std::size_t>(m_glyphCount) * VERTICES_PER_GLYPH;
   vertices[0] = {_leftPixels, _topPixels, _texelX, _texelY, _colorRgba};
