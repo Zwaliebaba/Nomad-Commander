@@ -253,7 +253,7 @@ x64\Debug\NomadCommander.exe
 
 **1920×1080 does not fit on a 1920×1080 desktop** — a caption and borders put the window at roughly 1926×1117, taller than a 1080p screen before the taskbar takes its share. That was an open problem while nothing was allowed to scale; ADR-009 is what answers it. The scene target is 1920×1080 on every machine, and a window that cannot be that big shows it smaller.
 
-**The window itself has not caught up, and that is tracked rather than assumed.** `Window::Create` still demands a client area of exactly the pixels it is asked for and reports `ClientAreaMismatch` otherwise, which was right under the old rule and is now merely one of three possible policies — fit the largest 16:9 area the desktop can hold, let the window be resized, or keep it fixed and overhanging. **That choice is the owner's and NC-020 carries it as open.** Until it is made the window is still exactly 1920×1080 and still overhangs a small desktop, so the scale ADR-009 permits is a 1:1 scale in practice.
+**The window fits the desktop** (owner decision, 2026-09-16). `Window::Create` gives a client area of exactly the pixels it is asked for where the work area can hold a window around one, and otherwise the largest area of the same shape that it can. It stays fixed and unresizable either way; the present scale does the rest. On a 1080p desktop that is a client area of 1783×1003 and a scale of 0.929; at 2560×1440 and above it is 1920×1080 and the scale is 1, which is the path that stays unfiltered.
 
 Note also that the screen is exactly 1.5× the 1280×720 it was until 2026-09-16, which is why the 8×8 font's cell grid survived that change intact at `GLYPH_SCALE` 3 (§ the UI model, NC-025): 1920/24 by 1080/24 is the same 80×45 it always was.
 

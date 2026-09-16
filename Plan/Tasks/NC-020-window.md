@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient, NomadCommander | M | **yes** | **yes** | Done (PR #3), desktop run outstanding, **window policy open (ADR-009)** |
+| 1 | NeuronClient, NomadCommander | M | **yes** | **yes** | Done (PR #3), desktop run outstanding |
 
 **Depends on:** NC-002
 **Read first:** GDD §13; AGENTS.md §2 (NeuronClient), §4 (`NeuronCore.h` owns the macros; `NOGDI` means GDI is gone), R12 (1920×1080, presented 1:1), R13
@@ -20,7 +20,7 @@ A Win32 window whose client area is exactly 1920×1080 physical pixels, that can
 
 ## Acceptance criteria
 
-- [ ] On a 100 % and a 150 % display, `GetClientRect` reports 1920×1080 and the window is not blurred or scaled by the system (the manifest's DPI awareness from NC-001 is in force; the report says which displays were tried). A 1080p display cannot show the whole window; that it overhangs is expected, and what matters is that the client area measures 1920×1080.
+- [ ] On a 100 % and a 150 % display, the window is not blurred or scaled *by the system* (the manifest's DPI awareness from NC-001 is in force; the report says which displays were tried). `GetClientRect` reports 1920×1080 where the work area can hold it, and otherwise the largest area of the screen's shape that it can — 1783×1003 on a 1080p desktop, which is the fit doing its job, not a defect.
 - [ ] The window cannot be resized by the frame or maximized; the close box and Escape both end the process with exit code 0.
 - [x] `PumpMessages` returns promptly with no messages pending (`PeekMessage`, not `GetMessage`).
 - [x] No GDI call anywhere (`NOGDI` makes one a compile error; the criterion is that nobody worked around it).
@@ -113,3 +113,22 @@ What changed is `SCREEN_WIDTH_PIXELS` and `SCREEN_HEIGHT_PIXELS`, and the docume
 3. **Keep.** Exactly as today: fixed at 1920×1080, overhanging a desktop that cannot hold it. The scene target still buys anti-aliasing, but the scale is always 1:1 and the display problem is unsolved.
 
 **Until the owner picks one the code does (3), because that is what it already does, and none of the five tests changes.** Picking (1) or (2) rewrites this task's central acceptance criterion — the client area would no longer be exactly what was asked for — so it is not a change to make on inference. The tests as they stand would fail under (1) on the CI runner, which is the clearest possible sign that this is a contract change rather than a tweak.
+
+**Round 8 — *fit* is implemented (owner decision, 2026-09-16).** Of the three policies round 7 set out, the owner chose the first. `Window::Create` now computes the client area rather than demanding one: the requested pixels where the **work area** can hold a window around them, and otherwise the largest area of the same shape that it can. The work area rather than the whole desktop, so the window is wholly visible and none of it sits under the taskbar.
+
+`WindowFault` gains `DesktopTooSmall`, for a work area that cannot hold a window of any size. `FittedToDesktop()` tells the renderer whether it is scaling, and the frame's present step (NC-021, ADR-009) scales the 1920×1080 scene target into whatever came out.
+
+**This task's central promise changed, and the tests changed with it.** It was "the client area is exactly what you asked for, or the call fails" — five CI rounds went into making that true, and the round 4 defect was found because of it. It is now "the client area is exactly what this function computed", which is the same thing on a desktop that can hold the screen and a fitted size on one that cannot. `TheClientAreaIsExactlyTheScreen` became `TheClientAreaIsTheScreenOrTheLargestOfItsShapeThatFits` and asserts both branches; the over-wide test became `AClientAreaLargerThanTheDesktopIsFittedWithItsShapeKept`; and the second-window test now makes a third window and asserts it gets the same size, because the fit must be a function of the desktop and not of history.
+
+**Measured, not assumed.** The real `FitClientAreaToWorkArea` was driven out of `Window.cpp` — the translation unit included into a driver, so the arithmetic under test is the shipped arithmetic and not a copy of it — with the Win32 calls stubbed behind a settable work area and frame padding. Over roughly 86,000 desktop sizes from 200×200 to 4000×2400 it holds three properties: the fitted area fits, it reaches its limiting bound (truncation may cost one pixel on the other axis), and it keeps the screen's shape to within a pixel. With a 6×37 frame padding at 96 dpi:
+
+| Work area | Client area | Scale |
+|---|---|---|
+| 1920×1040 (a 1080p desktop, taskbar taken) | 1783×1003 | 0.929 |
+| 1366×728 | 1228×691 | 0.640 |
+| 1024×728 (the CI runner) | 1018×572 | 0.530 |
+| 2560×1400 and above | 1920×1080 | 1.000, unfiltered |
+
+So the common laptop case now shows the whole game at 93 %, and any desktop of 2560×1440 or more stays pixel-perfect. **The cost is that 1080p — the most common display — is no longer pixel-perfect**: 8-pixel text at 0.929 is exactly the resampling ADR-009 names, and it is the first thing to look at when someone finally runs this.
+
+**The first property check in this tree that drives real code rather than a transcription of it.** The technique — include the `.cpp`, stub its dependencies, assert properties over a swept input space — is worth reusing wherever arithmetic decides something a person will see.

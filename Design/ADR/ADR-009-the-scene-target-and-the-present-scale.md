@@ -36,7 +36,7 @@ It does **not** foreclose going back: deleting the scene target and drawing into
 
 - `NC-021` grows the scene target, its RTV, the present pass and the fit arithmetic. Its `FrameTarget` becomes the same thing the game already uses rather than a test-only object, which simplifies A12.
 - `NC-027` is relieved: MSAA is available without opening R12 again, and its ADR becomes "is it worth paying for" rather than "is it possible".
-- **`NC-020` is not finished by this ADR and is made less finished by it.** `Window::Create` still demands a client area of exactly the pixels requested and fails with `ClientAreaMismatch` otherwise. That was correct under the old rule. Under this one the window should probably be allowed to be smaller — by fitting the largest 16:9 area the desktop can hold, or by becoming resizable — and until that is decided the scale this ADR permits is a 1:1 scale in practice and the window still overhangs a small desktop. **The choice is the owner's and NC-020 carries it as open.**
+- **`NC-020` implements the *fit* policy**, chosen by the owner the same day. `Window::Create` gives the requested client area where the work area can hold a window around it, and otherwise the largest area of the same shape that it can; the window stays fixed and unresizable. A `DesktopTooSmall` fault covers a work area that cannot hold a window at all, and `FittedToDesktop()` tells the renderer whether it is scaling. The alternative — a resizable window with a `WM_SIZE` path and a swap-chain resize — was not taken and is not foreclosed.
 - ADR-008's "What this forecloses" is relieved but not withdrawn: 1920×1080 is still what the game draws, and it is still what a display must have to see it unscaled.
 
 ## Measurements

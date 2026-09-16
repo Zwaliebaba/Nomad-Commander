@@ -3,6 +3,8 @@
 #include "Window.h"
 #include "Debug.h"
 
+#include <cstdint>
+
 namespace Neuron
 {
 
@@ -33,6 +35,10 @@ constexpr DWORD WINDOW_EXTENDED_STYLE = 0;
 // out: "A window can override this value by processing the WM_GETMINMAXINFO message." The procedure below does, and
 // this is the value it gives.
 //
+// Since ADR-009 the fit in Create keeps the window inside the work area, so this override normally has nothing to
+// do. It still matters on the one path where the fit cannot run: when Windows will not report a work area, Create
+// uses the requested size unchanged, and without this the clamp would silently shrink it again.
+//
 // Overriding it costs nothing, because a tracking size is a limit on DRAGGING a window's frame and this style carries
 // no WS_THICKFRAME: there is no frame to drag, so the clamp at creation is the only thing the number ever did. 32767
 // rather than something larger because WM_SIZE packs the client width and height into sixteen bits each, and a window
@@ -47,6 +53,78 @@ constexpr LONG MAX_TRACK_PIXELS = 32767;
   _outFrame.right = static_cast<LONG>(_clientWidth);
   _outFrame.bottom = static_cast<LONG>(_clientHeight);
   return AdjustWindowRectExForDpi(&_outFrame, WINDOW_STYLE, FALSE, WINDOW_EXTENDED_STYLE, _dpi) != FALSE;
+}
+
+// A size to measure the non-client padding against. A fixed frame's borders and caption are the same thickness
+// whatever the client area is, so any probe does; this one is comfortably larger than the padding it measures.
+constexpr LONG FRAME_PROBE_PIXELS = 1000;
+
+/// How much wider and taller than its client area a window of this style is, at this scaling.
+[[nodiscard]] bool FramePadding(UINT _dpi, LONG& _outWidthPixels, LONG& _outHeightPixels) noexcept
+{
+  RECT probe{0, 0, FRAME_PROBE_PIXELS, FRAME_PROBE_PIXELS};
+  if (AdjustWindowRectExForDpi(&probe, WINDOW_STYLE, FALSE, WINDOW_EXTENDED_STYLE, _dpi) == FALSE)
+  {
+    return false;
+  }
+  _outWidthPixels = (probe.right - probe.left) - FRAME_PROBE_PIXELS;
+  _outHeightPixels = (probe.bottom - probe.top) - FRAME_PROBE_PIXELS;
+  return true;
+}
+
+/// The client area this window will actually have: the requested one where the work area can hold a window around it,
+/// and otherwise the largest area of the same shape that it can (ADR-009's *fit* policy).
+///
+/// Bounded by the WORK area rather than the whole desktop, so the whole window is visible and none of it is under the
+/// taskbar. If Windows will not say what the work area is, the request is used unchanged -- the same behaviour this
+/// class had before ADR-009, and the case the tracking-size override in the window procedure still exists for.
+[[nodiscard]] WindowFault FitClientAreaToWorkArea(std::uint32_t _requestedWidth, std::uint32_t _requestedHeight, UINT _dpi,
+                                                  std::uint32_t& _outWidth, std::uint32_t& _outHeight) noexcept
+{
+  _outWidth = _requestedWidth;
+  _outHeight = _requestedHeight;
+
+  RECT workArea{};
+  if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE)
+  {
+    return WindowFault::None;
+  }
+  LONG paddingWidth = 0;
+  LONG paddingHeight = 0;
+  if (!FramePadding(_dpi, paddingWidth, paddingHeight))
+  {
+    return WindowFault::FrameArithmetic;
+  }
+
+  const LONG availableWidth = (workArea.right - workArea.left) - paddingWidth;
+  const LONG availableHeight = (workArea.bottom - workArea.top) - paddingHeight;
+  if (availableWidth <= 0 || availableHeight <= 0 || _requestedWidth == 0 || _requestedHeight == 0)
+  {
+    return WindowFault::DesktopTooSmall;
+  }
+  if (static_cast<LONG>(_requestedWidth) <= availableWidth && static_cast<LONG>(_requestedHeight) <= availableHeight)
+  {
+    return WindowFault::None;
+  }
+
+  // The largest rectangle of the requested shape that fits, in 64 bits because the products are of two screen extents.
+  const std::int64_t requestedWidth = _requestedWidth;
+  const std::int64_t requestedHeight = _requestedHeight;
+  const std::int64_t heightAtFullWidth = availableWidth * requestedHeight / requestedWidth;
+  std::int64_t fittedWidth = availableWidth;
+  std::int64_t fittedHeight = heightAtFullWidth;
+  if (heightAtFullWidth > availableHeight)
+  {
+    fittedHeight = availableHeight;
+    fittedWidth = availableHeight * requestedWidth / requestedHeight;
+  }
+  if (fittedWidth <= 0 || fittedHeight <= 0)
+  {
+    return WindowFault::DesktopTooSmall;
+  }
+  _outWidth = static_cast<std::uint32_t>(fittedWidth);
+  _outHeight = static_cast<std::uint32_t>(fittedHeight);
+  return WindowFault::None;
 }
 
 /// Where a frame of that size sits, centred on the primary monitor's work area.
@@ -86,6 +164,7 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
   _outWindow.m_systemError = 0;
   _outWindow.m_measuredWidthPixels = 0;
   _outWindow.m_measuredHeightPixels = 0;
+  _outWindow.m_fittedToDesktop = false;
 
   // Registered once per process, here rather than in a free helper: the window procedure is private, and only a member
   // may take its address.
@@ -111,10 +190,21 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
   }
 
   // The system's scaling is the best guess before there is a window to ask; once there is one, its own monitor's
-  // scaling decides, and the frame is recomputed if the two differ.
+  // scaling decides, and the fit and the frame are both recomputed if the two differ.
   const UINT initialDpi = GetDpiForSystem();
+  std::uint32_t clientWidth = 0;
+  std::uint32_t clientHeight = 0;
+  const WindowFault fitFault =
+    FitClientAreaToWorkArea(_desc.clientWidthPixels, _desc.clientHeightPixels, initialDpi, clientWidth, clientHeight);
+  if (fitFault != WindowFault::None)
+  {
+    _outWindow.m_systemError = GetLastError();
+    _outWindow.m_fault = fitFault;
+    return false;
+  }
+
   RECT frame{};
-  if (!FrameForClientArea(_desc.clientWidthPixels, _desc.clientHeightPixels, initialDpi, frame))
+  if (!FrameForClientArea(clientWidth, clientHeight, initialDpi, frame))
   {
     _outWindow.m_systemError = GetLastError();
     _outWindow.m_fault = WindowFault::FrameArithmetic;
@@ -136,25 +226,33 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
   _outWindow.m_handle = handle;
 
   // If the window landed on a monitor scaled differently from the system's, the frame it was given is the wrong size
-  // for the client area asked for; ask the window itself and resize once.
+  // for the client area computed above -- and so, since the padding changed, is the fit. Redo both and resize once.
   const UINT windowDpi = GetDpiForWindow(handle);
   if (windowDpi != 0 && windowDpi != initialDpi)
   {
+    std::uint32_t refitWidth = 0;
+    std::uint32_t refitHeight = 0;
     RECT adjusted{};
-    if (FrameForClientArea(_desc.clientWidthPixels, _desc.clientHeightPixels, windowDpi, adjusted))
+    if (FitClientAreaToWorkArea(_desc.clientWidthPixels, _desc.clientHeightPixels, windowDpi, refitWidth, refitHeight) ==
+          WindowFault::None &&
+        FrameForClientArea(refitWidth, refitHeight, windowDpi, adjusted))
     {
+      clientWidth = refitWidth;
+      clientHeight = refitHeight;
       SetWindowPos(handle, nullptr, 0, 0, static_cast<int>(adjusted.right - adjusted.left),
                    static_cast<int>(adjusted.bottom - adjusted.top), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
   }
+  _outWindow.m_fittedToDesktop = clientWidth != _desc.clientWidthPixels || clientHeight != _desc.clientHeightPixels;
 
-  // The client area is the whole promise of this class (R12), so it is checked rather than assumed.
+  // The client area is what the renderer scales the scene target into (ADR-009), so it is checked rather than assumed:
+  // the size this function computed is the promise, not the size the caller asked for.
   std::uint32_t actualWidth = 0;
   std::uint32_t actualHeight = 0;
   const bool measured = _outWindow.ClientSizePixels(actualWidth, actualHeight);
   _outWindow.m_measuredWidthPixels = actualWidth;
   _outWindow.m_measuredHeightPixels = actualHeight;
-  if (!measured || actualWidth != _desc.clientWidthPixels || actualHeight != _desc.clientHeightPixels)
+  if (!measured || actualWidth != clientWidth || actualHeight != clientHeight)
   {
     _outWindow.m_systemError = GetLastError();
     _outWindow.m_fault = WindowFault::ClientAreaMismatch;
