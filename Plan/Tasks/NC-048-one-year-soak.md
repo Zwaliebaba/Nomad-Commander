@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic, NeuronCore | S | no | no | Done (PENDING) |
+| 2 | GameLogic, NeuronCore | S | no | no | Done (3109b95) |
 
 **Depends on:** NC-046, NC-047
 **Read first:** `Plan/Roadmap.md` Phase 2 exit criteria; AGENTS.md R16, §6 (figures are measured); ADR-005 §6 (the pump cap, left to this task), ADR-014 *Measurements* ("the re-measurement belongs with NC-048")
