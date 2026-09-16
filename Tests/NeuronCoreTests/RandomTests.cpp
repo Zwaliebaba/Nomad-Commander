@@ -65,9 +65,9 @@ public:
 
   TEST_METHOD(NextBelowStaysBelowTheBound)
   {
-    constexpr std::array<std::uint32_t, 9> bounds = {1u, 2u, 3u, 7u, 10u, 100u, 1000u, 65537u, 0xFFFFFFFFu};
+    constexpr std::array<std::uint32_t, 9> BOUNDS = {1u, 2u, 3u, 7u, 10u, 100u, 1000u, 65537u, 0xFFFFFFFFu};
     Neuron::Random random(2026);
-    for (const std::uint32_t bound : bounds)
+    for (const std::uint32_t bound : BOUNDS)
     {
       for (int i = 0; i < 2000; ++i)
       {
