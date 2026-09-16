@@ -47,6 +47,10 @@ namespace
     return "an empire pinned a fleet in place";
   case ReasonCode::FleetsSharedASystem:
     return "two fleets met, and one of them meant to";
+  case ReasonCode::SurplusMovedToDeficit:
+    return "an empire moved a surplus to where it was short";
+  case ReasonCode::TradedAtAMarket:
+    return "goods changed hands at a market";
   }
   return "something happened that nobody recorded a reason for";
 }

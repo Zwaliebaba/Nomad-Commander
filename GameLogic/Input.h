@@ -3,6 +3,7 @@
 
 #include "EntityIds.h"
 #include "Explanation.h"
+#include "Good.h"
 #include "ShipClass.h"
 #include "WireInput.h"
 
@@ -33,6 +34,9 @@ struct Input
   ShipCounts shipCounts;
   SystemId system;
   bool engage;
+
+  Good good;
+  std::uint32_t units;
 };
 
 [[nodiscard]] inline WireInput ToWire(const Input& _input)
@@ -56,6 +60,8 @@ struct Input
   }
   wire.systemIndex = WireIndexOf(_input.system);
   wire.engage = _input.engage;
+  wire.goodIndex = static_cast<std::uint8_t>(_input.good);
+  wire.units = _input.units;
   return wire;
 }
 

@@ -205,7 +205,11 @@ void Mobility::ApplyOrder(World& _world, const Input& _input, std::vector<Event>
 
   switch (_input.kind)
   {
+  // Not mobility's: the resolver routes these elsewhere. They are listed so that adding an input kind without
+  // deciding who owns it is a compile error rather than a silent no-op.
   case InputKind::SetActiveWindow:
+  case InputKind::Buy:
+  case InputKind::Sell:
     return;
 
   case InputKind::MoveFleet:

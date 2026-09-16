@@ -143,6 +143,16 @@ namespace
   }
 
   case InputKind::Refuel:
+  case InputKind::Buy:
+  case InputKind::Sell:
+    // A trade is a fleet at a market. The market, the stock, the liquidity and the treasury are all checked where
+    // the trade happens; what the seam owns is that the good is one this build has and the fleet is the company's.
+    if (!ownsTheFleet || _wire.goodIndex >= GOOD_COUNT || _wire.units == 0)
+    {
+      return false;
+    }
+    break;
+
   case InputKind::SetEngageIntent:
     // Neither needs CanBeOrdered. A drifting fleet may be refuelled -- that is the whole point of a rescue (GDD
     // §7) -- and a fleet in a lane may be told what to do when it gets there. Owning it is the whole test.
@@ -167,6 +177,8 @@ namespace
   }
   _outInput.system = _wire.systemIndex == WIRE_INDEX_NONE ? SystemId{} : SystemId::FromIndex(_wire.systemIndex);
   _outInput.engage = _wire.engage;
+  _outInput.good = static_cast<Good>(_wire.goodIndex);
+  _outInput.units = _wire.units;
   return true;
 }
 
@@ -201,6 +213,8 @@ void WriteInput(Neuron::ByteWriter& _writer, const Input& _input)
   }
   _outInput.system = wire.systemIndex == WIRE_INDEX_NONE ? SystemId{} : SystemId::FromIndex(wire.systemIndex);
   _outInput.engage = wire.engage;
+  _outInput.good = wire.goodIndex < GOOD_COUNT ? static_cast<Good>(wire.goodIndex) : Good::Fuel;
+  _outInput.units = wire.units;
   return true;
 }
 
@@ -277,7 +291,7 @@ bool NomadSimulation::ReadState(Neuron::ByteReader& _reader)
   }
 
   // A record is at least its fixed fields: two ticks, a kind, three indices, a route length, four counts and a flag.
-  constexpr std::uint64_t SMALLEST_INPUT_BYTES = 8 + 1 + 4 + 8 + 8 + 4 + 4 + 4 + 4 * 4 + 4 + 1;
+  constexpr std::uint64_t SMALLEST_INPUT_BYTES = 8 + 1 + 4 + 8 + 8 + 4 + 4 + 4 + 4 * 4 + 4 + 1 + 1 + 4;
   std::uint32_t inputCount = 0;
   if (!_reader.Read(inputCount) || static_cast<std::uint64_t>(inputCount) * SMALLEST_INPUT_BYTES > _reader.Remaining())
   {

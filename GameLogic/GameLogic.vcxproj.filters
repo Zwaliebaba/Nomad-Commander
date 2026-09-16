@@ -6,6 +6,7 @@
     <ClCompile Include="Explanation.cpp" />
     <ClCompile Include="NomadSimulation.cpp" />
     <ClCompile Include="Mobility.cpp" />
+    <ClCompile Include="Economy.cpp" />
     <ClCompile Include="TickResolver.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
@@ -31,6 +32,9 @@
     <ClInclude Include="LogEvent.h" />
     <ClInclude Include="LogSink.h" />
     <ClInclude Include="Mobility.h" />
+    <ClInclude Include="Economy.h" />
+    <ClInclude Include="Good.h" />
+    <ClInclude Include="Market.h" />
     <ClInclude Include="NomadSimulation.h" />
     <ClInclude Include="TickResolver.h" />
     <ClInclude Include="Tuning.h" />

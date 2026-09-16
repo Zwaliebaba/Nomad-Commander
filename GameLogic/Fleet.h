@@ -83,9 +83,12 @@ struct Fleet
   /// fleets can be interdicted and cannot interdict.
   Neuron::Tick interdictedUntilTick;
 
-  /// Cargo by good. NC-045 brings the Good enumerator and the market; until then the vector is the shape the hold
-  /// takes and is empty. Loot is evidence (GDD §5), so NC-055 gives these entries their origin marks.
+  /// Cargo by good, indexed by `Good` (NC-045). Empty until something is loaded.
   std::vector<std::uint32_t> cargoByGood;
+
+  /// Which empire's marks the cargo carries. "Loot is evidence" (GDD §5): a market that sees Varn-marked fuel sold
+  /// two days after a Varn convoy vanished is a report that reaches the Varn. NC-055 is what reads it.
+  EmpireId cargoOriginEmpire;
 
   /// Marked by an empire, which is what makes identity available to a report rather than only hull classes (GDD §6,
   /// and NC-050's detection rule).

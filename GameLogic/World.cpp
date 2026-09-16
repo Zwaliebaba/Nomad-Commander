@@ -301,6 +301,7 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
   WriteFleetPosition(_writer, _fleet.position);
   _writer.Write(_fleet.fuel);
   WriteCounts(_writer, _fleet.cargoByGood);
+  _writer.WriteId(_fleet.cargoOriginEmpire);
   WriteIds(_writer, _fleet.route);
   _writer.WriteBool(_fleet.engageIntent);
   _writer.WriteTick(_fleet.interdictedUntilTick);
@@ -316,9 +317,10 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
   return _reader.ReadString(_outFleet.name) && ReadFleetOwner(_reader, _outFleet.owner) &&
          ReadEnum(_reader, _outFleet.role, FLEET_ROLE_COUNT) && _reader.ReadId(_outFleet.commander) &&
          ReadShipCounts(_reader, _outFleet.ships) && ReadFleetPosition(_reader, _outFleet.position) && _reader.Read(_outFleet.fuel) &&
-         ReadCounts(_reader, _outFleet.cargoByGood) && ReadIds(_reader, _outFleet.route) && _reader.ReadBool(_outFleet.engageIntent) &&
-         _reader.ReadTick(_outFleet.interdictedUntilTick) && _reader.ReadBool(_outFleet.marked) &&
-         _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) && _reader.ReadBool(_outFleet.alive);
+         ReadCounts(_reader, _outFleet.cargoByGood) && _reader.ReadId(_outFleet.cargoOriginEmpire) && ReadIds(_reader, _outFleet.route) &&
+         _reader.ReadBool(_outFleet.engageIntent) && _reader.ReadTick(_outFleet.interdictedUntilTick) &&
+         _reader.ReadBool(_outFleet.marked) && _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) &&
+         _reader.ReadBool(_outFleet.alive);
 }
 
 void WriteCharacter(Neuron::ByteWriter& _writer, const Character& _character)
@@ -376,6 +378,58 @@ void WriteStarSystem(Neuron::ByteWriter& _writer, const StarSystem& _system)
   return _reader.ReadString(_outSystem.name) && ReadEnum(_reader, _outSystem.role, SYSTEM_ROLE_COUNT) &&
          _reader.Read(_outSystem.mapXPixels) && _reader.Read(_outSystem.mapYPixels) && _reader.ReadId(_outSystem.owner) &&
          ReadIds(_reader, _outSystem.lanes) && _reader.ReadBool(_outSystem.hasShipyard) && _reader.ReadBool(_outSystem.alive);
+}
+
+void WriteStock(Neuron::ByteWriter& _writer, const Stock& _stock)
+{
+  for (std::uint32_t good = 0; good < GOOD_COUNT; ++good)
+  {
+    _writer.Write(_stock.byGood[good]);
+  }
+}
+
+[[nodiscard]] bool ReadStock(Neuron::ByteReader& _reader, Stock& _outStock)
+{
+  for (std::uint32_t good = 0; good < GOOD_COUNT; ++good)
+  {
+    if (!_reader.Read(_outStock.byGood[good]))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+void WriteMarket(Neuron::ByteWriter& _writer, const Market& _market)
+{
+  _writer.WriteId(_market.system);
+  WriteStock(_writer, _market.stock);
+  WriteStock(_writer, _market.producedPerDay);
+  WriteStock(_writer, _market.consumedPerDay);
+  for (std::uint32_t good = 0; good < GOOD_COUNT; ++good)
+  {
+    _writer.Write(_market.priceByGood[good]);
+    WriteEnum(_writer, _market.stateByGood[good]);
+  }
+  _writer.Write(_market.liquidityPerDay);
+  _writer.Write(_market.tradedToday);
+}
+
+[[nodiscard]] bool ReadMarket(Neuron::ByteReader& _reader, Market& _outMarket)
+{
+  if (!_reader.ReadId(_outMarket.system) || !ReadStock(_reader, _outMarket.stock) || !ReadStock(_reader, _outMarket.producedPerDay) ||
+      !ReadStock(_reader, _outMarket.consumedPerDay))
+  {
+    return false;
+  }
+  for (std::uint32_t good = 0; good < GOOD_COUNT; ++good)
+  {
+    if (!_reader.Read(_outMarket.priceByGood[good]) || !ReadEnum(_reader, _outMarket.stateByGood[good], MARKET_STATE_COUNT))
+    {
+      return false;
+    }
+  }
+  return _reader.Read(_outMarket.liquidityPerDay) && _reader.Read(_outMarket.tradedToday);
 }
 
 void WriteLane(Neuron::ByteWriter& _writer, const Lane& _lane)
@@ -464,6 +518,7 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_outposts, WriteOutpost);
   WriteTable(_writer, m_systems, WriteStarSystem);
   WriteTable(_writer, m_lanes, WriteLane);
+  WriteTable(_writer, m_markets, WriteMarket);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -490,7 +545,7 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
   if (!ReadTable(_reader, loaded.m_companies, ReadCompany) || !ReadTable(_reader, loaded.m_empires, ReadEmpire) ||
       !ReadTable(_reader, loaded.m_fleets, ReadFleet) || !ReadTable(_reader, loaded.m_characters, ReadCharacter) ||
       !ReadTable(_reader, loaded.m_outposts, ReadOutpost) || !ReadTable(_reader, loaded.m_systems, ReadStarSystem) ||
-      !ReadTable(_reader, loaded.m_lanes, ReadLane))
+      !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket))
   {
     return false;
   }

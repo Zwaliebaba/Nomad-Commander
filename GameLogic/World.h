@@ -6,6 +6,7 @@
 #include "Empire.h"
 #include "Fleet.h"
 #include "Lane.h"
+#include "Market.h"
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
@@ -61,7 +62,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 3;
+  static constexpr std::uint16_t SCHEMA_VERSION = 4;
 
   explicit World(std::uint64_t _seed);
 
@@ -130,6 +131,18 @@ public:
     return m_lanes;
   }
 
+  /// One market a system, indexed by the same id: `Markets().Get(systemId)` is that system's economy. A separate
+  /// table rather than a field on `StarSystem`, because NC-041 owns the geography and a market is not geography.
+  [[nodiscard]] Table<Market, SystemId>& Markets() noexcept
+  {
+    return m_markets;
+  }
+
+  [[nodiscard]] const Table<Market, SystemId>& Markets() const noexcept
+  {
+    return m_markets;
+  }
+
   /// What JumpsBetween answers when there is no route at all. A disconnected map is a generator bug (NC-041 asserts
   /// connectivity), but a route to a system that does not exist is an ordinary caller error and gets an answer.
   static constexpr std::uint32_t UNREACHABLE = 0xFFFFFFFFu;
@@ -195,6 +208,7 @@ private:
   Table<Outpost, OutpostId> m_outposts;
   Table<StarSystem, SystemId> m_systems;
   Table<Lane, LaneId> m_lanes;
+  Table<Market, SystemId> m_markets;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

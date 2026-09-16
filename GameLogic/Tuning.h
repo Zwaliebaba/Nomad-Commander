@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Credits.h"
+#include "Good.h"
 #include "ShipClass.h"
 
 #include "Hundredths.h"
@@ -85,7 +86,7 @@ inline constexpr std::uint32_t EMERGENCY_JUMP_FUEL_MULTIPLIER = 2;
 
 /// How many jumps a fleet carries fuel for when it is full. A tank is stated in jumps rather than in units because
 /// that is how a player thinks about a route (R6).
-inline constexpr std::uint32_t FUEL_CAPACITY_JUMPS = 6;
+inline constexpr std::uint32_t FUEL_CAPACITY_JUMPS = 12;
 
 /// A fleet that runs dry mid-lane "arrives late and drifting at the next system" (GDD §7). This is how much late, as
 /// a multiplier on the lane's own time in hundredths.
@@ -124,10 +125,59 @@ inline constexpr Neuron::Hundredths EVIDENCE_EXPOSED_FALSE_DENIAL = Neuron::Hund
 inline constexpr Neuron::Hundredths ACCUSE_THRESHOLD = Neuron::Hundredths::FromRaw(40);
 inline constexpr Neuron::Hundredths ACT_THRESHOLD = Neuron::Hundredths::FromRaw(70);
 
+// --- GDD §10: the economy ------------------------------------------------------------------------------------------
+//
+// **The map balances by construction**, which is what keeps stocks bounded over a year without anyone watching them.
+// Every system eats CONSUMPTION_PER_DAY of every good and makes BASELINE_PRODUCTION_PER_DAY of each; its role adds
+// ROLE_PRODUCTION_BONUS_PER_DAY of one. The three numbers are chosen so that a system's total production equals its
+// total consumption -- 4 x 5 + 4 == 4 x 6 -- so the aggregate never drifts, and what is left for convoys to do is the
+// *distribution*: a small daily deficit in three goods and a surplus in one. GDD §10: "stocks neither run away nor
+// drain to zero".
+
+inline constexpr std::uint32_t CONSUMPTION_PER_DAY = 6;
+inline constexpr std::uint32_t BASELINE_PRODUCTION_PER_DAY = 5;
+inline constexpr std::uint32_t ROLE_PRODUCTION_BONUS_PER_DAY = 4;
+static_assert(GOOD_COUNT * BASELINE_PRODUCTION_PER_DAY + ROLE_PRODUCTION_BONUS_PER_DAY == GOOD_COUNT * CONSUMPTION_PER_DAY,
+              "the economy must balance in aggregate, or a year-long run drifts to a cap or to zero");
+
+/// How much a system starts with, and how much it can hold, in days of its own consumption. The gap between them is
+/// the room a convoy has to be late in.
+inline constexpr std::uint32_t STARTING_STOCK_DAYS = 30;
+inline constexpr std::uint32_t STOCK_CAPACITY_DAYS = 60;
+
+/// When an empire sends a convoy out of a system, and when it sends one in.
+inline constexpr std::uint32_t CONVOY_SURPLUS_DAYS = 36;
+inline constexpr std::uint32_t CONVOY_DEFICIT_DAYS = 24;
+inline constexpr std::uint32_t CONVOY_HAULERS = 3;
+inline constexpr std::uint32_t CONVOY_ESCORT_WARSHIPS = 1;
+
+/// What a unit costs before scarcity moves it.
+inline constexpr Credits PRICE_BASE[GOOD_COUNT] = {
+  12, // Fuel
+  18, // Metals
+  40, // Components
+  9   // ConsumerGoods
+};
+
+/// The scarcity ratio is a day's consumption against the stock, scaled so that "one month of stock" reads as 100.
+inline constexpr std::int64_t PRICE_RATIO_SCALE = std::int64_t{100} * STARTING_STOCK_DAYS;
+inline constexpr std::int64_t PRICE_FLOOR_HUNDREDTHS = 40;
+inline constexpr std::int64_t PRICE_CEILING_HUNDREDTHS = 600;
+
+/// The same ratio, read as a state. A shortage is a system with under a third of a month left; a glut is one sitting
+/// on more than two months of it.
+inline constexpr std::int64_t SHORTAGE_RATIO_HUNDREDTHS = 300;
+inline constexpr std::int64_t GLUT_RATIO_HUNDREDTHS = 50;
+
+/// "Markets have liquidity, large transactions move prices" (GDD §10). The cap is what makes a route profitable
+/// without being repeatable; the impact is what makes a large transaction cost more per unit than a small one.
+inline constexpr std::uint32_t MARKET_LIQUIDITY_PER_DAY = 40;
+inline constexpr std::int64_t PRICE_IMPACT_HUNDREDTHS_PER_UNIT = 2;
+
 // --- GDD §10: the playstyle levers -------------------------------------------------------------------------------
 //
-// Declared by NC-045 and NC-056, which are the tasks that have an economy and a contract to apply them to. The
-// comment is here so that nobody opens a second file for them.
+// The rest are declared by NC-056, which is the task that has a contract to apply them to. The comment is here so
+// that nobody opens a second file for them.
 
 } // namespace Tuning
 

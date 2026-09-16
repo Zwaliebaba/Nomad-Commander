@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "TickResolver.h"
 
+#include "Economy.h"
 #include "LogEvent.h"
 #include "Mobility.h"
 #include "Tuning.h"
@@ -29,6 +30,14 @@ void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Ev
     }
     switch (input.kind)
     {
+    case InputKind::Buy:
+      (void)Economy::Buy(_world, input.company, input.fleet, input.good, input.units, _outEvents);
+      break;
+
+    case InputKind::Sell:
+      (void)Economy::Sell(_world, input.company, input.fleet, input.good, input.units, _outEvents);
+      break;
+
     case InputKind::MoveFleet:
     case InputKind::DetachScout:
     case InputKind::SplitFleet:
@@ -94,8 +103,9 @@ void ResolveEncounters([[maybe_unused]] World& _world, [[maybe_unused]] std::vec
 /// Phase 6 -- the daily systems, on tick multiples of a day so that a store saved at any tick replays identically.
 void ResolveDaily(World& _world, [[maybe_unused]] std::vector<Event>& _outEvents, LogSink* _log)
 {
-  // Economy NC-045, upkeep NC-046, empires NC-047, inference NC-052, contracts NC-056, outposts NC-066, in that
-  // order, because inference reads what the economy and the empires did today.
+  // Economy NC-045, then upkeep NC-046, empires NC-047, inference NC-052, contracts NC-056, outposts NC-066, in
+  // that order, because inference reads what the economy and the empires did today.
+  Economy::ResolveDaily(_world, _outEvents);
 
   // GDD §15 requires "at least two willing employers after two months", which is a series and not a reading, so it
   // is written every day from the first. **This count is a placeholder**: nothing models tolerance yet, so it counts
