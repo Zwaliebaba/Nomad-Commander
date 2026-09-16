@@ -15,6 +15,17 @@ namespace Neuron
 inline constexpr std::uint32_t SCREEN_WIDTH_PIXELS = 1280;
 inline constexpr std::uint32_t SCREEN_HEIGHT_PIXELS = 720;
 
+/// Why a window could not be created (the shape of AGENTS.md's worked example). A creation function that returns a
+/// bare false tells a caller nothing it can act on, and tells a build agent's log nothing at all.
+enum class WindowFault : std::uint8_t
+{
+  None,
+  ClassRegistration,
+  FrameArithmetic,
+  Creation,
+  ClientAreaMismatch
+};
+
 /// The one place this tree calls the Win32 window functions. It owns one top-level window, of a fixed size, that
 /// cannot be resized or maximized, and pumps messages without ever blocking the frame.
 ///
@@ -38,8 +49,33 @@ public:
   ~Window();
 
   /// Creates the window, hidden, with a client area of exactly the requested pixels. Returns false if the class cannot
-  /// be registered, the window cannot be created, or the client area did not come out the size asked for.
+  /// be registered, the window cannot be created, or the client area did not come out the size asked for; Fault() and
+  /// SystemError() then say which, and what Windows called it.
   [[nodiscard]] static bool Create(const Desc& _desc, Window& _outWindow) noexcept;
+
+  /// Why the last Create on this object failed, and the GetLastError value at that moment. None and zero after a
+  /// creation that worked.
+  [[nodiscard]] WindowFault Fault() const noexcept
+  {
+    return m_fault;
+  }
+
+  [[nodiscard]] unsigned long SystemError() const noexcept
+  {
+    return m_systemError;
+  }
+
+  /// The client area Windows gave the window when Create checked it, whatever the outcome. On a ClientAreaMismatch
+  /// this is what it got instead of what it asked for, which is the one number a build agent's log needs.
+  [[nodiscard]] std::uint32_t MeasuredWidthPixels() const noexcept
+  {
+    return m_measuredWidthPixels;
+  }
+
+  [[nodiscard]] std::uint32_t MeasuredHeightPixels() const noexcept
+  {
+    return m_measuredHeightPixels;
+  }
 
   /// Makes the window visible. Separate from Create so that a test can make a window without putting one on a screen.
   void Show() noexcept;
@@ -69,6 +105,10 @@ private:
 
   HWND m_handle = nullptr;
   bool m_closed = false;
+  WindowFault m_fault = WindowFault::None;
+  unsigned long m_systemError = 0;
+  std::uint32_t m_measuredWidthPixels = 0;
+  std::uint32_t m_measuredHeightPixels = 0;
 };
 
 } // namespace Neuron

@@ -68,6 +68,10 @@ Window::~Window()
 bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
 {
   NOMAD_ASSERT(_outWindow.m_handle == nullptr);
+  _outWindow.m_fault = WindowFault::None;
+  _outWindow.m_systemError = 0;
+  _outWindow.m_measuredWidthPixels = 0;
+  _outWindow.m_measuredHeightPixels = 0;
 
   // Registered once per process, here rather than in a free helper: the window procedure is private, and only a member
   // may take its address.
@@ -85,6 +89,8 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
     windowClass.lpszClassName = WINDOW_CLASS_NAME;
     if (RegisterClassExW(&windowClass) == 0)
     {
+      _outWindow.m_systemError = GetLastError();
+      _outWindow.m_fault = WindowFault::ClassRegistration;
       return false;
     }
     g_classRegistered = true;
@@ -96,6 +102,8 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
   RECT frame{};
   if (!FrameForClientArea(_desc.clientWidthPixels, _desc.clientHeightPixels, initialDpi, frame))
   {
+    _outWindow.m_systemError = GetLastError();
+    _outWindow.m_fault = WindowFault::FrameArithmetic;
     return false;
   }
   int left = CW_USEDEFAULT;
@@ -108,6 +116,8 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
                                 GetModuleHandleW(nullptr), &_outWindow);
   if (handle == nullptr)
   {
+    _outWindow.m_systemError = GetLastError();
+    _outWindow.m_fault = WindowFault::Creation;
     return false;
   }
   _outWindow.m_handle = handle;
@@ -128,11 +138,16 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
   // The client area is the whole promise of this class (R12), so it is checked rather than assumed.
   std::uint32_t actualWidth = 0;
   std::uint32_t actualHeight = 0;
-  if (!_outWindow.ClientSizePixels(actualWidth, actualHeight) || actualWidth != _desc.clientWidthPixels ||
-      actualHeight != _desc.clientHeightPixels)
+  const bool measured = _outWindow.ClientSizePixels(actualWidth, actualHeight);
+  _outWindow.m_measuredWidthPixels = actualWidth;
+  _outWindow.m_measuredHeightPixels = actualHeight;
+  if (!measured || actualWidth != _desc.clientWidthPixels || actualHeight != _desc.clientHeightPixels)
   {
+    _outWindow.m_systemError = GetLastError();
+    _outWindow.m_fault = WindowFault::ClientAreaMismatch;
     DestroyWindow(handle);
     _outWindow.m_handle = nullptr;
+    _outWindow.m_closed = false;
     return false;
   }
   return true;
@@ -178,6 +193,7 @@ bool Window::PumpMessages() noexcept
   {
     if (message.message == WM_QUIT)
     {
+      // Nothing in this tree posts one, but a quit belongs to the thread and something else may: honour it.
       m_closed = true;
       return false;
     }
@@ -205,12 +221,14 @@ LRESULT CALLBACK Window::WindowProcedure(HWND _handle, UINT _message, WPARAM _wp
     return 0;
 
   case WM_DESTROY:
+    // No PostQuitMessage: a quit is a THREAD-wide message, so posting one here would end the message pump of every
+    // other window on this thread, and would outlive the window that posted it. PumpMessages reports this window's own
+    // closure through m_closed instead, which is what the executable's loop and the tests both read.
     if (window != nullptr)
     {
       window->m_closed = true;
       window->m_handle = nullptr;
     }
-    PostQuitMessage(0);
     return 0;
 
   case WM_KEYDOWN:

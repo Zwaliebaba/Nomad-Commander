@@ -1,6 +1,7 @@
 // Tests/NeuronClientTests/WindowTests.cpp
 #include "pch.h"
 #include "Window.h"
+#include <string>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
@@ -18,6 +19,32 @@ namespace
   return Neuron::Window::Create(desc, _outWindow);
 }
 
+/// What failed, in words, so that a build agent's log names the branch rather than only the line.
+[[nodiscard]] std::wstring WhyItFailed(const Neuron::Window& _window)
+{
+  std::wstring reason = L"Window::Create failed: ";
+  switch (_window.Fault())
+  {
+  case Neuron::WindowFault::None:
+    reason += L"no fault recorded";
+    break;
+  case Neuron::WindowFault::ClassRegistration:
+    reason += L"RegisterClassExW";
+    break;
+  case Neuron::WindowFault::FrameArithmetic:
+    reason += L"AdjustWindowRectExForDpi";
+    break;
+  case Neuron::WindowFault::Creation:
+    reason += L"CreateWindowExW";
+    break;
+  case Neuron::WindowFault::ClientAreaMismatch:
+    reason += L"the client area came out " + std::to_wstring(_window.MeasuredWidthPixels()) + L"x" +
+              std::to_wstring(_window.MeasuredHeightPixels());
+    break;
+  }
+  return reason + L"; GetLastError=" + std::to_wstring(_window.SystemError());
+}
+
 } // namespace
 
 TEST_CLASS(WindowTests)
@@ -26,7 +53,7 @@ public:
   TEST_METHOD(TheClientAreaIsExactlyTheScreen)
   {
     Neuron::Window window;
-    Assert::IsTrue(CreateHidden(window));
+    Assert::IsTrue(CreateHidden(window), WhyItFailed(window).c_str());
     Assert::IsNotNull(window.Handle());
 
     std::uint32_t width = 0;
@@ -39,7 +66,7 @@ public:
   TEST_METHOD(TheWindowCannotBeResizedOrMaximized)
   {
     Neuron::Window window;
-    Assert::IsTrue(CreateHidden(window));
+    Assert::IsTrue(CreateHidden(window), WhyItFailed(window).c_str());
     const LONG_PTR style = GetWindowLongPtrW(window.Handle(), GWL_STYLE);
     Assert::AreEqual(LONG_PTR{0}, style & WS_THICKFRAME);
     Assert::AreEqual(LONG_PTR{0}, style & WS_MAXIMIZEBOX);
@@ -49,7 +76,7 @@ public:
   TEST_METHOD(PumpingReturnsAtOnceWhileTheWindowIsOpen)
   {
     Neuron::Window window;
-    Assert::IsTrue(CreateHidden(window));
+    Assert::IsTrue(CreateHidden(window), WhyItFailed(window).c_str());
     for (int i = 0; i < 100; ++i)
     {
       Assert::IsTrue(window.PumpMessages());
@@ -60,7 +87,7 @@ public:
   TEST_METHOD(ClosingIsReportedByTheNextPump)
   {
     Neuron::Window window;
-    Assert::IsTrue(CreateHidden(window));
+    Assert::IsTrue(CreateHidden(window), WhyItFailed(window).c_str());
     window.RequestClose();
 
     // The close is posted, so it takes a pump to be seen; the pump that handles it also sees the quit that follows.
@@ -79,10 +106,10 @@ public:
     // The window class is registered once per process; a second creation must not fail because of it.
     {
       Neuron::Window first;
-      Assert::IsTrue(CreateHidden(first));
+      Assert::IsTrue(CreateHidden(first), WhyItFailed(first).c_str());
     }
     Neuron::Window second;
-    Assert::IsTrue(CreateHidden(second));
+    Assert::IsTrue(CreateHidden(second), WhyItFailed(second).c_str());
     std::uint32_t width = 0;
     std::uint32_t height = 0;
     Assert::IsTrue(second.ClientSizePixels(width, height));
