@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 0 | Build | M | no | no | Open |
+| 0 | Build | M | no | no | Done (PR #1) |
 
 **Depends on:** NC-002
 **Read first:** `.clang-tidy` whole (the driver-mode command in its header, the pin, `HeaderFilterRegex`); AGENTS.md §1 *Enforcement*, §3 (*Run the checkers*), §6 (the CI table); `build.yml` (*Import the MSVC environment*, *Install the pinned clang-tidy*, *Run clang-tidy*)
@@ -14,7 +14,7 @@ Run clang-tidy over every hand-written translation unit in the tree through clan
 ## Deliverables
 
 - `Build/RunClangTidy.py`: options `--clang-tidy <binary>` (default `clang-tidy` on the path), `--jobs <n>` (default: CPU count), `--files <paths…>` (default: every `.cpp` under the five projects and `Tests/*/`, skipping `pch.cpp` and anything under `CompiledShaders/` or `x64/`), `--verbose`.
-- Per file, the invocation from `.clang-tidy`'s header, extended with the project's include directories read from its `.vcxproj` (so the script and the build cannot disagree): `--driver-mode=cl /std:c++latest /EHsc /permissive- /W4 /DUNICODE /D_UNICODE /D_DEBUG /I<dir>…`.
+- Per file, the invocation from `.clang-tidy`'s header, with the defines and the include directories read from the project's `.vcxproj` (Debug|x64) by `CheckProjectFiles.py`'s parser, so the script and the build cannot disagree: `--driver-mode=cl /std:c++latest /EHsc /DUNICODE /D_UNICODE /D<defines> /I<dirs>`. Not `/W4`: clang's warning set differs from MSVC's and `WarningsAsErrors: '*'` would make every difference fatal; not the Windows macro family, which `NeuronCore.h` owns (a `/D` copy is a macro redefinition, which clang reports and the config makes fatal). `.clang-tidy`'s header still shows the older command with `/DWIN32_LEAN_AND_MEAN /DNOMINMAX`; that comment is the owner's to update.
 - A check at start that `INCLUDE` is set (the Windows SDK is invisible to clang without it), with a message naming the Developer PowerShell; and a print of the clang-tidy version, with a warning if it is not the pinned one.
 
 ## Acceptance criteria
@@ -22,7 +22,7 @@ Run clang-tidy over every hand-written translation unit in the tree through clan
 - [ ] Exit 0 on the Phase-0 tree with clang-tidy 22.1.8 from pip.
 - [ ] A translation unit with a parameter missing its `_` is reported and the exit code is 1.
 - [ ] Findings from headers outside the tree (SDK, CRT) are not reported; `HeaderFilterRegex` from `.clang-tidy` is in force because the script does not override it.
-- [ ] The per-file switch list is derived from the `.vcxproj`, not typed into the script a second time, except the defines `.clang-tidy`'s header names.
+- [ ] The per-file switch list is derived from the `.vcxproj`, not typed into the script a second time, except `/DUNICODE /D_UNICODE`, which stand for `CharacterSet=Unicode`.
 - [ ] `build.yml`'s *Run clang-tidy* step passes as written.
 
 ## Verification
@@ -49,4 +49,10 @@ A `compile_commands.json`; fixing findings; running on Linux (the MSVC driver mo
 
 ## Report
 
-_Filled in on hand-back._
+**Verified here (Linux; clang-tidy in MSVC driver mode needs the Windows SDK, so the linter itself did not run):** `--dry-run` prints the nine commands with each project's defines (`_DEBUG` and `_LIB`, `_WINDOWS`, `_WINDOWS;_USRDLL`) and include directories (`$(SolutionDir)<Project>` expanded; `$(VCInstallDir)Auxiliary\VS\UnitTest\include` for the test suites) taken from the `.vcxproj` files through `CheckProjectFiles.py`'s parser; without `INCLUDE` the script stops with the Developer PowerShell message; without `VCINSTALLDIR` the test projects' expansion stops with its own; the pinned version is read from `build.yml` (`22.1.8`). **Verified by CI:** the *Run clang-tidy* step over the Phase 0 tree.
+
+**Assumed:** clang-cl accepts `/std:c++latest` against MSVC 14.51's standard library, and `CppUnitTest.h` parses under clang; both are what the workflow and `.clang-tidy` were written for.
+
+**Refined:** the switch list drops `/W4` and the Windows macro family, for the reasons in the deliverables; a `--dry-run` option prints the commands, which is how a Linux agent checks this script at all; the version pin is read from the workflow rather than repeated.
+
+**Bent:** nothing.
