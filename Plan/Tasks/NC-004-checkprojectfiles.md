@@ -29,10 +29,10 @@ The static gate that stands in for the Release build nobody runs and for the rul
 
 ## Acceptance criteria
 
-- [ ] Exit 0 on the tree as NC-002 left it.
-- [ ] For each of the ten rules, a deliberate violation made in a scratch copy is reported with the right rule name and path; the report says which ten violations were tried.
-- [ ] Runs in under five seconds on the Phase-0 tree, on the CI runner too.
-- [ ] `build.yml`'s *Check the build shape* step passes as written.
+- [x] Exit 0 on the tree as NC-002 left it.
+- [x] For each of the ten rules, a deliberate violation made in a scratch copy is reported with the right rule name and path; the report says which ten violations were tried.
+- [x] Runs in under five seconds on the Phase-0 tree, on the CI runner too.
+- [x] `build.yml`'s *Check the build shape* step passes as written.
 
 ## Verification
 
@@ -65,3 +65,5 @@ Anything clang-tidy checks (§1's *Enforcement* table). Formatting (NC-003). Run
 **Refined:** the alignment allowlist gained `Link.LinkTimeCodeGeneration`, `Lib.LinkTimeCodeGeneration` and `ClCompile.WholeProgramOptimization`, which VS writes for the LTCG family AGENTS.md §3 names. `%(Name)` self-references in item metadata are expanded the way MSBuild does, which the first draft did not do and which hid a define leaked through the shared group; the negative test found it. The edge rule also checks `AdditionalIncludeDirectories` and `ProjectReference` against the graph, because an include the compiler cannot resolve is a build error rather than a finding, and the include path is where the edge is actually crossed.
 
 **Bent:** nothing.
+
+**CI:** [run 4](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35095588076) on head `d5fa1c3` is green: `CheckProjectFiles.py` clean, the solution built Debug|x64 with `/warnaserror`, vstest ran 5 tests and passed all, `RunClangTidy.py` reported nine translation units clean on clang-tidy 22.1.8, and the Linux `format` job passed. Run 3 on the previous head failed on one clang-tidy finding in `Debug.h` (`bugprone-reserved-identifier` on the parameter names of the function-pointer alias), fixed in `d5fa1c3`. Not verified by CI, by its design: the Release build. Not verified by anyone yet: running the executable. The CI step took one second.

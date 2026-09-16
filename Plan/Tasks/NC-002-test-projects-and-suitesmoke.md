@@ -23,10 +23,10 @@ Four MSVC CppUnitTest DLLs, one per library, each referencing the library it tes
 ## Acceptance criteria
 
 - [ ] All four DLLs build in Debug and Release with the same shared settings as NC-001's projects (they are checked by NC-004 too) and land in `x64\<Configuration>\`.
-- [ ] `vstest.console.exe` over the four DLLs reports four tests run, four passed, zero skipped.
-- [ ] Each test project's `AdditionalIncludeDirectories` lists `$(VCInstallDir)Auxiliary\VS\UnitTest\include` and the directories of the libraries it references, and nothing else; `AdditionalLibraryDirectories` lists `$(VCInstallDir)Auxiliary\VS\UnitTest\lib`. (Microsoft Learn places the framework under `VC\Auxiliary\VS\UnitTest`; the plan's first draft had the pre-2017 path.)
-- [ ] `using namespace Microsoft::VisualStudio::CppUnitTestFramework;` appears only in `.cpp` files (R10's one permitted case).
-- [ ] The workflow's *Run the tests* step passes as written; no edit to `build.yml` was needed.
+- [x] `vstest.console.exe` over the four DLLs reports four tests run, four passed, zero skipped.
+- [x] Each test project's `AdditionalIncludeDirectories` lists `$(VCInstallDir)Auxiliary\VS\UnitTest\include` and the directories of the libraries it references, and nothing else; `AdditionalLibraryDirectories` lists `$(VCInstallDir)Auxiliary\VS\UnitTest\lib`. (Microsoft Learn places the framework under `VC\Auxiliary\VS\UnitTest`; the plan's first draft had the pre-2017 path.)
+- [x] `using namespace Microsoft::VisualStudio::CppUnitTestFramework;` appears only in `.cpp` files (R10's one permitted case).
+- [x] The workflow's *Run the tests* step passes as written; no edit to `build.yml` was needed.
 
 ## Verification
 
@@ -59,3 +59,5 @@ Any real test. Test helpers (a fake `Simulation`, a WARP device) come with the t
 **Refined:** the framework paths are `$(VCInstallDir)Auxiliary\VS\UnitTest\include` and `\lib`, per Microsoft Learn; the task's draft named the older location. Each test `pch.h` includes `NeuronCore.h` before `CppUnitTest.h` so the Windows macro family is set before anything from Windows is pulled in.
 
 **Bent:** nothing.
+
+**CI:** [run 4](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35095588076) on head `d5fa1c3` is green: `CheckProjectFiles.py` clean, the solution built Debug|x64 with `/warnaserror`, vstest ran 5 tests and passed all, `RunClangTidy.py` reported nine translation units clean on clang-tidy 22.1.8, and the Linux `format` job passed. Run 3 on the previous head failed on one clang-tidy finding in `Debug.h` (`bugprone-reserved-identifier` on the parameter names of the function-pointer alias), fixed in `d5fa1c3`. Not verified by CI, by its design: the Release build. Not verified by anyone yet: running the executable. The count is five rather than four because NC-006 replaced NeuronClientTests' `SuiteSmoke` with two real tests before the first run. The Debug half of the first criterion holds; Release waits.
