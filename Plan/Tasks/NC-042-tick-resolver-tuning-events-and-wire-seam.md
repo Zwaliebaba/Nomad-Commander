@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | L | no | **yes** | Done (PENDING) |
+| 2 | GameLogic | L | no | **yes** | Done (14ffcb8) |
 
 **Depends on:** NC-041, NC-014, NC-015
 **Read first:** GDD §2 (the loop), §4 (*Consequence*, *The receipt*), §9 (*Every major event explains itself*), appendix (*Open, answered by play*); AGENTS.md R18, R19, R20, R21, §2 ("the receipt and the explanation every consequence carries"); `Plan/Roadmap.md` *Conventions* (the `Wire*.h` seam; text composed in GameLogic)
