@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | L | no | no | Done (PENDING) |
+| 2 | GameLogic | L | no | no | Done (5e5d806) |
 
 **Depends on:** NC-044
 **Read first:** GDD §10 whole, §5 (*Hulls come from the empires*: prices by market state; *Loot is evidence*), §3 (the Kessel fuel projection), §15 ("four goods with abstract per-system production and consumption, convoys between surplus and deficit, local prices, capacity and liquidity limits"); AGENTS.md R20, R23 (no production chain)
