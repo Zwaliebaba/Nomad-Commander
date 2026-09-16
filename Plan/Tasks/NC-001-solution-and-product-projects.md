@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 0 | NeuronCore, NeuronClient, NeuronServer, GameLogic, NomadCommander | L | no | no | Open |
+| 0 | NeuronCore, NeuronClient, NeuronServer, GameLogic, NomadCommander | L | no | no | Done (PR #1) |
 
 **Depends on:** none
 **Read first:** AGENTS.md §2, §3, §4 whole; R7, R9, R14, R16, R17; `.editorconfig`; `.gitignore`
@@ -14,10 +14,10 @@ Make AGENTS.md §2 and §3 true for the five product projects: a solution that b
 ## Deliverables
 
 - `NomadCommander.slnx` at the root, listing the five projects (NC-002 adds the four test projects), with `Debug`/`Release` build types and the single platform `x64`.
-- `NeuronCore/NeuronCore.vcxproj` + `.filters`, static library. Files: `pch.h`, `pch.cpp`, `NeuronCore.h` (the macro family, then `<windows.h>`), `Debug.h`, `Debug.cpp`.
-- `NeuronClient/NeuronClient.vcxproj` + `.filters`, static library, references NeuronCore. Files: `pch.h`, `pch.cpp`, and one placeholder translation unit that NC-020 replaces (`Window.cpp` may be created empty here or left to NC-020; the library must contain at least one object).
-- `NeuronServer/NeuronServer.vcxproj` + `.filters`, static library, references NeuronCore. Files: `pch.h`, `pch.cpp`, and the same placeholder rule.
-- `GameLogic/GameLogic.vcxproj` + `.filters`, static library, references NeuronCore. Its `pch.h` includes no Windows header: the simulation is portable C++ over NeuronCore's pure headers.
+- `NeuronCore/NeuronCore.vcxproj` + `.filters`, static library. Files: `pch.h`, `pch.cpp`, `NeuronCore.h` (the macro family, then `<windows.h>`), `Debug.h`, `Debug.cpp`. `Debug.h` also declares `SetAssertHandler`, because a suite cannot test "this asserts" (NC-011 and later) if an assert always ends the process.
+- `NeuronClient/NeuronClient.vcxproj` + `.filters`, static library, references NeuronCore. Files: `pch.h`, `pch.cpp`, and the placeholder `ClientSmoke.cpp`, which defines one public symbol and is deleted by NC-006. An empty translation unit is not enough: `lib.exe` reports LNK4221 for an object with no public symbol and `/warnaserror` makes that fatal.
+- `NeuronServer/NeuronServer.vcxproj` + `.filters`, static library, references NeuronCore. Files: `pch.h`, `pch.cpp`, and the placeholder `ServerSmoke.cpp` (deleted by NC-030).
+- `GameLogic/GameLogic.vcxproj` + `.filters`, static library, references NeuronCore. Its `pch.h` includes no Windows header: the simulation is portable C++ over NeuronCore's pure headers. Placeholder `GameLogicSmoke.cpp` (deleted by NC-040).
 - `NomadCommander/NomadCommander.vcxproj` + `.filters`, Windows application (`SubSystem` Windows, `wWinMain`), references all four libraries. Files: `pch.h`, `pch.cpp`, `Main.cpp` with a `wWinMain` that returns 0.
 - A `.gitignore` entry is already present for `x64/`, `.vs/`, `*.user` and `CompiledShaders/`; verify, do not duplicate.
 
@@ -30,7 +30,7 @@ Make AGENTS.md §2 and §3 true for the five product projects: a solution that b
 - [ ] No project lists its own directory in `AdditionalIncludeDirectories`; cross-project directories are `$(SolutionDir)<Project>` (§3).
 - [ ] `NOMAD_ASSERT(expr)` breaks into the debugger with the expression, file and line in `_DEBUG` and compiles to a non-evaluating reference in `NDEBUG` without provoking C4189 on a variable used only in the assert; `NOMAD_VERIFY(expr)` always evaluates. `Debug.h` includes no Windows header (GameLogic includes it); `Debug.cpp` does.
 - [ ] `x64\Debug\NomadCommander.exe` runs and exits 0.
-- [ ] `NomadCommander.vcxproj` sets `DpiAwareness` to `PerMonitorHighDPIAware` so that NC-020's 1280×720 client area is 1280×720 physical pixels (R12: presented 1:1).
+- [ ] `NomadCommander.vcxproj` sets the manifest tool's `EnableDpiAwareness` to `PerMonitorHighDPIAware` (the `MT` task's parameter, per Microsoft Learn) so that NC-020's 1280×720 client area is 1280×720 physical pixels (R12: presented 1:1).
 - [ ] `.filters` files list every file the `.vcxproj` lists, under `Source Files` / `Header Files`.
 
 ## Verification
@@ -61,4 +61,10 @@ Test projects (NC-002), checkers (NC-003–005), shaders (NC-006), a window (NC-
 
 ## Report
 
-_Filled in on hand-back._
+**Verified here (Linux, no MSVC):** every `.cpp`/`.h` passes `clang-format-18 --dry-run --Werror` (18.1.3, the version CI pins); the five `.vcxproj` files were generated from one spec so the shared settings cannot differ between projects; `NomadCommander.slnx` lists the five projects and only `x64`. **Verified by CI, not here:** the build in Debug and Release, the executable's exit code, `git status` after a build. The report is updated with the CI run once it is green.
+
+**Assumed:** the `.slnx` schema (`Solution`/`Configurations`/`BuildType`/`Platform`/`Project Path`), which MSBuild 18.9 on the CI image supports; `WindowsTargetPlatformVersion` `10.0` (latest installed SDK; the CI image has 10.0.26100.0); `VCProjectVersion` 18.0 as informational.
+
+**Refined:** three placeholder translation units (`ClientSmoke.cpp`, `ServerSmoke.cpp`, `GameLogicSmoke.cpp`) instead of an empty file, for the LNK4221 reason above; each names the task that deletes it. `Debug.h` gained `SetAssertHandler` so that later suites can observe an assert. The DPI awareness metadata is `EnableDpiAwareness` under `<Manifest>`, checked against the `MT` task's documentation; NC-020 verifies it at runtime.
+
+**Bent:** R7 (a file is named for its primary type) for the three placeholders and `Main.cpp`, which hold a function and no type; the placeholders are temporary by construction and `Main.cpp` is the entry point the task itself names. Phase 0 lands as six commits on one PR rather than one PR per task, because the tree the plan's protocol presumes did not exist yet and CI could not have been green for any task alone; the one-task-per-PR rule applies from Phase 1.

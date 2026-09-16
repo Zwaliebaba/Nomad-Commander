@@ -1,0 +1,12 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="NeuronCore/NeuronCore.vcxproj" />
+  <Project Path="NeuronClient/NeuronClient.vcxproj" />
+  <Project Path="NeuronServer/NeuronServer.vcxproj" />
+  <Project Path="GameLogic/GameLogic.vcxproj" />
+  <Project Path="NomadCommander/NomadCommander.vcxproj" />
+</Solution>
