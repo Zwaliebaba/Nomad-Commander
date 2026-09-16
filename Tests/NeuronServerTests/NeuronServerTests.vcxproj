@@ -89,7 +89,6 @@
     <ClCompile Include="InstrumentationLogTests.cpp" />
     <ClCompile Include="UniverseStoreTests.cpp" />
     <ClCompile Include="SessionTests.cpp" />
-    <ClCompile Include="SuiteSmoke.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

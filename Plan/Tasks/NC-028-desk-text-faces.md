@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient, Tools | L | **yes** | **yes** | Done (PR pending) |
+| 1 | NeuronClient, Tools | L | **yes** | **yes** | Done (PR #4) |
 
 **Depends on:** NC-023, NC-025, NC-026
 **Read first:** AGENTS.md R13 (what may be compiled in and what may not be loaded), R14 (the closed dependency list, and what "third party" means for content), §5 (*A sampler on text costs the 1:1 guarantee*; blending is a pass's own business); `Design/UI/UI-Spec.md` §1, §2, §6; ADR-008, ADR-009, ADR-012
