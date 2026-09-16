@@ -20,15 +20,17 @@ Everything else in the GDD waits, by the GDD's own word (§15: "No production ch
 
 Each of these is a reading the plan had to take where the documents do not settle the matter. The owner can reverse any of them; the task that carries it is named so the reversal is a known cost.
 
+Where an ADR has since landed, it supersedes the assumption and the row says so.
+
 | # | Assumption | Carried by |
 |---|---|---|
 | A1 | The engine is written fresh from AGENTS.md's description of each library. No code is taken from any other repository. | Phase 0–1 |
-| A2 | In v0.1 the client and the host exchange serialized `Protocol` messages over an in-process `MemoryTransport`. `Socket` and `FrameStream`, which AGENTS.md §2 lists for NeuronCore, wait for the always-on host (GDD §15 defers it; R23 forbids building it early). The seam is bytes from day one so that R18 is a structure, not a convention. | NC-015 |
+| A2 | *Superseded by ADR-006.* In v0.1 the client and the host exchange serialized `Protocol` messages over an in-process `MemoryTransport`. `Socket` and `FrameStream`, which AGENTS.md §2 lists for NeuronCore, wait for the always-on host (GDD §15 defers it; R23 forbids building it early). The seam is bytes from day one so that R18 is a structure, not a convention. | NC-015 |
 | A3 | v0.1 has no audio. The GDD never mentions sound; AGENTS.md lists audio among NeuronClient's eventual contents, and R23 says build what §15 lists. | — |
 | A4 | The hunt, the mothership's siege states (damaged, besieged, broken, exiled), the prologue, the light panel and notifications are not in v0.1. Losing a fleet and rebuilding from the floor is, because §15 measures "whether rebuilding after a loss feels like a new chapter". | NC-065 |
 | A5 | The player's daily active window (GDD §7) exists as a setting in v0.1, because outpost reinforcement timers are defined in terms of it and outposts are in scope (§11). | NC-066 |
 | A6 | The nomad entity is named `Company` (see the Glossary for why `Nomad` cannot be). | NC-040 |
-| A7 | One tick is one simulated minute. The v0.1 host clock offers paused, real time (one tick a real minute, the full game's pacing), sixty times, and "skip to the next board item". Nothing in the simulation can tell which is in force (R21). Recorded in an ADR by NC-014. | NC-014, NC-070 |
+| A7 | *Superseded by ADR-005.* One tick is one simulated minute. The v0.1 host clock offers paused, real time (one tick a real minute, the full game's pacing), sixty times, and "skip to the next board item". Nothing in the simulation can tell which is in force (R21). Recorded in an ADR by NC-014. | NC-014, NC-070 |
 | A8 | Development-only Python that never ships lives in `Tools/`; `Build/` stays the CI checkers. | NC-101 |
 | A9 | A `--headless <days>` launch option arrives in Phase 7 because the §15 sandbox targets need runs nobody watches. It is a switch on the one executable (AGENTS.md: "a role and not a binary"), not Milestone 2's headless run, which merely scales it. | NC-102 |
 | A10 | Decisions the owner should see before dependent work starts are gated by dependency order and small PRs, not by a new rule in AGENTS.md. | README.md |
@@ -205,12 +207,12 @@ Numbers are assigned when they land (Design/README.md). Each recommendation is t
 
 | Topic | Task | Recommendation | Owner-visible |
 |---|---|---|---|
-| Pinned PRNG algorithm and the distribution functions | NC-011 | PCG32 (64-bit state, 64-bit stream), hand-written; `NextBelow(n)` by Lemire's method with rejection; state serializable. | no |
-| Numeric model: `Hundredths`, rounding, credit width | NC-012 | `Hundredths` is an `std::int32_t` where 100 is unity; products round half away from zero through a 64-bit intermediate; `Credits` is `std::int64_t`. | no |
-| Byte encoding and versioning | NC-013 | Little-endian fixed width; strings and arrays length-prefixed with `std::uint32_t`; one `std::uint16_t` schema version at the head of each store and each message; no varints. | no |
-| Include edges and the `Wire*.h` seam | NC-004 | As stated under *Conventions*. | no |
-| Tick duration and the compressed clock | NC-014 | A7. | **yes** |
-| Client–host transport in v0.1 | NC-015 | A2. | **yes** |
+| Pinned PRNG algorithm and the distribution functions (**ADR-002**) | NC-011 | PCG32 (64-bit state, 64-bit stream), hand-written; `NextBelow(n)` by Lemire's method with rejection; state serializable. | no |
+| Numeric model: `Hundredths`, rounding, credit width (**ADR-003**) | NC-012 | `Hundredths` is an `std::int32_t` where 100 is unity; products round half away from zero through a 64-bit intermediate; `Credits` is `std::int64_t`. | no |
+| Byte encoding and versioning (**ADR-004**) | NC-013 | Little-endian fixed width; strings and arrays length-prefixed with `std::uint32_t`; one `std::uint16_t` schema version at the head of each store and each message; no varints. | no |
+| Include edges and the `Wire*.h` seam (**ADR-001**) | NC-004 | As stated under *Conventions*. | no |
+| Tick duration and the compressed clock (**ADR-005**) | NC-014 | A7. | **yes** |
+| Client–host transport in v0.1 (**ADR-006**) | NC-015 | A2. | **yes** |
 | Test-only offscreen target on WARP | NC-021 | A12. | no |
 | The UI model | NC-025 | Immediate mode in pixel space; the 8×8 font at `GLYPH_SCALE` 2 gives 16-pixel cells and an 80×45 grid; widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque because there is no blending (R12). | **yes** |
 | Universe store form | NC-031 | Seed plus an input journal, replayed through `Simulation` on load; written to a temporary file and renamed into place; a snapshot section is added only when a measured load exceeds two seconds, and the ADR records the measurement. | **yes** |
