@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronCore | S | no | no | Open |
+| 1 | NeuronCore | S | no | no | Done (PR #2) |
 
 **Depends on:** NC-002
 **Read first:** GDD §7 (the clock), §14 (the nomad as an entity type); AGENTS.md §2 (NeuronCore's contents), R3, R5, R6, R21, R22
