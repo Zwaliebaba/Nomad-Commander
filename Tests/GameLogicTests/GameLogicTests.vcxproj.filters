@@ -13,6 +13,7 @@
     <ClCompile Include="UpkeepTests.cpp" />
     <ClCompile Include="TickResolverTests.cpp" />
     <ClCompile Include="WireTests.cpp" />
+    <ClCompile Include="SoakTests.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>

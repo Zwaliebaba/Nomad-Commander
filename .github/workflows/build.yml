@@ -149,6 +149,26 @@ jobs:
           & $vstest $suites /Platform:x64 /Logger:trx /ResultsDirectory:TestResults
           if ($LASTEXITCODE -ne 0) { throw "vstest reported failures." }
 
+      # AGENTS.md §6 asks for figures that are measured rather than estimated, and a few tests
+      # measure one -- the determinism harness times a simulated month, the soak times a simulated
+      # year and the tick cost the pump cap is set from. They write it with Logger::WriteMessage,
+      # tagged `[NC-nnn]`, which lands in the TRX and nowhere a human looks. NC-043's report asked
+      # for this in as many words: "a run that got ten times slower but stayed above the floor
+      # would pass silently. A CI job that kept the figure over time would catch that, and there is
+      # nowhere to put one yet." This is that nowhere.
+      #
+      # It does not gate: the floors are asserted in the tests. It prints, so that the trend is
+      # readable from the job log of any run.
+      - name: Report the measured figures
+        if: always()
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem TestResults -Filter *.trx -Recurse -ErrorAction SilentlyContinue |
+            Select-String -Pattern '\[NC-\d{3}\][^<]*' -AllMatches |
+            ForEach-Object { $_.Matches } | ForEach-Object { $_.Value.Trim() } | Sort-Object -Unique
+          if ($lines) { $lines | ForEach-Object { Write-Output $_ } }
+          else { Write-Output "No [NC-nnn] measurement lines were found in the test results." }
+
       # After the build, so that a compile error is reported as a compile error rather than as
       # forty linter findings about a file that does not parse.
       - name: Run clang-tidy
