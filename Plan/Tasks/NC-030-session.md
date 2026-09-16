@@ -5,7 +5,7 @@
 | 1 | NeuronServer | M | no | no | Open |
 
 **Depends on:** NC-014, NC-015
-**Read first:** GDD §7 ("The universe runs continuously whether the player is present or not"; "timers apply identically online and offline"); AGENTS.md §2 (NeuronServer: "`Session` owns a simulation and drives it on a schedule … It never names a game type"), R13 (*It is a role and not a binary*), R21
+**Read first:** GDD §7 ("The universe runs continuously whether the player is present or not"; "timers apply identically online and offline"); AGENTS.md §2 (NeuronServer: "`Session` owns a simulation and drives it on a schedule ... It never names a game type"), R13 (*It is a role and not a binary*), R21
 
 ## Goal
 
@@ -14,7 +14,7 @@ The host's loop: a `Session` owns a `Simulation`, drives it by a `TickSchedule` 
 ## Deliverables
 
 - `NeuronServer/Session.h` + `.cpp`: `class Session`, `struct Desc { Simulation* simulation; Transport* transport; TickSchedule schedule; UniverseStore* store; InstrumentationLog* log; }` (the last two arrive in NC-031/NC-032 as pointers that may be null until then), `Create`, `Pump(std::chrono::steady_clock::time_point _now)`: receive every message, route `SessionControl` to the schedule and the store, queue `SimulationInput`; run `TicksDue` ticks, applying queued inputs at the tick they arrive (an input is stamped with the tick it will apply at, so a replay is exact); drain outputs once per pump and send them; `Tick()`, `Rate()`, `SetRate`, `SkipToNextEvent` (runs ticks until the simulation produces output or a cap is hit).
-- `NeuronServerTests/SessionTests.cpp` using NC-014's `CounterSimulation` (moved to a shared test helper, or duplicated; say which): inputs applied at the right ticks, outputs delivered in order, a paused session runs no tick, a compressed session runs sixty per real minute.
+- `NeuronServerTests/SessionTests.cpp` with its own simulation double, named for what it does rather than `CounterSimulation`: NC-014's double lives in `Tests/NeuronCoreTests/`, a test project may include only the libraries it references (ADR-001), and two headers with one base name fail `CheckProjectFiles.py`'s `UniqueNames` rule. Refined by NC-014: inputs applied at the right ticks, outputs delivered in order, a paused session runs no tick, a compressed session runs sixty per real minute.
 
 ## Acceptance criteria
 

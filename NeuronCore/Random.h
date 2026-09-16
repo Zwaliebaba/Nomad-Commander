@@ -6,6 +6,9 @@
 namespace Neuron
 {
 
+class ByteReader;
+class ByteWriter;
+
 /// The generator's whole state: what the universe store saves and a replay restores (ADR-002). A public aggregate (R8).
 struct RandomState
 {
@@ -39,6 +42,11 @@ public:
 
   [[nodiscard]] RandomState State() const noexcept;
   void Restore(const RandomState& _state) noexcept;
+
+  /// The state as bytes, for the universe store and the determinism hash (ADR-002, ADR-004). Declared here and defined
+  /// in Random.cpp so that a consumer of Random does not pull in the byte streams.
+  void WriteState(ByteWriter& _writer) const;
+  [[nodiscard]] bool ReadState(ByteReader& _reader) noexcept;
 
 private:
   void Step() noexcept;

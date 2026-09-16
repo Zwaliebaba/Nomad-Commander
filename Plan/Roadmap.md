@@ -1,6 +1,6 @@
 # Roadmap — Game v0.1, from the design to a build order
 
-This is the implementation plan for *Nomad Commander* v0.1 as GDD §15 scopes it, converted from [Design/GameDesign.md](../Design/GameDesign.md) v1.6 under the rules in [AGENTS.md](../AGENTS.md). It is a build order, not a design: every task cites the GDD section it serves, and a task that needs something the GDD does not say is a task that writes an ADR. [README.md](README.md) says how a task is worked; [Glossary.md](Glossary.md) fixes the names.
+This is the implementation plan for *Nomad Commander* v0.1 as GDD §15 scopes it, converted from [Design/GameDesign.md](../Design/GameDesign.md) v1.7 under the rules in [AGENTS.md](../AGENTS.md). It is a build order, not a design: every task cites the GDD section it serves, and a task that needs something the GDD does not say is a task that writes an ADR. [README.md](README.md) says how a task is worked; [Glossary.md](Glossary.md) fixes the names.
 
 The plan covers v0.1 in tasks. GDD Milestone 2 and the full game are outlined at the end only far enough to name the seams v0.1 must leave open (R23: nothing beyond v0.1 is built).
 
@@ -9,30 +9,32 @@ The plan covers v0.1 in tasks. GDD Milestone 2 and the full game are outlined at
 One executable, `x64\Release\NomadCommander.exe`, shipping alone (R13), that:
 
 1. hosts the simulation and the client in one process on a compressed local clock (GDD §15), writing one universe store and one instrumentation log beside itself and nothing else;
-2. plays the Kessel Convoy scenario end to end as GDD §3 describes it, with the mouse, on a 1280×720 2D map with the situation board, the accusation panel, hypothesis as selection, the operation composer, the plan editor with a branch budget, courier orders, and the receipt with a replay;
+2. plays the Kessel Convoy scenario end to end as GDD §3 describes it, with the mouse, on a 1920×1080 client — a 3D map inside a 2D desk (GDD §13, v1.7) — with the situation board, the accusation panel, hypothesis as selection, the operation composer, the plan editor with a branch budget, courier orders, and the receipt with a replay;
 3. runs the sandbox: three empires and one company on about ten generated systems, with the economy, the hull market, insolvency, the floor, empire goals and wars that never go quiet, covert raids, the §6 inference rule, contracts paid by attribution, admirals choosing from the eight templates by trait, and outposts under governors;
 4. logs every event GDD §15 measures so that `Tools/MeasureLog.py` computes the measured outcomes after a playtest (R24);
 5. reproduces any run from its seed and its inputs (R16), which is what makes a bug in a playtest findable.
 
-Everything else in the GDD waits, by the GDD's own word (§15: "No production chain, no 3D, no always-on host, no memory layers, no ghosts").
+Everything else in the GDD waits, by the GDD's own word (§15: "No production chain, no always-on host, no memory layers, no ghosts"). The 3D client left that list in v1.7 and is in v0.1, under the §13 guard: it earns its place when the player can say what it tells them that the 2D map did not, and the 2D map is built first and kept so the comparison can be made.
 
 ## Assumptions the conversion made
 
 Each of these is a reading the plan had to take where the documents do not settle the matter. The owner can reverse any of them; the task that carries it is named so the reversal is a known cost.
 
+Where an ADR has since landed, it supersedes the assumption and the row says so.
+
 | # | Assumption | Carried by |
 |---|---|---|
 | A1 | The engine is written fresh from AGENTS.md's description of each library. No code is taken from any other repository. | Phase 0–1 |
-| A2 | In v0.1 the client and the host exchange serialized `Protocol` messages over an in-process `MemoryTransport`. `Socket` and `FrameStream`, which AGENTS.md §2 lists for NeuronCore, wait for the always-on host (GDD §15 defers it; R23 forbids building it early). The seam is bytes from day one so that R18 is a structure, not a convention. | NC-015 |
+| A2 | *Superseded by ADR-006.* In v0.1 the client and the host exchange serialized `Protocol` messages over an in-process `MemoryTransport`. `Socket` and `FrameStream`, which AGENTS.md §2 lists for NeuronCore, wait for the always-on host (GDD §15 defers it; R23 forbids building it early). The seam is bytes from day one so that R18 is a structure, not a convention. | NC-015 |
 | A3 | v0.1 has no audio. The GDD never mentions sound; AGENTS.md lists audio among NeuronClient's eventual contents, and R23 says build what §15 lists. | — |
 | A4 | The hunt, the mothership's siege states (damaged, besieged, broken, exiled), the prologue, the light panel and notifications are not in v0.1. Losing a fleet and rebuilding from the floor is, because §15 measures "whether rebuilding after a loss feels like a new chapter". | NC-065 |
 | A5 | The player's daily active window (GDD §7) exists as a setting in v0.1, because outpost reinforcement timers are defined in terms of it and outposts are in scope (§11). | NC-066 |
 | A6 | The nomad entity is named `Company` (see the Glossary for why `Nomad` cannot be). | NC-040 |
-| A7 | One tick is one simulated minute. The v0.1 host clock offers paused, real time (one tick a real minute, the full game's pacing), sixty times, and "skip to the next board item". Nothing in the simulation can tell which is in force (R21). Recorded in an ADR by NC-014. | NC-014, NC-070 |
+| A7 | *Superseded by ADR-005.* One tick is one simulated minute. The v0.1 host clock offers paused, real time (one tick a real minute, the full game's pacing), sixty times, and "skip to the next board item". Nothing in the simulation can tell which is in force (R21). Recorded in an ADR by NC-014. | NC-014, NC-070 |
 | A8 | Development-only Python that never ships lives in `Tools/`; `Build/` stays the CI checkers. | NC-101 |
 | A9 | A `--headless <days>` launch option arrives in Phase 7 because the §15 sandbox targets need runs nobody watches. It is a switch on the one executable (AGENTS.md: "a role and not a binary"), not Milestone 2's headless run, which merely scales it. | NC-102 |
 | A10 | Decisions the owner should see before dependent work starts are gated by dependency order and small PRs, not by a new rule in AGENTS.md. | README.md |
-| A11 | Content the GDD does not supply (the third empire's name, system names other than Kessel, officer and admiral names other than Varik) is invented by the implementer and listed in the scenario header for the owner to rename. | NC-090 |
+| A11 | *Settled for the names the reference screens use.* Content the GDD does not supply is invented by the implementer and listed in the scenario header. The owner kept the `Design/UI` package's names on 2026-09-16 — `Sedu Compact`, and `Harrow`, `Tessa Gate`, `Pale Anchor`, `Ashfall`, `Cinder Reach`, `Low Meridian`, `Sedu Hold` — so those are canon and the header lists them as provenance, not as a rename queue. Officer and admiral names beyond Varik are still the implementer's. | NC-090 |
 | A12 | NeuronClientTests render into a test-owned offscreen texture on the WARP adapter so that CI, which has no GPU and no window, exercises the D3D12 code. The game's own path stays "straight into the swap chain" (R12); the test target is not a render target the game has. | NC-021 |
 | A13 | Milestone 2 and the full game are outlined, not tasked. Their tasks are written when v0.1's measured outcomes are in, because those outcomes decide what they contain (GDD §15). | — |
 
@@ -98,11 +100,12 @@ The three engine libraries as AGENTS.md §2 describes them, minus what A2 defers
 | NC-024 | Input | NeuronClient | S | NC-020 |
 | NC-025 | UI core *(owner-visible)* | NeuronClient | L | NC-022, NC-023, NC-024 |
 | NC-026 | Desk widgets | NeuronClient | L | NC-025 |
+| NC-027 | The 3D map pipeline *(owner-visible)* | NeuronClient | L | NC-021, NC-022 |
 | NC-030 | `Session` | NeuronServer | M | NC-014, NC-015 |
 | NC-031 | The universe store *(owner-visible)* | NeuronServer, NeuronCore | M | NC-014 |
 | NC-032 | The instrumentation log | NeuronServer | S | NC-010 |
 
-**Exit:** `NomadCommander.exe` opens a 1280×720 window, presents at the display's rate, draws text and primitives, reacts to the mouse and closes on the close box; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
+**Exit:** `NomadCommander.exe` opens a 1920×1080 window, presents at the display's rate, draws text and primitives *and a depth-tested sphere in perspective*, reacts to the mouse and closes on the close box; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
 
 ### Phase 2 — The simulation kernel, headless
 
@@ -157,7 +160,7 @@ The AI is the content (GDD §8): admirals choose templates by trait from belief,
 
 ### Phase 5 — The client
 
-The desk session (GDD §3) on the 2D map (§13). The composition root hosts the session; everything else on the client is drawn from wire messages and never from `World`. Every task here is run on a desktop before it is done.
+The desk session (GDD §3) on the map (§13: the map is 3D, the desk around it is 2D). The composition root hosts the session; everything else on the client is drawn from wire messages and never from `World`. Every task here is run on a desktop before it is done.
 
 | Task | Title | Project(s) | Size | Depends on |
 |---|---|---|---|---|
@@ -205,14 +208,14 @@ Numbers are assigned when they land (Design/README.md). Each recommendation is t
 
 | Topic | Task | Recommendation | Owner-visible |
 |---|---|---|---|
-| Pinned PRNG algorithm and the distribution functions | NC-011 | PCG32 (64-bit state, 64-bit stream), hand-written; `NextBelow(n)` by Lemire's method with rejection; state serializable. | no |
-| Numeric model: `Hundredths`, rounding, credit width | NC-012 | `Hundredths` is an `std::int32_t` where 100 is unity; products round half away from zero through a 64-bit intermediate; `Credits` is `std::int64_t`. | no |
-| Byte encoding and versioning | NC-013 | Little-endian fixed width; strings and arrays length-prefixed with `std::uint32_t`; one `std::uint16_t` schema version at the head of each store and each message; no varints. | no |
-| Include edges and the `Wire*.h` seam | NC-004 | As stated under *Conventions*. | no |
-| Tick duration and the compressed clock | NC-014 | A7. | **yes** |
-| Client–host transport in v0.1 | NC-015 | A2. | **yes** |
+| Pinned PRNG algorithm and the distribution functions (**ADR-002**) | NC-011 | PCG32 (64-bit state, 64-bit stream), hand-written; `NextBelow(n)` by Lemire's method with rejection; state serializable. | no |
+| Numeric model: `Hundredths`, rounding, credit width (**ADR-003**) | NC-012 | `Hundredths` is an `std::int32_t` where 100 is unity; products round half away from zero through a 64-bit intermediate; `Credits` is `std::int64_t`. | no |
+| Byte encoding and versioning (**ADR-004**) | NC-013 | Little-endian fixed width; strings and arrays length-prefixed with `std::uint32_t`; one `std::uint16_t` schema version at the head of each store and each message; no varints. | no |
+| Include edges and the `Wire*.h` seam (**ADR-001**) | NC-004 | As stated under *Conventions*. | no |
+| Tick duration and the compressed clock (**ADR-005**) | NC-014 | A7. | **yes** |
+| Client–host transport in v0.1 (**ADR-006**) | NC-015 | A2. | **yes** |
 | Test-only offscreen target on WARP | NC-021 | A12. | no |
-| The UI model | NC-025 | Immediate mode in pixel space; the 8×8 font at `GLYPH_SCALE` 2 gives 16-pixel cells and an 80×45 grid; widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque because there is no blending (R12). | **yes** |
+| The UI model | NC-025 | Immediate mode in pixel space; the 8×8 font at `GLYPH_SCALE` 3 gives 24-pixel cells and an 80×45 grid (the screen is exactly 1.5× the 1280×720 it was until 2026-09-16, so the grid is unchanged and only the glyphs grew; scale 2 would give 120×67½ cells and is rejected for the half); widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque by default, and a pass that wants blending sets it (AGENTS.md §5, owner decision 2026-09-16). | **yes** |
 | Universe store form | NC-031 | Seed plus an input journal, replayed through `Simulation` on load; written to a temporary file and renamed into place; a snapshot section is added only when a measured load exceeds two seconds, and the ADR records the measurement. | **yes** |
 | Instrumentation log format | NC-032 | One event a line: tick, wall-clock ISO-8601, kind, then `key=value` fields, tab-separated, UTF-8, flushed per line. | no |
 | Universe generation | NC-041 | The Kessel map is hand-authored data in the generator's types; the sandbox generator places systems on a jittered grid, builds a connected lane graph, and assigns roles by graph shape. | no |
@@ -243,8 +246,8 @@ In the GDD's order: the always-on host (`Socket`, `FrameStream`, `NeuronServer`'
 ## Implementation risks the GDD does not list
 
 - **The UI is the largest single cost and the least game-specific.** AGENTS.md rules out helper layers, so the board, the panels, the composer and the editor are a homegrown widget set on an 8×8 font. Phase 1's UI tasks are sized L for that reason; keep the widget set to what GDD §3 shows on screen.
-- **D3D12 boilerplate for a 2D game.** Descriptor heaps, fences and resource states cost the same for a rectangle as for a mesh. NC-021 and NC-022 are the whole of it; nothing later adds a pass without an ADR.
+- **D3D12 boilerplate.** Descriptor heaps, fences and resource states cost the same for a rectangle as for a mesh. NC-021, NC-022 and NC-027 are the whole of it; nothing later adds a pass without an ADR.
 - **Determinism drifts silently.** One `float`, one `std::unordered_map` iterated into the world, one `std::chrono::now()` inside GameLogic, and the replay is gone. NC-043's harness runs in every later PR; a task that makes it fail has found its own bug.
-- **Engine work is where scope hides.** "The engine needs" is how a 2D game grows a scene graph. Phase 1 builds what Phase 5 draws and nothing else.
+- **Engine work is where scope hides, and the 3D map is where it will hide next.** "The engine needs" is how a game grows a scene graph, a material system and a model format. Phase 1 builds what Phase 5 draws and nothing else; NC-027 is one depth buffer, one camera value type and one mesh pipeline, and its out-of-scope list is the guard.
 - **An agent cannot run the executable.** Desktop-run tasks end on the owner's machine. Batch them, and keep each one's "what you must see" specific enough to check in a minute.
 - **Tuning needs play.** Every number in `Tuning.h` is a guess until NC-092 and NC-103. Do not tune from tests.

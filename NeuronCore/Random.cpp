@@ -1,6 +1,8 @@
 // NeuronCore/Random.cpp
 #include "pch.h"
 #include "Random.h"
+#include "ByteReader.h"
+#include "ByteWriter.h"
 #include "Debug.h"
 
 namespace Neuron
@@ -97,6 +99,30 @@ void Random::Restore(const RandomState& _state) noexcept
 {
   m_state = _state.state;
   m_increment = _state.increment;
+}
+
+void Random::WriteState(ByteWriter& _writer) const
+{
+  _writer.Write(m_state);
+  _writer.Write(m_increment);
+}
+
+bool Random::ReadState(ByteReader& _reader) noexcept
+{
+  std::uint64_t state = 0;
+  std::uint64_t increment = 0;
+  if (!_reader.Read(state) || !_reader.Read(increment))
+  {
+    return false;
+  }
+  // The increment is odd by construction; an even one is a corrupt store, not a usable generator (ADR-002).
+  if ((increment & 1u) == 0u)
+  {
+    return false;
+  }
+  m_state = state;
+  m_increment = increment;
+  return true;
 }
 
 } // namespace Neuron

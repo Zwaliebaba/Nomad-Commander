@@ -5,7 +5,7 @@
 | 5 | NomadCommander | M | **yes** | no | Open |
 
 **Depends on:** NC-071, NC-026
-**Read first:** GDD §3 (0:00: three items with expiry; opening an item), §2 (decision density), §13 ("Kessel runs out of fuel in about thirty-eight hours," with the report one tap behind)
+**Read first:** GDD §3 (0:00: three items with expiry; opening an item), §2 (decision density), §13 ("Kessel runs out of fuel in about thirty-eight hours," with the report one tap behind); `Design/UI/UI-Spec.md` §1, §2, §3, `Design/UI/screens/01-situation-board-1920x1080.png`; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 
@@ -22,6 +22,7 @@ The desk's front page: the board's items with what they are, what they project a
 - [ ] The three §3 items render as three rows with expiries and open to their panels; the owner did it and says so.
 - [ ] Time left counts down with the session tick and an expired item disappears.
 - [ ] Every input the screen sends is a `WireInput`; the screen holds no game state of its own beyond scroll and selection.
+- [ ] Rendered beside `Design/UI/screens/01-situation-board-1920x1080.png`, the owner recognises the screen row for row; every deviation is listed in the report with its UI § reference, and each aspirational effect says which treatment was used.
 
 ## Verification
 

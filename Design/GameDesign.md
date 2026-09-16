@@ -1,8 +1,8 @@
-<!-- Converted from "Nomad Commander.docx" (v1.6, Word revision 4, last modified 2026-09-16 10:11 UTC) by a script in a Claude Code session. The Word file used no styles; headings were inferred from all-bold paragraphs. -->
+<!-- Converted from "Nomad Commander.docx" (v1.6, Word revision 4, last modified 2026-09-16 10:11 UTC) by a script in a Claude Code session. The Word file used no styles; headings were inferred from all-bold paragraphs. Edited in the repository since that conversion; the version line below is authoritative, not this comment. -->
 
 # Nomad Commander — Game Design Document
 
-Version 1.6 · A hobby project, one developer
+Version 1.7 · A hobby project, one developer
 
 ## Executive summary
 
@@ -241,7 +241,11 @@ The mobility rules are the verbs of the operational game and are the first desig
 
 ## 13. Presentation
 
-The game's complexity is informational, not visual, so v0.1 is a 2D map with simple battle visualisation, and that decision is protected. The interface presents decisions, not data: "Kessel runs out of fuel in about thirty-eight hours," with the report, its source and its age one tap behind. The belief system is shown as causal explanation, never as parallel panels. The Homeworld feel is pursued through fleet identity. The 3D client is the reward for a working 2D game, the largest cost in the project and the least validated value, and it waits.
+The game's complexity is informational, not visual. That has not changed, and it still governs: battle visualisation stays simple, and the interface presents decisions, not data — "Kessel runs out of fuel in about thirty-eight hours," with the report, its source and its age one tap behind. The belief system is shown as causal explanation, never as parallel panels. The Homeworld feel is pursued through fleet identity.
+
+What has changed is when the 3D client arrives. Through v1.6 it waited: it was "the reward for a working 2D game, the largest cost in the project and the least validated value." **From v1.7 it is in v0.1** (decision, 2026-09-16). The map is rendered in 3D; the desk around it — the board, the panels, the composer, the plan editor, the receipt — stays a 2D interface on the same cell grid, because nothing about a list of reports is improved by perspective.
+
+The cost this used to defer has not gone anywhere; it has moved inside v0.1, where the risk register in section 16 now carries it without "it waits" as its guard. The replacement guard is the one section 12 applies to a fifth ship class and section 2 applies to Tier 3: **the 3D map earns its place when the player can say what it tells them that the 2D map did not.** If a session's decisions are no better made and no better explained with it than without it, it is cost without value and the 2D map is still there.
 
 ## 14. Scale and other players
 
@@ -253,7 +257,7 @@ Nomad Commander is a single-player game by design: the premise that the empires 
 
 The first playable version of the game, built to prove one proposition: it is fun to look at an uncertain situation, make a risky commitment, watch a known opponent respond, and live with the consequences.
 
-Scope: three empires and the player on about ten systems with distinct roles; four goods with abstract per-system production and consumption, convoys between surplus and deficit, local prices, capacity and liquidity limits; hull upkeep, insolvency, and a hull market at empire shipyards; the mothership fabricator and mothership-only contracts as the rebuild floor; four ship classes with the mobility rules in section 12; three or four named admirals on six to eight templates with the selection rule in section 8; two contract types, escort and raid, with attribution-dependent payout; reports with source, age and reliability; hypothesis as selection binding plan assumptions; plans with a defined branch budget; courier-carried orders to departed fleets; the inference rule in section 6 with empire covert raids and shared hulls; one belief per empire and one opinion per character; a compressed local clock and a 2D client. No production chain, no 3D, no always-on host, no memory layers, no ghosts.
+Scope: three empires and the player on about ten systems with distinct roles; four goods with abstract per-system production and consumption, convoys between surplus and deficit, local prices, capacity and liquidity limits; hull upkeep, insolvency, and a hull market at empire shipyards; the mothership fabricator and mothership-only contracts as the rebuild floor; four ship classes with the mobility rules in section 12; three or four named admirals on six to eight templates with the selection rule in section 8; two contract types, escort and raid, with attribution-dependent payout; reports with source, age and reliability; hypothesis as selection binding plan assumptions; plans with a defined branch budget; courier-carried orders to departed fleets; the inference rule in section 6 with empire covert raids and shared hulls; one belief per empire and one opinion per character; a compressed local clock; and a client whose map is 3D and whose desk is 2D (section 13). No production chain, no always-on host, no memory layers, no ghosts.
 
 Tested first with the scripted Kessel Convoy scenario, replayed many times, around three dilemmas: information (do I answer the accusation, and how), commitment (do I take the contract before I know whether the convoy is bait), doctrine (do I trust my plan when Varik behaves differently). Then in the sandbox. At least one sandbox test runs at real-time pacing with a paper light panel, so that "persistent becomes waiting" is tested before the always-on server exists.
 
@@ -265,7 +269,7 @@ A headless run of five empires on about twenty systems for simulated decades, ad
 
 ### The full game
 
-The always-on server, the light panel, notifications, the prologue, layered memory, rumours with delay and distortion, per-character beliefs, the player's production economy, the full political layer, the hunt at full scale, and the 3D client, in roughly that order, each admitted only when the loop it serves has been shown to work. Ghost nomads after that, if ever.
+The always-on server, the light panel, notifications, the prologue, layered memory, rumours with delay and distortion, per-character beliefs, the player's production economy, the full political layer, and the hunt at full scale, in roughly that order, each admitted only when the loop it serves has been shown to work. Ghost nomads after that, if ever. The 3D client left this list in v1.7 and is in v0.1; it is the one item admitted before the loop it serves was shown to work, which is why section 16 gives it a guard instead.
 
 ## 16. Risks
 
@@ -291,11 +295,11 @@ The always-on server, the light panel, notifications, the prologue, layered memo
 
 **Too many systems before the core is proven.** Tier 3 waits.
 
-**The 3D client.** Largest cost, least validated value.
+**The 3D client.** Largest cost, least validated value — and, since v1.7, inside v0.1 rather than after it, so "it waits" is no longer the guard. The guard is the section 13 test: the 3D map earns its place when the player can say what it tells them that the 2D map did not. The 2D map is built first and kept, so the comparison can actually be made and so a v0.1 that runs out of budget still has a client. This is the one risk in this list admitted deliberately rather than guarded down to nothing.
 
 ## Appendix: settled and open
 
-**Settled:** hobby project, one developer; persistent universe on an always-on server; AI empires, no other players; nomad with a mothership that can fall but not be destroyed; outposts and claims, never territory; force, trade and raiding with information embedded in all three; contracts as offers from empire goals, two types in v0.1; hypothesis as selection binding the plan, paired with the receipt; branch budget as command capacity set by officers; orders instant in the mothership's system and courier-carried to departed fleets; combat uncertainty from intelligence, AI seeing the player through fog; six to eight templates, trait-weighted selection, roster refresh; reality, belief and evidence distinct, with the inference table and thresholds in section 6; couriers as physical carriers; one belief per empire and one opinion per character in v0.1, layered memory later; credits, per-hull upkeep, insolvency by mothballing, empire hull market, the mothership floor; abstract per-system production in v0.1; constrained arbitrage; officers as the progression source; the hunt as the fall generator, ending on a broken mothership, a settlement or service; outposts in v0.1 as refuel, dock, store and sell under three governor policies; the starting real-time clock; the eight-template list; 2D first, 3D as reward; multi-nomad kernel hedge, ghosts as future direction; v0.1 scope, the Kessel scenario, and the measured outcomes above.
+**Settled:** hobby project, one developer; persistent universe on an always-on server; AI empires, no other players; nomad with a mothership that can fall but not be destroyed; outposts and claims, never territory; force, trade and raiding with information embedded in all three; contracts as offers from empire goals, two types in v0.1; hypothesis as selection binding the plan, paired with the receipt; branch budget as command capacity set by officers; orders instant in the mothership's system and courier-carried to departed fleets; combat uncertainty from intelligence, AI seeing the player through fog; six to eight templates, trait-weighted selection, roster refresh; reality, belief and evidence distinct, with the inference table and thresholds in section 6; couriers as physical carriers; one belief per empire and one opinion per character in v0.1, layered memory later; credits, per-hull upkeep, insolvency by mothballing, empire hull market, the mothership floor; abstract per-system production in v0.1; constrained arbitrage; officers as the progression source; the hunt as the fall generator, ending on a broken mothership, a settlement or service; outposts in v0.1 as refuel, dock, store and sell under three governor policies; the starting real-time clock; the eight-template list; a 3D map and a 2D desk in v0.1, the 2D map built first and kept as the comparison (v1.7, was "2D first, 3D as reward"); multi-nomad kernel hedge, ghosts as future direction; v0.1 scope, the Kessel scenario, and the measured outcomes above.
 
 **Open, answered by play:** the starting numbers in section 6 and every other tuning value, including the clock; the officer market's prices relative to contract pay; whether the session in section 3 plays as well as it reads.
 

@@ -1,6 +1,6 @@
 # Plan — how the implementation plan is worked
 
-This folder turns [Design/GameDesign.md](../Design/GameDesign.md) (v1.6) into work an agent picks up one task at a time. It is authoritative on nothing: [AGENTS.md](../AGENTS.md) says how code is written, the GDD says what the game is, `Design/ADR/` says what was decided while building. When a task file disagrees with any of them, the task file is wrong. Fix it in your PR and say so in the report.
+This folder turns [Design/GameDesign.md](../Design/GameDesign.md) (v1.7) into work an agent picks up one task at a time. It is authoritative on nothing: [AGENTS.md](../AGENTS.md) says how code is written, the GDD says what the game is, `Design/ADR/` says what was decided while building. When a task file disagrees with any of them, the task file is wrong. Fix it in your PR and say so in the report.
 
 ## What is here
 

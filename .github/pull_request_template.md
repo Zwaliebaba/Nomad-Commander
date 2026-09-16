@@ -35,6 +35,8 @@
 - [ ] No new third-party dependency (R14)
 - [ ] No new runtime file dependency — the executable still ships alone (R13)
 - [ ] Only the lines the task required were changed
+- [ ] If this PR touches a Phase 5 screen: which `Design/UI/UI-Spec.md` sections it implements, and
+      one screenshot beside the reference PNG
 
 ## Anything you had to bend
 

@@ -5,7 +5,7 @@
 | 5 | NomadCommander | L | **yes** | no | Open |
 
 **Depends on:** NC-072, NC-074
-**Read first:** GDD §3 (11:00, 14:00, 19:00, 25:00 whole), §4 (*Hypothesis*, *Commitment*, *The plan*), §7 (the fuel warning before departure), §12 (the composer's verbs), §16 (*Battle plans become programming*)
+**Read first:** GDD §3 (11:00, 14:00, 19:00, 25:00 whole), §4 (*Hypothesis*, *Commitment*, *The plan*), §7 (the fuel warning before departure), §12 (the composer's verbs), §16 (*Battle plans become programming*); `Design/UI/UI-Spec.md` §1, §2, §5, `Design/UI/screens/03-operation-composer-plan-editor-1920x1080.png`; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 
@@ -24,6 +24,7 @@ The second and third dilemmas as one flow: pick a reading (the hypothesis), comp
 - [ ] The budget cannot be exceeded in the editor, and a third override is refused with the capacity shown.
 - [ ] Every stake is shown before commit; nothing is committed without `Confirm`.
 - [ ] The readings offered are the wire's; the client derives none (R18).
+- [ ] Rendered beside `Design/UI/screens/03-operation-composer-plan-editor-1920x1080.png`, the owner recognises the screen row for row; every deviation is listed in the report with its UI § reference, and each aspirational effect says which treatment was used.
 
 ## Verification
 

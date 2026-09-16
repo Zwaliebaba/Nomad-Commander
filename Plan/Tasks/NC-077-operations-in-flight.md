@@ -5,7 +5,7 @@
 | 5 | NomadCommander | M | **yes** | no | Open |
 
 **Depends on:** NC-076
-**Read first:** GDD §3 (25:00 to 30:00: the operation on the board with its doctrine and projection; the new sighting; recall or a courier with one added rule), §4 (*Orders travel*), §7 (live intervention at branch points is the exception)
+**Read first:** GDD §3 (25:00 to 30:00: the operation on the board with its doctrine and projection; the new sighting; recall or a courier with one added rule), §4 (*Orders travel*), §7 (live intervention at branch points is the exception); `Design/UI/UI-Spec.md` §1, §2, §6; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 
@@ -21,6 +21,7 @@ The operations tab: each operation underway with its doctrine, its projection, i
 - [ ] The §3 27:00 step works as written: the sighting appears on the board, the panel sends the one added rule by courier, and the projection shows its arrival relative to the fleet's; the owner did it.
 - [ ] Recall sends one input and the contract shows as forfeited on the contracts tab.
 - [ ] The panel never shows the fleet's true position; it shows the projection (R18 applies to the company's own fleet once out of contact: the client knows what it ordered and what couriers reported).
+- [ ] The chrome this task draws matches UI §1 and the palette names in UI §2, and every string follows UI §6; deviations are listed in the report with their UI § reference.
 
 ## Verification
 

@@ -19,7 +19,7 @@ The two primitives every later type is built on: `Tick`, the simulation's only c
 
 ## Acceptance criteria
 
-- [x] `Id<A>` and `Id<B>` do not convert to each other or to an integer implicitly; the test proves it with `static_assert(!std::is_convertible_v<…>)`.
+- [x] `Id<A>` and `Id<B>` do not convert to each other or to an integer implicitly; the test proves it with `static_assert(!std::is_convertible_v<...>)`.
 - [x] `Id<T>{}` is invalid; `Id<T>::FromIndex(n)` is valid for any `n` below the sentinel.
 - [x] `TicksFromHours(3) == 180` and `TicksFromDays(1) == 1440`.
 - [x] Both headers compile without `NeuronCore.h` (GameLogic's `pch.h` includes no Windows header).

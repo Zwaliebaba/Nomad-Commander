@@ -5,7 +5,7 @@
 | 5 | NomadCommander | M | **yes** | no | Open |
 
 **Depends on:** NC-073
-**Read first:** GDD §3 (3:00 whole), §6 (the four answers), §9 (the explanation's exact shape: "Why? They believe… For:… Against:…"; the player sees at once what they could have proved and what convicted them); AGENTS.md R19
+**Read first:** GDD §3 (3:00 whole), §6 (the four answers), §9 (the explanation's exact shape: "Why? They believe... For:... Against:..."; the player sees at once what they could have proved and what convicted them); AGENTS.md R19; `Design/UI/UI-Spec.md` §1, §2, §6; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 
@@ -21,6 +21,7 @@ The panel that makes the hook visible: why the empire believes it, item by item 
 - [ ] The §9 example renders from a `WireAccusation` with those items in that shape, and the owner saw it.
 - [ ] Each of the four answers plus the scout job sends exactly one `WireInput` and the panel shows the projection before the click confirms it.
 - [ ] Weights shown are the wire's hundredths, never recomputed on the client.
+- [ ] The chrome this task draws matches UI §1 and the palette names in UI §2, and every string follows UI §6; deviations are listed in the report with their UI § reference.
 
 ## Verification
 

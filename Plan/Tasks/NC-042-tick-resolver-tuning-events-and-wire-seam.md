@@ -15,7 +15,7 @@ The spine every later task hangs on: the resolver that advances the world one ti
 
 - `GameLogic/Tuning.h`: one `namespace Tuning` of `inline constexpr` tables and values, each with a comment naming its GDD section: `TICK` constants come from NeuronCore; here the §5 upkeep and hull prices, the §7 clock values (jump range, war lengths, the week of standing orders, offer minimum of one day), the §6 weights and thresholds (filled by NC-052 but the table is declared here), the §10 levers, the §12 class stats (from NC-040). Every later task adds to this file rather than writing a literal (R20).
 - `GameLogic/Event.h`: `EventId`, `struct Event { Tick tick; EventKind kind; subjects (ids as a small fixed set); Explanation explanation; }` and `EventKind` with the v0.1 kinds declared as they are needed, starting with `FleetDeparted`, `FleetArrived`, `TickAdvanced` (debug only).
-- `GameLogic/Explanation.h`: `struct Explanation { belief summary (empire, incident, confidence); evidence for; evidence against; actor; reason text id; }` in the shape of GDD §9's example, with `ExplanationText::Compose(const Explanation&) -> std::string` producing the "Why? They believe… For:… Against:…" form. Events that are not about belief carry an `Explanation` with the actor and reason and empty evidence (R19: never an event without one).
+- `GameLogic/Explanation.h`: `struct Explanation { belief summary (empire, incident, confidence); evidence for; evidence against; actor; reason text id; }` in the shape of GDD §9's example, with `ExplanationText::Compose(const Explanation&) -> std::string` producing the "Why? They believe... For:... Against:..." form. Events that are not about belief carry an `Explanation` with the actor and reason and empty evidence (R19: never an event without one).
 - `GameLogic/Input.h`: `struct Input { Tick applyAtTick; InputKind kind; CompanyId company; payload variant }` with the kinds declared as tasks need them (`SetClockRate` is not one: that is session control, NC-015).
 - `GameLogic/TickResolver.h` + `.cpp`: `Advance(World&, std::span<const Input>, std::vector<Event>&)` in this order, documented in the header and never reordered without an ADR: inputs → movement and arrivals → detection (NC-050) → couriers (NC-053) → encounters and battles (NC-062) → daily systems on `tick % TICKS_PER_DAY == 0` (economy NC-045, upkeep NC-046, empires NC-047, inference NC-052, contracts NC-056, outposts NC-066) → board (NC-067) → events out.
 - `GameLogic/NomadSimulation.h` + `.cpp`: `class NomadSimulation : public Neuron::Simulation` owning a `World`; `ApplyInput` decodes `WireInput` into `Input`; `DrainOutput` encodes events into `WireEvent`s (only what the client may see: the explanation, never the world); `WriteState`/`ReadState` through `World`.
@@ -48,7 +48,7 @@ Any system's behaviour; text for receipts (NC-064); the board (NC-067).
 ## Notes
 
 - `Explanation` is built by the system that acts, at the moment it acts, from the belief it acted on; a system that "adds the explanation later" has already violated R19.
-- The resolver is one translation unit per phase when it grows (`Mobility.cpp`, `Economy.cpp`), each exposing one `Resolve…` function the resolver calls; `TickResolver.cpp` stays the table of contents.
+- The resolver is one translation unit per phase when it grows (`Mobility.cpp`, `Economy.cpp`), each exposing one `Resolve...` function the resolver calls; `TickResolver.cpp` stays the table of contents.
 
 ## Report
 
