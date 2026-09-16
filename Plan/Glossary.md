@@ -25,8 +25,8 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | The present scale: the scene target into the client area (ADR-009) | `PresentPass`, `PresentPass::Placement`, `PresentPass::Filter` | `PresentPass.h` | NeuronClient | NC-021 |
 | Shared pipeline defaults (opaque by default; MSAA is unavailable on a flip-model back buffer) | `PipelineDefaults` | `PipelineDefaults.h` | NeuronClient | NC-022 |
 | 2D primitives in pixel space | `PrimitiveBatch`, `PrimitiveVertex`, `Point`, `PrimitivePipeline` | `PrimitiveBatch.h`, `PrimitivePipeline.h` | NeuronClient | NC-006, NC-022 |
-| The bitmap font, 96 glyphs, 8×8, one bit a pixel (R13) | `FONT_8X8_GLYPHS`, `FONT_FIRST_CODEPOINT`, `FONT_TOTAL_BYTES` | `BitmapFont.h` | NeuronClient | NC-023 |
-| Text drawing | `TextRenderer`, `GLYPH_SCALE`, `GlyphVertex`, `TextExtent`, `GlyphPipeline` | `TextRenderer.h`, `GlyphPipeline.h` | NeuronClient | NC-023 |
+| The desk's text faces, baked as coverage (R13, ADR-016) | `Font`, `FontMetrics`, `MetricsOf`, `FONT_FIRST_CODEPOINT`, `FONT_LINE_HEIGHT_PIXELS` | `Font.h`; generated `FontData.h`, `FontCoverage.h` | NeuronClient | NC-028 |
+| Text drawing | `TextRenderer`, `GlyphVertex`, `TextExtent`, `GlyphPipeline` | `TextRenderer.h`, `GlyphPipeline.h` | NeuronClient | NC-023, NC-028 |
 | Embedded colours (R13, UI §2) | `Palette`, `Rgb()` | `Palette.h` | NeuronClient | NC-025 |
 | The map's depth buffer (ADR-013) | `DepthTarget` | `DepthTarget.h` | NeuronClient | NC-027 |
 | The map's camera, a plain value | `Camera` | `Camera.h` | NeuronClient | NC-027 |

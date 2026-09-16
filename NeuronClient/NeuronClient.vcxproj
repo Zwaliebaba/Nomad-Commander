@@ -91,6 +91,7 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DepthTarget.cpp" />
+    <ClCompile Include="Font.cpp" />
     <ClCompile Include="GlyphPipeline.cpp" />
     <ClCompile Include="GraphicsDevice.cpp" />
     <ClCompile Include="InputState.cpp" />
@@ -108,7 +109,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="BitmapFont.h" />
+    <ClInclude Include="Font.h" />
+    <ClInclude Include="FontCoverage.h" />
+    <ClInclude Include="FontData.h" />
     <ClInclude Include="GlyphPipeline.h" />
     <ClInclude Include="GraphicsDevice.h" />
     <ClInclude Include="IconAtlas.h" />

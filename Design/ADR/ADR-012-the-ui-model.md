@@ -1,6 +1,6 @@
 # ADR-012 — The UI model
 
-**Status:** Accepted
+**Status:** Accepted; point 7 and the second-font-size foreclosure superseded by [ADR-016](ADR-016-the-desk-text-faces.md)
 **Date:** 2026-09-16
 **Task:** NC-025 (owner-visible)
 **Cites:** GDD §3, §13; AGENTS.md R9, R12, R13, §5; `Design/UI/UI-Spec.md` §1, §2; ADR-008, ADR-010
@@ -21,7 +21,7 @@ The GDD is unusually specific about what the interface is for. §13: "The interf
 4. **The click protocol is press-inside-then-release-inside.** A press makes a widget active and gives it focus; a release inside fires; a release anywhere else does not. Sliding off before letting go takes a mis-click back.
 5. **Hit order follows draw order**: the last widget to claim the mouse in a frame is the hot one, so a panel drawn over another takes its clicks.
 6. **Pixels are integers everywhere.** `Rect` is four `std::int32_t`. UI §1 says nothing draws at a non-integer position, and a float in this type is how that rule would quietly stop being true.
-7. **The cell is 24 pixels and the grid is 80×45**, which is the 8×8 font at `GLYPH_SCALE` 3 on the 1920×1080 screen (ADR-008).
+7. **The cell is 24 pixels and the grid is 80×45** on the 1920×1080 screen (ADR-008). *Superseded in its reasoning by [ADR-016](ADR-016-the-desk-text-faces.md), not in its numbers:* this said the cell was the 8×8 font at `GLYPH_SCALE` 3, and the cell is now the line every text face is baked to. 24 and 80×45 are unchanged, and so is every layout built on them; a character is half a cell wide rather than a whole one.
 8. **Panels are opaque and dim is a colour.** `Palette` carries UI §2 verbatim; `TEXT_DIM` and `TEXT_FAINT` are what an aged report and a disabled control are drawn in. Blending has been permitted since 2026-09-16 and this model still has no use for it — which is a fact, not a prohibition, and a widget that earns a blend may set one (§5).
 9. **`Ui` knows nothing about the game** (R9): it draws rectangles and text and answers questions about the mouse. No fleet, no report, no empire crosses into `NeuronClient`.
 
@@ -29,7 +29,7 @@ The GDD is unusually specific about what the interface is for. §13: "The interf
 
 **A retained widget tree**, and with it everything that comes free with one: automatic layout that reflows when content changes, a widget that animates itself between frames without the screen asking, accessibility metadata that persists, and the ability to ask "what widgets exist" without running a frame. If the desk ever wants a screen reader, this is the decision that will have to be revisited.
 
-**A second font size that is not an integer scale.** Text is `GLYPH_SCALE` or a whole multiple; there is no 1.5×, because NC-023's glyph path Loads texels rather than sampling them and a fractional scale would need a sampler, which is what §5 says costs the 1:1 guarantee.
+~~**A second font size that is not an integer scale.**~~ **Superseded by [ADR-016](ADR-016-the-desk-text-faces.md).** This said text was `GLYPH_SCALE` or a whole multiple, because a fractional scale would have needed a sampler. The premise went with the bitmap font: a face is now *baked* at its size and still drawn one texel a pixel, so three sizes exist with no sampler anywhere and nothing is scaled at all. What replaced the foreclosure is a narrower one — a new size means running `Tools/BakeFont.py` and committing bytes, which is friction on purpose.
 
 **Widget state that outlives a frame without somebody owning it.** A scroll position, a selected row, an open tab: the screen holds those, not `Ui`. That is the cost of immediate mode and it is paid in NC-026 and Phase 5, not here.
 

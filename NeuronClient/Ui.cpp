@@ -32,16 +32,15 @@ constexpr std::int32_t WHEEL_ROWS = 3;
 /// A list row's text starts a quarter-cell in, so it does not touch the selection's edge.
 constexpr std::int32_t LIST_TEXT_INSET_PIXELS = CELL_PIXELS / 4;
 
-/// The widest a button's label may be before it is drawn clipped rather than overflowing. A label that does not fit
-/// its button is a layout defect; drawing it outside would hide that, and truncating shows it.
-[[nodiscard]] std::string_view FitToWidth(std::string_view _text, std::int32_t _widthPixels, std::uint32_t _scale)
+/// The widest a label may be before it is drawn cut rather than overflowing. A label that does not fit its rectangle
+/// is a layout defect; drawing it outside would hide that, and cutting it shows it.
+[[nodiscard]] std::string_view FitToWidth(std::string_view _text, std::int32_t _widthPixels, Font _font)
 {
-  if (_scale == 0 || _widthPixels <= 0)
+  if (_widthPixels <= 0)
   {
     return std::string_view{};
   }
-  const std::size_t cellWidth = static_cast<std::size_t>(TextRenderer::GLYPH_WIDTH_PIXELS) * _scale;
-  const std::size_t fits = static_cast<std::size_t>(_widthPixels) / cellWidth;
+  const std::size_t fits = static_cast<std::size_t>(_widthPixels) / MetricsOf(_font).advancePixels;
   return _text.size() <= fits ? _text : _text.substr(0, fits);
 }
 
@@ -161,23 +160,23 @@ Rect Ui::Panel(const Rect& _rect, std::string_view _title) noexcept
   if (!_title.empty() && !inner.IsEmpty())
   {
     const Rect titleRow = inner.SplitTop(CELL_PIXELS);
-    Label(titleRow, _title, Palette::TEXT);
+    Label(titleRow, _title, Palette::TEXT, Font::Title);
     // A cell of air between the title and what follows, which is what every screen in UI §3 onward shows.
     (void)inner.SplitTop(CELL_PIXELS / 2);
   }
   return inner;
 }
 
-void Ui::Label(const Rect& _rect, std::string_view _text, std::uint32_t _colorRgba) noexcept
+void Ui::Label(const Rect& _rect, std::string_view _text, std::uint32_t _colorRgba, Font _font) noexcept
 {
   if (_rect.IsEmpty() || _text.empty())
   {
     return;
   }
-  // Integer positions throughout: the rectangle is integers and the scale is a whole number, so nothing here can put
-  // a glyph at a fractional pixel (UI §1, and the reason NC-023 uses Load rather than a sampler).
-  m_text.Draw(static_cast<float>(_rect.xPixels), static_cast<float>(_rect.yPixels),
-              FitToWidth(_text, _rect.widthPixels, TextRenderer::GLYPH_SCALE), _colorRgba, TextRenderer::GLYPH_SCALE);
+  // Integer positions throughout: the rectangle is integers and a glyph is drawn one texel a pixel, so nothing here
+  // can put a glyph at a fractional pixel (UI §1, and the reason the glyph path Loads rather than samples).
+  m_text.Draw(static_cast<float>(_rect.xPixels), static_cast<float>(_rect.yPixels), FitToWidth(_text, _rect.widthPixels, _font), _colorRgba,
+              _font);
 }
 
 Ui::ButtonVisual Ui::ButtonBehavior(WidgetId _id, const Rect& _rect) noexcept
@@ -226,8 +225,7 @@ void Ui::DrawButton(const Rect& _rect, std::string_view _label, const ButtonVisu
                static_cast<float>(_rect.heightPixels), border);
 
   // Centred on the cell grid: the offsets are whole pixels, so the label cannot land at a fraction.
-  const TextExtent extent =
-    TextRenderer::Measure(FitToWidth(_label, _rect.widthPixels - 2 * BORDER_PIXELS, TextRenderer::GLYPH_SCALE), TextRenderer::GLYPH_SCALE);
+  const TextExtent extent = TextRenderer::Measure(FitToWidth(_label, _rect.widthPixels - 2 * BORDER_PIXELS, Font::Body), Font::Body);
   const Rect labelRect{_rect.xPixels + (_rect.widthPixels - static_cast<std::int32_t>(extent.widthPixels)) / 2,
                        _rect.yPixels + (_rect.heightPixels - static_cast<std::int32_t>(extent.heightPixels)) / 2,
                        static_cast<std::int32_t>(extent.widthPixels), static_cast<std::int32_t>(extent.heightPixels)};
@@ -252,7 +250,7 @@ void Ui::Icon(const Rect& _rect, Neuron::Icon _icon, std::uint32_t _colorRgba) n
   {
     return;
   }
-  m_text.DrawIcon(static_cast<float>(_rect.xPixels), static_cast<float>(_rect.yPixels), _icon, _colorRgba, TextRenderer::GLYPH_SCALE);
+  m_text.DrawIcon(static_cast<float>(_rect.xPixels), static_cast<float>(_rect.yPixels), _icon, _colorRgba);
 }
 
 bool Ui::Tabs(std::string_view _name, const Rect& _rect, std::span<const std::string_view> _labels, std::int32_t& _activeIndex) noexcept
@@ -280,7 +278,7 @@ bool Ui::Tabs(std::string_view _name, const Rect& _rect, std::span<const std::st
       m_batch.FillRect(static_cast<float>(tab.xPixels), static_cast<float>(tab.Bottom() - TAB_UNDERLINE_PIXELS),
                        static_cast<float>(tab.widthPixels), static_cast<float>(TAB_UNDERLINE_PIXELS), Palette::ACCENT);
     }
-    const TextExtent extent = TextRenderer::Measure(_labels[index], TextRenderer::GLYPH_SCALE);
+    const TextExtent extent = TextRenderer::Measure(_labels[index], Font::Body);
     Label(Rect{tab.xPixels + (tab.widthPixels - static_cast<std::int32_t>(extent.widthPixels)) / 2,
                tab.yPixels + (tab.heightPixels - static_cast<std::int32_t>(extent.heightPixels)) / 2,
                static_cast<std::int32_t>(extent.widthPixels), static_cast<std::int32_t>(extent.heightPixels)},
@@ -628,7 +626,7 @@ void Ui::FillOverlay(Overlay& _overlay, const Rect& _anchorRect, std::span<const
     return;
   }
 
-  const std::int32_t glyphWidth = static_cast<std::int32_t>(TextRenderer::GLYPH_WIDTH_PIXELS * TextRenderer::GLYPH_SCALE);
+  const auto glyphWidth = static_cast<std::int32_t>(MetricsOf(Font::Body).advancePixels);
   const std::int32_t width = widest * glyphWidth + 2 * CELL_PIXELS;
   const std::int32_t height = _overlay.lineCount * CELL_PIXELS + 2 * CELL_PIXELS;
   // Placed below and right of what it is about, then pulled back inside the screen rather than allowed off it.
@@ -689,7 +687,7 @@ Ui::Choice Ui::Confirm(std::string_view _name, std::string_view _title, std::spa
   {
     widest = std::max(widest, static_cast<std::int32_t>(line.size()));
   }
-  const std::int32_t glyphWidth = static_cast<std::int32_t>(TextRenderer::GLYPH_WIDTH_PIXELS * TextRenderer::GLYPH_SCALE);
+  const auto glyphWidth = static_cast<std::int32_t>(MetricsOf(Font::Body).advancePixels);
   const std::int32_t width = std::max(CELL_PIXELS * 20, widest * glyphWidth + 2 * CELL_PIXELS);
   const std::int32_t height = (static_cast<std::int32_t>(_lines.size()) + 1) * CELL_PIXELS + CELL_PIXELS * 5;
   const Rect panel{(GRID_COLUMNS * CELL_PIXELS - width) / 2, (GRID_ROWS * CELL_PIXELS - height) / 2, width, height};

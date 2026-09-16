@@ -3,9 +3,9 @@
 // The vertex half of the text pass: one quad a character, in pixels, carrying the texel it starts at. Compiled into
 // CompiledShaders/GlyphVS.h as g_GlyphVS (AGENTS.md §2, R13).
 //
-// The texel coordinate INTERPOLATES, unlike the colour. That is what makes integer scaling exact: at scale 3 the
-// three screen pixels across a texel land at texel + 1/6, + 1/2 and + 5/6, and all three truncate to the same texel
-// in the pixel shader. No sampler is involved anywhere, so there is nothing to filter and nothing to blur.
+// The texel coordinate INTERPOLATES, unlike the colour. A glyph is drawn one texel a pixel (ADR-016), so a pixel's
+// centre lands at texel + 1/2 and truncates to that texel in the pixel shader. No sampler is involved anywhere, so
+// there is nothing to filter and nothing to blur.
 cbuffer GlyphConstants : register(b0)
 {
   uint2 g_screenSizePixels;

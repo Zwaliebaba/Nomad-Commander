@@ -23,6 +23,23 @@ constexpr D3D12_INPUT_ELEMENT_DESC VERTEX_LAYOUT[] = {
   {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(GlyphVertex, texelX), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
   {"COLOR", 0, DXGI_FORMAT_R32_UINT, 0, offsetof(GlyphVertex, colorRgba), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 
+/// The one thing this pass changes from the defaults: it blends (AGENTS.md §5; ADR-016). The pixel shader's alpha is
+/// the glyph's coverage, so straight alpha over the destination is exactly "this much text colour, the rest what was
+/// there". The scene target's own alpha is left as the clear set it.
+[[nodiscard]] D3D12_BLEND_DESC CoverageBlend() noexcept
+{
+  D3D12_BLEND_DESC blend = PipelineDefaults::Blend();
+  D3D12_RENDER_TARGET_BLEND_DESC& target = blend.RenderTarget[0];
+  target.BlendEnable = TRUE;
+  target.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+  target.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+  target.BlendOp = D3D12_BLEND_OP_ADD;
+  target.SrcBlendAlpha = D3D12_BLEND_ZERO;
+  target.DestBlendAlpha = D3D12_BLEND_ONE;
+  target.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+  return blend;
+}
+
 } // namespace
 
 bool GlyphPipeline::Create(GraphicsDevice& _device, GlyphPipeline& _outPipeline) noexcept
@@ -95,7 +112,7 @@ bool GlyphPipeline::Create(GraphicsDevice& _device, GlyphPipeline& _outPipeline)
   const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline{.pRootSignature = _outPipeline.m_rootSignature.Get(),
                                                     .VS = {g_GlyphVS, sizeof g_GlyphVS},
                                                     .PS = {g_GlyphPS, sizeof g_GlyphPS},
-                                                    .BlendState = PipelineDefaults::Blend(),
+                                                    .BlendState = CoverageBlend(),
                                                     .SampleMask = UINT_MAX,
                                                     .RasterizerState = PipelineDefaults::Rasterizer(),
                                                     .DepthStencilState = PipelineDefaults::DepthStencil(),

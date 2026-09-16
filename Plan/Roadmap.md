@@ -101,6 +101,7 @@ The three engine libraries as AGENTS.md §2 describes them, minus what A2 defers
 | NC-025 | UI core *(owner-visible)* | NeuronClient | L | NC-022, NC-023, NC-024 |
 | NC-026 | Desk widgets | NeuronClient | L | NC-025 |
 | NC-027 | The 3D map pipeline *(owner-visible)* | NeuronClient | L | NC-021, NC-022 |
+| NC-028 | The desk's text faces *(owner-visible)* | NeuronClient, Tools | L | NC-023, NC-025, NC-026 |
 | NC-030 | `Session` | NeuronServer | M | NC-014, NC-015 |
 | NC-031 | The universe store *(owner-visible)* | NeuronServer, NeuronCore | M | NC-014 |
 | NC-032 | The instrumentation log | NeuronServer | S | NC-010 |
@@ -206,7 +207,7 @@ The unscripted game and the numbers GDD §15 asks for.
 
 Numbers are assigned when they land (Design/README.md). Each recommendation is the plan's, not a decision; the ADR may reject it with reasons.
 
-**This table is a set of predictions, not the register — `Design/ADR/` is the register.** Seven decisions have been written that the plan did not foresee, which is what the distinction is for: **ADR-007** clang-tidy and the Win32 message protocol, **ADR-008** the 1920×1080 screen at `GLYPH_SCALE` 3, **ADR-009** the scene target and the present scale, **ADR-010** the borderless window, **ADR-011** the AVX2 baseline and shader model 6.7, **ADR-013** anti-aliasing the 3D map, and — by removal — the test-only WARP target below, which ADR-009 made unnecessary before it was written.
+**This table is a set of predictions, not the register — `Design/ADR/` is the register.** Eight decisions have been written that the plan did not foresee, which is what the distinction is for: **ADR-007** clang-tidy and the Win32 message protocol, **ADR-008** the 1920×1080 screen and its 24-pixel cell, **ADR-009** the scene target and the present scale, **ADR-010** the borderless window, **ADR-011** the AVX2 baseline and shader model 6.7, **ADR-013** anti-aliasing the 3D map, **ADR-016** the desk's text faces, and — by removal — the test-only WARP target below, which ADR-009 made unnecessary before it was written.
 
 | Topic | Task | Recommendation | Owner-visible |
 |---|---|---|---|
@@ -217,8 +218,9 @@ Numbers are assigned when they land (Design/README.md). Each recommendation is t
 | Tick duration and the compressed clock (**ADR-005**) | NC-014 | A7. | **yes** |
 | Client–host transport in v0.1 (**ADR-006**) | NC-015 | A2. | **yes** |
 | ~~Test-only offscreen target on WARP~~ | NC-021 | **Not written, and not needed.** ADR-009 removed the premise: the scene target is the game's own, so there is no test-only object to justify. See A12 and NC-021's report. | no |
-| The UI model (**ADR-012**) | NC-025 | *Taken unchanged.* Immediate mode in pixel space; the 8×8 font at `GLYPH_SCALE` 3 gives 24-pixel cells and an 80×45 grid (the screen is exactly 1.5× the 1280×720 it was until 2026-09-16, so the grid is unchanged and only the glyphs grew; scale 2 would give 120×67½ cells and is rejected for the half); widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque by default, and a pass that wants blending sets it (AGENTS.md §5, owner decision 2026-09-16). | **yes** |
+| The UI model (**ADR-012**) | NC-025 | *Taken unchanged, and its font half since superseded by ADR-016.* Immediate mode in pixel space on 24-pixel cells and an 80×45 grid; widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque by default, and a pass that wants blending sets it (AGENTS.md §5, owner decision 2026-09-16). The cell was the 8×8 font at `GLYPH_SCALE` 3 and is now the line the text faces are baked to; the numbers did not move. | **yes** |
 | Universe store form (**ADR-014**) | NC-031 | *Taken, and the threshold was tested rather than assumed:* seed plus an input journal, replayed through `Simulation` on load; written to a temporary file and renamed into place. A thousand inputs reload in **9 ms** against the two-second threshold, so **no snapshot section exists**. | **yes** |
+| The desk's text faces (**ADR-016**) | NC-028 | *Not foreseen by the plan.* Three baked faces of IBM Plex Mono as coverage, replacing NC-023's 8×8 bitmap font, which had two baselines and half the density `Design/UI` was authored at. | **yes** |
 | Instrumentation log format (**ADR-015**) | NC-032 | *Taken unchanged.* One event a line: tick, wall-clock ISO-8601 in UTC, kind, then `key=value` fields, tab-separated, UTF-8, flushed per line. A tab or a newline in a value asserts and writes nothing. | no |
 | Universe generation | NC-041 | The Kessel map is hand-authored data in the generator's types; the sandbox generator places systems on a jittered grid, builds a connected lane graph, and assigns roles by graph shape. | no |
 | Detection and report noise | NC-050 | Sensor range in jumps per ship class; a report carries counts and hull classes with a PRNG spread scaled by range; identity only when marked or in the same system. | no |

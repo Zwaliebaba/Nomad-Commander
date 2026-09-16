@@ -1,6 +1,6 @@
 # ADR-008 — The screen is 1920×1080 at `GLYPH_SCALE` 3
 
-**Status:** Accepted
+**Status:** Accepted. `GLYPH_SCALE` itself is gone — [ADR-016](ADR-016-the-desk-text-faces.md) replaced the bitmap font with baked faces — but the screen and the cell this decided are unchanged: 1920×1080, a 24-pixel cell, an 80×45 grid. Read "`GLYPH_SCALE` 3" below as "a 24-pixel cell".
 **Date:** 2026-09-16
 **Task:** NC-020 (implemented); NC-021, NC-023, NC-025 amended
 **Cites:** GDD §13; AGENTS.md R12, R13, §5; `Design/UI/UI-Spec.md` §1; `Plan/Roadmap.md` (the UI model)
@@ -31,7 +31,7 @@ What the game should do on a desktop that cannot hold its screen — overhang, a
 
 - `NeuronClient/Window.h`'s two constants. `Window` itself needed no change: it is written against its `Desc`, and the `WM_GETMINMAXINFO` override from NC-020 already tells Windows the desktop is not a limit on the window.
 - `NC-021`'s `SwapChainTarget` and `FrameTarget` take their size through those constants; their readback tests assert them rather than literals.
-- `TextRenderer::GLYPH_SCALE` is 3; `Rect::Cell` is unchanged, since it takes the cell size from `GLYPH_SCALE`.
+- `TextRenderer::GLYPH_SCALE` was 3, and ADR-016 removed it; `Rect::Cell` is unchanged either way, and the faces are now baked to the cell rather than scaled into it.
 - Every Phase 5 screen is unaffected — they lay out in cells.
 - `WindowTests` now overshoot the CI runner's 1024×768 desktop on both axes instead of one, which is a harder case than the one that was red for four rounds.
 

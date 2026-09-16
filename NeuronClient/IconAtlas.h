@@ -9,9 +9,9 @@ namespace Neuron
 {
 
 // The desk's icons, embedded exactly as the font is (AGENTS.md R13: art is compiled in, never loaded). Eight by
-// eight, one bit a pixel, most significant bit leftmost -- the same shape as a glyph, because that is what lets them
-// share NC-023's atlas, its pipeline, its Texture2D<uint>::Load() and its complete absence of a sampler. An icon is
-// monochrome and is tinted at the call site.
+// eight, one bit a pixel, most significant bit leftmost. They share the text atlas, its pipeline, its Load() and its
+// complete absence of a sampler: a set bit becomes a cell-sized block of full coverage (three texels a bit since
+// ADR-016), so an icon stays the pixel art it was drawn as. An icon is monochrome and is tinted at the call site.
 //
 // **Every icon names the line of the design that needs it** (NC-026's note: a widget -- or an icon -- with no line is
 // one the desk does not need). They accompany a label and never replace one: the desk is read, not scanned (UI §4).
@@ -34,7 +34,9 @@ enum class Icon : std::uint8_t
 };
 
 inline constexpr std::uint32_t ICON_COUNT = 12;
-inline constexpr std::uint32_t ICON_BYTES = 8;
+/// An icon's art is eight bits square: one byte a row, eight rows.
+inline constexpr std::uint32_t ICON_ART_PIXELS = 8;
+inline constexpr std::uint32_t ICON_BYTES = ICON_ART_PIXELS;
 inline constexpr std::size_t ICON_TOTAL_BYTES = static_cast<std::size_t>(ICON_COUNT) * ICON_BYTES;
 
 inline constexpr std::array<std::uint8_t, ICON_TOTAL_BYTES> ICON_8X8_ART = {

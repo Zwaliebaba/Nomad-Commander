@@ -8,8 +8,9 @@
 namespace Neuron
 {
 
-/// The cell every layout snaps to: 24 pixels, which is the 8-pixel font at GLYPH_SCALE 3 (UI §1). 1920/24 by 1080/24
-/// is 80 by 45, and every position in the UI spec is a whole number of these.
+/// The cell every layout snaps to: 24 pixels (UI §1), which is also the line every text face is baked to (ADR-016),
+/// so a row of text is a cell tall and a Body character is half a cell wide. 1920/24 by 1080/24 is 80 by 45, and
+/// every position in the UI spec is a whole number of these.
 inline constexpr std::int32_t CELL_PIXELS = 24;
 inline constexpr std::int32_t GRID_COLUMNS = 80;
 inline constexpr std::int32_t GRID_ROWS = 45;

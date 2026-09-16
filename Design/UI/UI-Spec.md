@@ -1,10 +1,11 @@
 # UI Spec — the desk client
 
-Cite as *UI §n*. Pixel values are given at 1920x1080 with the 1280x720 value in brackets; the two are the same layout on the same 80x45 cell grid (`GLYPH_SCALE` 3 vs 2).
+Cite as *UI §n*. Pixel values are given at 1920x1080 with the 1280x720 value in brackets; the two are the same layout on the same 80x45 cell grid.
 
 ## 1. Grid and chrome (every screen)
 
 - Screen 1920x1080 [1280x720]. Cell 24 px [16 px]. Everything snaps to the cell; nothing draws at a non-integer position (NC-025).
+- **Type** (ADR-016, NC-028): three faces of IBM Plex Mono, baked to a 24 px line, so a row of text is a cell tall. `Body` (Regular, 20 px, 12 px a character) is the default; `Small` (Regular, 16 2/3 px, 10 px) is the line under a name, a track record, a legend; `Title` (SemiBold, 20 px, 12 px) is a panel's title and a selected item's name. A face is chosen by role, not by size. **The screens were authored at this density and it is now what the engine draws** — a 624 px side panel holds 46 Body characters a line.
 - **Tab bar**, top, 48 px [32]: company name at left in ACCENT, 264 px [176] wide, then tabs `Board | Map | Operations | Contracts | Company | Receipts`. Active tab: PANEL fill, 3 px [2] ACCENT underline. Inactive: TEXT_DIM. A count after a tab name (`Board 3`, `Contracts 1`) is WARNING for items needing an answer, ACCENT otherwise. Right end: one line of context (`Kessel | Varn claim, tolerated`).
 - **Status line**, bottom, 48 px [32]: simulated day and time | rate control (`pause 1x 4x 24x`, active one bordered ACCENT) | credits | upkeep per day in WARNING | mothership state.
 - **Board strip** (Map and Operations screens only), 144 px [96] above the status line: the three soonest board items as three equal cells: kind and party in the kind's colour, time left at right, the projection sentence under it in TEXT_DIM.
@@ -74,7 +75,7 @@ Layout: three columns 528 [352] | 624 [416] | 768 [512], then a 144 px [96] proj
 - Sources are named and dated; track records are two counts, never a percentage.
 - Every stake appears before its click; every answer shows its projection first (GDD §7, feedback twice).
 - British spelling in prose (`HARBOUR`), identifiers per AGENTS.md R11.
-- **Every string the client draws is ASCII**, 0x20-0x7E. The bitmap font is 96 glyphs covering exactly that range (R13), so a character outside it cannot be drawn at all — there is no fallback glyph and no substitution at run time. This is a rule about rendered copy, not about this document's prose, which keeps `§` and `—` like the rest of the repository. The screens were authored with typographic characters and the substitutions below were applied; the PNGs still show the originals, and where a PNG and this file disagree the file wins (Agent-Prompt rule 1).
+- **Every string the client draws is ASCII**, 0x20-0x7E. Each face is baked over exactly that range (R13, ADR-016), so a character outside it draws the 0x7F box rather than its own shape — there is no fallback and no substitution at run time. This is a rule about rendered copy, not about this document's prose, which keeps `§` and `—` like the rest of the repository. The screens were authored with typographic characters and the substitutions below were applied; the PNGs still show the originals, and where a PNG and this file disagree the file wins (Agent-Prompt rule 1).
 
  | Was | Is | Used for |
   |---|---|---|
