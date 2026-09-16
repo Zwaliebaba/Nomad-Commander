@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | M | no | no | Done (PENDING) |
+| 2 | GameLogic | M | no | no | Done (9df2102) |
 
 **Depends on:** NC-042, NC-031, NC-032
 **Read first:** AGENTS.md R16 whole, R24, R13; GDD §15 (*Measured outcomes*), §4 (the replay)
