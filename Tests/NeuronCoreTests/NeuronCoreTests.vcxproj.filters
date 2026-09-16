@@ -14,7 +14,13 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SuiteSmoke.cpp">
+    <ClCompile Include="IdTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RandomTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TickTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

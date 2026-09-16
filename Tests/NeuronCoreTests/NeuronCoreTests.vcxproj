@@ -86,7 +86,9 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="SuiteSmoke.cpp" />
+    <ClCompile Include="IdTests.cpp" />
+    <ClCompile Include="RandomTests.cpp" />
+    <ClCompile Include="TickTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronCore | S | no | no | Open |
+| 1 | NeuronCore | S | no | no | Done (PR #2) |
 
 **Depends on:** NC-010
 **Read first:** GDD §4 ("a small random spread remains"), §8 (the identical-situation test), §15 (replay); AGENTS.md R16 (the last sentence), §6 (ADRs)
@@ -13,15 +13,15 @@ The one source of randomness the simulation may use: a generator whose algorithm
 
 ## Deliverables
 
-- `NeuronCore/Random.h` + `.cpp`: `class Random` with `explicit Random(std::uint64_t _seed, std::uint64_t _stream = 0)`, `Next()` (32 bits), `NextBelow(std::uint32_t _bound)` (unbiased), `NextHundredths()` (0–99), `Fork(std::uint64_t _stream)` (an independent stream for a subsystem), `WriteState`/`ReadState` (NC-013 arrives later; provide `State()`/`Restore(State)` as a plain struct now and hook the writer in NC-013).
+- `NeuronCore/Random.h` + `.cpp`: `class Random` with `explicit Random(std::uint64_t _seed, std::uint64_t _stream = 0)`, `Next()` (32 bits), `NextBelow(std::uint32_t _bound)` (unbiased; a bound of zero asserts and yields 0), `NextHundredths()` (0–99), `Fork(std::uint64_t _stream)` (an independent stream for a subsystem, seeded from the parent's state and the stream through SplitMix64, without advancing the parent), and `State()`/`Restore()` over the public aggregate `RandomState { state, increment }` (named so, because a nested type and a method cannot share the name `State`); NC-013 adds the byte writer and reader forms.
 - `NeuronCoreTests/RandomTests.cpp`: golden values for two seeds (the first ten outputs, written into the test), `NextBelow` bounds and a chi-square-free sanity check (every bucket of ten hit in ten thousand draws), fork independence, restore-and-replay equality.
 
 ## Acceptance criteria
 
-- [ ] The golden values are stated in the test and the ADR; a change to the algorithm fails the test, which is the point.
-- [ ] `NextBelow` never returns `_bound` or above, and `_bound == 0` asserts.
-- [ ] `Restore(State())` reproduces the sequence exactly.
-- [ ] No `std::random_device`, no `<random>` engine, no address hashing anywhere in the file (R16).
+- [x] The golden values are stated in the test and the ADR; a change to the algorithm fails the test, which is the point.
+- [x] `NextBelow` never returns `_bound` or above, and `_bound == 0` asserts.
+- [x] `Restore(State())` reproduces the sequence exactly.
+- [x] No `std::random_device`, no `<random>` engine, no address hashing anywhere in the file (R16).
 
 ## Verification
 
@@ -43,4 +43,12 @@ Floating-point outputs; a normal distribution; any use in GameLogic (NC-040 onwa
 
 ## Report
 
-_Filled in on hand-back._
+**Verified here (Linux):** the real `Random.cpp`, compiled against a stub `pch.h` and a Linux stand-in for `Debug.cpp`, was run under GCC (`-std=c++23`) and Clang (`-std=c++2c`) with `-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Werror`, in both `_DEBUG` and `NDEBUG`, through a driver that mirrors every case in `RandomTests.cpp`: both golden sequences match, `NextBelow` stays below nine bounds over 2000 draws each, all ten buckets are hit in 10,000 draws (counts 951 to 1037), `NextHundredths` stays below 100, restore replays exactly, forks are independent of each other and of the parent and deterministic, and a bound of zero calls the assert handler once in `_DEBUG` and not at all in `NDEBUG`, yielding 0 either way. The golden values were first computed by a Python transcription of PCG32 whose first six outputs for seed 42 / stream 54 matched the published reference demo, so the C++ is tied to the reference and not only to itself. clang-tidy 22.1.8 with the repository's configuration is clean on `Random.cpp`; `CheckFormat.py` and `CheckProjectFiles.py` pass. **Verified by CI, not here:** the MSVC build and the eight tests under vstest.
+
+**Assumed:** nothing.
+
+**Refined:** `RandomState` as the aggregate's name, for the reason in the deliverables; `Fork` derives the child's seed through SplitMix64 rather than reusing the parent's state verbatim, so children on adjacent streams do not start from related states; `NextBelow(0)` returns 0 after asserting, so a zero range in a tuning table cannot divide by zero in Release; a private `Step()` replaces the discarded `Next()` calls the reference seeding would otherwise need.
+
+**Bent:** one task per PR. NC-011 was asked for while PR #2 (NC-010) was still open, this session works on one branch, and the repository's stop hook asks for every commit to be pushed; so NC-011 rides on PR #2 as its own commit rather than as PR #3. Merging each PR before the next task starts keeps the rule intact from here.
+
+**CI:** [run 12](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35099617308) on head `26e5daf` is green on both jobs: the Debug|x64 build clean with `/warnaserror`, vstest ran 19 tests and passed all (the eight of `RandomTests` among them), and `RunClangTidy.py` reported 12 translation units clean on clang-tidy 22.1.8. Run 11 on the previous head built and passed the same tests but failed clang-tidy on one finding, a `constexpr` local named `bounds` in `RandomTests.cpp` (R3 applies to a local as well), renamed to `BOUNDS` in `26e5daf`.

@@ -79,11 +79,15 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Debug.cpp" />
+    <ClCompile Include="Random.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="NeuronCore.h" />
     <ClInclude Include="Debug.h" />
+    <ClInclude Include="Id.h" />
+    <ClInclude Include="Random.h" />
+    <ClInclude Include="Tick.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
