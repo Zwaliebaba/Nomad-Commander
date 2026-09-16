@@ -79,10 +79,21 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="GameLogicSmoke.cpp" />
+    <ClCompile Include="World.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="Character.h" />
+    <ClInclude Include="Company.h" />
+    <ClInclude Include="Credits.h" />
+    <ClInclude Include="Empire.h" />
+    <ClInclude Include="EntityIds.h" />
+    <ClInclude Include="Fleet.h" />
+    <ClInclude Include="Mothership.h" />
+    <ClInclude Include="Outpost.h" />
+    <ClInclude Include="ShipClass.h" />
+    <ClInclude Include="Table.h" />
+    <ClInclude Include="World.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

@@ -1,10 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="GameLogicSmoke.cpp" />
+    <ClCompile Include="World.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="Character.h" />
+    <ClInclude Include="Company.h" />
+    <ClInclude Include="Credits.h" />
+    <ClInclude Include="Empire.h" />
+    <ClInclude Include="EntityIds.h" />
+    <ClInclude Include="Fleet.h" />
+    <ClInclude Include="Mothership.h" />
+    <ClInclude Include="Outpost.h" />
+    <ClInclude Include="ShipClass.h" />
+    <ClInclude Include="Table.h" />
+    <ClInclude Include="World.h" />
   </ItemGroup>
 </Project>

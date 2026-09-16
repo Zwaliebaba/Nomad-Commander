@@ -45,15 +45,18 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Term | GDD | Type | File | Task |
 |---|---|---|---|---|
 | Reality, the whole world state (R18) | §9 | `World` | `World.h` | NC-040 |
-| The nomad as an entity type (R22): mothership, fleets, officers, outposts, record | §11, §14 | `Company`, `CompanyId` | `Company.h` | NC-040 |
+| Every entity’s typed id, in one header because the entities refer to one another in a cycle | — | `CompanyId`, `EmpireId`, `FleetId`, `CharacterId`, `OutpostId`, `SystemId`, `LaneId`, `EventId` | `EntityIds.h` | NC-040 |
+| One entity table: a vector indexed by a typed id, rows never erased | — | `Table` | `Table.h` | NC-040 |
+| The nomad as an entity type (R22): mothership, fleets, officers, outposts, record | §11, §14 | `Company` (`CompanyId` in `EntityIds.h`) | `Company.h` | NC-040 |
 | The mothership and its states | §5, §11 | `Mothership`, `MothershipState` | `Mothership.h` | NC-040 |
-| Empire | §8 | `Empire`, `EmpireId` | `Empire.h` | NC-040 |
-| Star system and its role | §7 | `StarSystem`, `SystemId`, `SystemRole` | `StarSystem.h` | NC-041 |
-| Lane | §7 | `Lane`, `LaneId` | `Lane.h` | NC-041 |
+| The PRNG stream a subsystem draws from (R16) | — | `RandomStream` | `World.h` | NC-040 |
+| Empire | §8 | `Empire` (`EmpireId` in `EntityIds.h`) | `Empire.h` | NC-040 |
+| Star system and its role | §7 | `StarSystem`, `SystemRole` (`SystemId` in `EntityIds.h`) | `StarSystem.h` | NC-041 |
+| Lane | §7 | `Lane` (`LaneId` in `EntityIds.h`) | `Lane.h` | NC-041 |
 | Universe generator | §7 | `UniverseGenerator` | `UniverseGenerator.h` | NC-041 |
-| Ship class (four in v0.1) | §12 | `ShipClass`, `ShipCounts` | `ShipClass.h` | NC-040 |
-| Fleet (counts per class, commander, history, veterancy) | §12 | `Fleet`, `FleetId`, `FleetPosition` | `Fleet.h` | NC-040 |
-| Character: leader, admiral, officer | §8, §11 | `Character`, `CharacterId`, `CharacterRole` | `Character.h` | NC-040 |
+| Ship class (four in v0.1) | §12 | `ShipClass`, `ShipCounts`, `ShipStats`, `SHIP_CLASS_STATS` | `ShipClass.h` | NC-040 |
+| Fleet (counts per class, commander, history, veterancy) | §12 | `Fleet`, `FleetOwner`, `FleetRole`, `FleetPosition` (`FleetId` in `EntityIds.h`) | `Fleet.h` | NC-040 |
+| Character: leader, admiral, officer | §8, §11 | `Character`, `CharacterRole`, `Allegiance` (`CharacterId` in `EntityIds.h`) | `Character.h` | NC-040 |
 | Good (four) and a system's market | §10 | `Good`, `Market`, `MarketState` | `Good.h`, `Market.h` | NC-045 |
 | Convoy | §10 | a `Fleet` with `FleetRole::Convoy` and cargo | `Fleet.h` | NC-045 |
 | Credits and the treasury | §5 | `Credits` | `Credits.h` | NC-040 |
@@ -92,7 +95,7 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | The receipt | §4 | `Receipt` | `Receipt.h`, `ReceiptText.h` | NC-064 |
 | Officer market, recruitment, leaving | §11 | `OfficerMarket` | `OfficerMarket.h` | NC-065 |
 | Outpost, claim, governor policy | §11 | `Outpost`, `Claim`, `GovernorPolicy` | `Outpost.h` | NC-066 |
-| Reinforcement timer and the active window | §7 | `ReinforcementTimer`, `ActiveWindow` | `Outpost.h`, `Company.h` | NC-066 |
+| Reinforcement timer and the active window | §7 | `ReinforcementTimer` (NC-066); `ActiveWindow` (NC-040) | `Outpost.h`, `Company.h` | NC-040, NC-066 |
 | Situation board item | §3 | `BoardItem`, `BoardItemKind` | `BoardItem.h` | NC-067 |
 | Intelligence purchase | §2, §4 | `IntelligenceOffer` | `BoardItem.h` | NC-067 |
 | The scripted scenario | §15 | `Scenario`, `KESSEL_SCENARIO` | `Scenario.h`, `KesselScenario.h` | NC-090 |

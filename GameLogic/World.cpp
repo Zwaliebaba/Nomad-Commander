@@ -1,0 +1,481 @@
+// GameLogic/World.cpp
+#include "pch.h"
+#include "World.h"
+
+#include "ByteReader.h"
+#include "ByteWriter.h"
+
+#include <variant>
+
+namespace Nomad
+{
+
+namespace
+{
+
+/// FNV-1a, 64 bits, over the bytes Serialize wrote. Written here rather than taken from anywhere because the value
+/// has to be identical on every machine and in every configuration -- it is what NC-043's harness compares, and a
+/// std::hash would be free to differ between standard libraries.
+constexpr std::uint64_t FNV_OFFSET_BASIS = 0xCBF29CE484222325ull;
+constexpr std::uint64_t FNV_PRIME = 0x100000001B3ull;
+
+[[nodiscard]] std::uint64_t HashBytes(std::span<const std::byte> _bytes) noexcept
+{
+  std::uint64_t hash = FNV_OFFSET_BASIS;
+  for (const std::byte value : _bytes)
+  {
+    hash ^= static_cast<std::uint64_t>(value);
+    hash *= FNV_PRIME;
+  }
+  return hash;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The store's schema.
+//
+// Everything below is the layout of a saved world, and it is here in one file on purpose: a reader who wants to know
+// what a store contains reads this and nothing else. Nothing here is declared in a header, because it is World's own
+// business -- the wire the client sees is a different schema entirely and lives in GameLogic/Wire*.h (NC-042).
+//
+// Adding a field means appending it and bumping World::SCHEMA_VERSION. Inserting one renumbers every save.
+// ---------------------------------------------------------------------------------------------------------------
+
+template <typename E> void WriteEnum(Neuron::ByteWriter& _writer, E _value)
+{
+  _writer.Write(static_cast<std::uint8_t>(_value));
+}
+
+template <typename E> [[nodiscard]] bool ReadEnum(Neuron::ByteReader& _reader, E& _outValue, std::uint8_t _valueCount)
+{
+  std::uint8_t raw = 0;
+  if (!_reader.Read(raw) || raw >= _valueCount)
+  {
+    return false;
+  }
+  _outValue = static_cast<E>(raw);
+  return true;
+}
+
+template <typename IdType> void WriteIds(Neuron::ByteWriter& _writer, const std::vector<IdType>& _ids)
+{
+  _writer.Write(static_cast<std::uint32_t>(_ids.size()));
+  for (const IdType id : _ids)
+  {
+    _writer.WriteId(id);
+  }
+}
+
+/// The count is checked against what the reader has left before anything is reserved: a corrupt length may not ask
+/// for a gigabyte. Four bytes an id is the smallest a list of them can be.
+template <typename IdType> [[nodiscard]] bool ReadIds(Neuron::ByteReader& _reader, std::vector<IdType>& _outIds)
+{
+  std::uint32_t count = 0;
+  if (!_reader.Read(count) || static_cast<std::uint64_t>(count) * sizeof(std::uint32_t) > _reader.Remaining())
+  {
+    return false;
+  }
+  _outIds.resize(count);
+  for (IdType& id : _outIds)
+  {
+    if (!_reader.ReadId(id))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+void WriteCounts(Neuron::ByteWriter& _writer, const std::vector<std::uint32_t>& _counts)
+{
+  _writer.Write(static_cast<std::uint32_t>(_counts.size()));
+  for (const std::uint32_t value : _counts)
+  {
+    _writer.Write(value);
+  }
+}
+
+[[nodiscard]] bool ReadCounts(Neuron::ByteReader& _reader, std::vector<std::uint32_t>& _outCounts)
+{
+  std::uint32_t count = 0;
+  if (!_reader.Read(count) || static_cast<std::uint64_t>(count) * sizeof(std::uint32_t) > _reader.Remaining())
+  {
+    return false;
+  }
+  _outCounts.resize(count);
+  for (std::uint32_t& value : _outCounts)
+  {
+    if (!_reader.Read(value))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+void WriteShipCounts(Neuron::ByteWriter& _writer, const ShipCounts& _counts)
+{
+  for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
+  {
+    _writer.Write(_counts.byClass[index]);
+  }
+}
+
+[[nodiscard]] bool ReadShipCounts(Neuron::ByteReader& _reader, ShipCounts& _outCounts)
+{
+  for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
+  {
+    if (!_reader.Read(_outCounts.byClass[index]))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+void WriteMothership(Neuron::ByteWriter& _writer, const Mothership& _mothership)
+{
+  _writer.WriteId(_mothership.location);
+  WriteEnum(_writer, _mothership.state);
+  _writer.Write(_mothership.reserveFuel);
+  _writer.Write(_mothership.fabricatorProgress);
+}
+
+[[nodiscard]] bool ReadMothership(Neuron::ByteReader& _reader, Mothership& _outMothership)
+{
+  constexpr std::uint8_t MOTHERSHIP_STATE_COUNT = 5;
+  return _reader.ReadId(_outMothership.location) && ReadEnum(_reader, _outMothership.state, MOTHERSHIP_STATE_COUNT) &&
+         _reader.Read(_outMothership.reserveFuel) && _reader.Read(_outMothership.fabricatorProgress);
+}
+
+void WriteCompany(Neuron::ByteWriter& _writer, const Company& _company)
+{
+  _writer.WriteString(_company.name);
+  WriteMothership(_writer, _company.mothership);
+  _writer.Write(_company.treasury);
+  WriteIds(_writer, _company.officers);
+  WriteIds(_writer, _company.fleets);
+  WriteIds(_writer, _company.outposts);
+  WriteIds(_writer, _company.record);
+  _writer.WriteTick(_company.activeWindow.startTickOfDay);
+  _writer.WriteTick(_company.activeWindow.lengthTicks);
+  _writer.WriteBool(_company.alive);
+}
+
+[[nodiscard]] bool ReadCompany(Neuron::ByteReader& _reader, Company& _outCompany)
+{
+  return _reader.ReadString(_outCompany.name) && ReadMothership(_reader, _outCompany.mothership) && _reader.Read(_outCompany.treasury) &&
+         ReadIds(_reader, _outCompany.officers) && ReadIds(_reader, _outCompany.fleets) && ReadIds(_reader, _outCompany.outposts) &&
+         ReadIds(_reader, _outCompany.record) && _reader.ReadTick(_outCompany.activeWindow.startTickOfDay) &&
+         _reader.ReadTick(_outCompany.activeWindow.lengthTicks) && _reader.ReadBool(_outCompany.alive);
+}
+
+void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
+{
+  _writer.WriteString(_empire.name);
+  _writer.WriteId(_empire.leader);
+  _writer.WriteId(_empire.homeSystem);
+  _writer.Write(_empire.colorSlot);
+  WriteIds(_writer, _empire.systemsHeld);
+  WriteIds(_writer, _empire.fleets);
+  _writer.WriteBool(_empire.alive);
+}
+
+[[nodiscard]] bool ReadEmpire(Neuron::ByteReader& _reader, Empire& _outEmpire)
+{
+  return _reader.ReadString(_outEmpire.name) && _reader.ReadId(_outEmpire.leader) && _reader.ReadId(_outEmpire.homeSystem) &&
+         _reader.Read(_outEmpire.colorSlot) && ReadIds(_reader, _outEmpire.systemsHeld) && ReadIds(_reader, _outEmpire.fleets) &&
+         _reader.ReadBool(_outEmpire.alive);
+}
+
+/// The variant's alternative index, then its payload. The index is the schema: appending an alternative is safe and
+/// reordering them renumbers every save (Fleet.h says so where the variants are declared).
+void WriteFleetOwner(Neuron::ByteWriter& _writer, const FleetOwner& _owner)
+{
+  _writer.Write(static_cast<std::uint8_t>(_owner.index()));
+  if (const auto* empire = std::get_if<EmpireId>(&_owner))
+  {
+    _writer.WriteId(*empire);
+    return;
+  }
+  _writer.WriteId(std::get<CompanyId>(_owner));
+}
+
+[[nodiscard]] bool ReadFleetOwner(Neuron::ByteReader& _reader, FleetOwner& _outOwner)
+{
+  std::uint8_t which = 0;
+  if (!_reader.Read(which))
+  {
+    return false;
+  }
+  if (which == 0)
+  {
+    EmpireId empire;
+    if (!_reader.ReadId(empire))
+    {
+      return false;
+    }
+    _outOwner = empire;
+    return true;
+  }
+  if (which == 1)
+  {
+    CompanyId company;
+    if (!_reader.ReadId(company))
+    {
+      return false;
+    }
+    _outOwner = company;
+    return true;
+  }
+  return false;
+}
+
+void WriteFleetPosition(Neuron::ByteWriter& _writer, const FleetPosition& _position)
+{
+  _writer.Write(static_cast<std::uint8_t>(_position.index()));
+  if (const auto* atSystem = std::get_if<AtSystem>(&_position))
+  {
+    _writer.WriteId(atSystem->system);
+    return;
+  }
+  if (const auto* inLane = std::get_if<InLane>(&_position))
+  {
+    _writer.WriteId(inLane->lane);
+    _writer.WriteId(inLane->from);
+    _writer.WriteTick(inLane->departureTick);
+    _writer.WriteTick(inLane->arrivalTick);
+    return;
+  }
+  _writer.WriteId(std::get<Drifting>(_position).system);
+}
+
+[[nodiscard]] bool ReadFleetPosition(Neuron::ByteReader& _reader, FleetPosition& _outPosition)
+{
+  std::uint8_t which = 0;
+  if (!_reader.Read(which))
+  {
+    return false;
+  }
+  if (which == 0)
+  {
+    AtSystem atSystem;
+    if (!_reader.ReadId(atSystem.system))
+    {
+      return false;
+    }
+    _outPosition = atSystem;
+    return true;
+  }
+  if (which == 1)
+  {
+    InLane inLane;
+    if (!_reader.ReadId(inLane.lane) || !_reader.ReadId(inLane.from) || !_reader.ReadTick(inLane.departureTick) ||
+        !_reader.ReadTick(inLane.arrivalTick))
+    {
+      return false;
+    }
+    _outPosition = inLane;
+    return true;
+  }
+  if (which == 2)
+  {
+    Drifting drifting;
+    if (!_reader.ReadId(drifting.system))
+    {
+      return false;
+    }
+    _outPosition = drifting;
+    return true;
+  }
+  return false;
+}
+
+void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
+{
+  _writer.WriteString(_fleet.name);
+  WriteFleetOwner(_writer, _fleet.owner);
+  WriteEnum(_writer, _fleet.role);
+  _writer.WriteId(_fleet.commander);
+  WriteShipCounts(_writer, _fleet.ships);
+  WriteFleetPosition(_writer, _fleet.position);
+  _writer.Write(_fleet.fuel);
+  WriteCounts(_writer, _fleet.cargoByGood);
+  _writer.WriteBool(_fleet.marked);
+  _writer.WriteHundredths(_fleet.veterancy);
+  WriteIds(_writer, _fleet.history);
+  _writer.WriteBool(_fleet.alive);
+}
+
+[[nodiscard]] bool ReadFleet(Neuron::ByteReader& _reader, Fleet& _outFleet)
+{
+  constexpr std::uint8_t FLEET_ROLE_COUNT = 4;
+  return _reader.ReadString(_outFleet.name) && ReadFleetOwner(_reader, _outFleet.owner) &&
+         ReadEnum(_reader, _outFleet.role, FLEET_ROLE_COUNT) && _reader.ReadId(_outFleet.commander) &&
+         ReadShipCounts(_reader, _outFleet.ships) && ReadFleetPosition(_reader, _outFleet.position) && _reader.Read(_outFleet.fuel) &&
+         ReadCounts(_reader, _outFleet.cargoByGood) && _reader.ReadBool(_outFleet.marked) && _reader.ReadHundredths(_outFleet.veterancy) &&
+         ReadIds(_reader, _outFleet.history) && _reader.ReadBool(_outFleet.alive);
+}
+
+void WriteCharacter(Neuron::ByteWriter& _writer, const Character& _character)
+{
+  _writer.WriteString(_character.name);
+  WriteEnum(_writer, _character.role);
+  _writer.WriteId(_character.allegiance.empire);
+  _writer.WriteId(_character.allegiance.company);
+  _writer.Write(_character.commandCapacity);
+  _writer.WriteBool(_character.alive);
+}
+
+[[nodiscard]] bool ReadCharacter(Neuron::ByteReader& _reader, Character& _outCharacter)
+{
+  constexpr std::uint8_t CHARACTER_ROLE_COUNT = 3;
+  return _reader.ReadString(_outCharacter.name) && ReadEnum(_reader, _outCharacter.role, CHARACTER_ROLE_COUNT) &&
+         _reader.ReadId(_outCharacter.allegiance.empire) && _reader.ReadId(_outCharacter.allegiance.company) &&
+         _reader.Read(_outCharacter.commandCapacity) && _reader.ReadBool(_outCharacter.alive);
+}
+
+void WriteOutpost(Neuron::ByteWriter& _writer, const Outpost& _outpost)
+{
+  _writer.WriteString(_outpost.name);
+  _writer.WriteId(_outpost.owningCompany);
+  _writer.WriteId(_outpost.owningEmpire);
+  _writer.WriteId(_outpost.system);
+  WriteCounts(_writer, _outpost.stockByGood);
+  WriteShipCounts(_writer, _outpost.docked);
+  _writer.WriteTick(_outpost.claimExpiresTick);
+  _writer.WriteBool(_outpost.alive);
+}
+
+[[nodiscard]] bool ReadOutpost(Neuron::ByteReader& _reader, Outpost& _outOutpost)
+{
+  return _reader.ReadString(_outOutpost.name) && _reader.ReadId(_outOutpost.owningCompany) && _reader.ReadId(_outOutpost.owningEmpire) &&
+         _reader.ReadId(_outOutpost.system) && ReadCounts(_reader, _outOutpost.stockByGood) &&
+         ReadShipCounts(_reader, _outOutpost.docked) && _reader.ReadTick(_outOutpost.claimExpiresTick) &&
+         _reader.ReadBool(_outOutpost.alive);
+}
+
+/// One table: a count, then that many rows in table order, which is insertion order (Table.h).
+template <typename T, typename IdType, typename WriteRow>
+void WriteTable(Neuron::ByteWriter& _writer, const Table<T, IdType>& _table, WriteRow _writeRow)
+{
+  _writer.Write(_table.Count());
+  for (const T& row : _table.Rows())
+  {
+    _writeRow(_writer, row);
+  }
+}
+
+template <typename T, typename IdType, typename ReadRow>
+[[nodiscard]] bool ReadTable(Neuron::ByteReader& _reader, Table<T, IdType>& _outTable, ReadRow _readRow)
+{
+  std::uint32_t count = 0;
+  if (!_reader.Read(count))
+  {
+    return false;
+  }
+  // A row cannot be smaller than the count field that follows it, so a count larger than the bytes left is corrupt
+  // and is refused before anything is allocated.
+  if (count > _reader.Remaining())
+  {
+    return false;
+  }
+  _outTable.Clear();
+  _outTable.Resize(count);
+  for (T& row : _outTable.Rows())
+  {
+    if (!_readRow(_reader, row))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+} // namespace
+
+World::World(std::uint64_t _seed)
+  : m_seed(_seed)
+{
+  // One fork per subsystem, taken at construction from one master. Fork does not advance the master, so the streams
+  // are independent of the order they were taken in and of how many there are (NC-011).
+  const Neuron::Random master{_seed};
+  m_randomStreams.reserve(RANDOM_STREAM_COUNT);
+  for (std::uint64_t stream = 0; stream < RANDOM_STREAM_COUNT; ++stream)
+  {
+    m_randomStreams.push_back(master.Fork(stream));
+  }
+}
+
+Neuron::Random& World::RandomFor(RandomStream _stream) noexcept
+{
+  const auto index = static_cast<std::size_t>(_stream);
+  NOMAD_ASSERT(index < m_randomStreams.size());
+  return m_randomStreams[index];
+}
+
+void World::Serialize(Neuron::ByteWriter& _writer) const
+{
+  _writer.Write(SCHEMA_VERSION);
+  _writer.Write(m_seed);
+  _writer.WriteTick(m_tick);
+
+  WriteTable(_writer, m_companies, WriteCompany);
+  WriteTable(_writer, m_empires, WriteEmpire);
+  WriteTable(_writer, m_fleets, WriteFleet);
+  WriteTable(_writer, m_characters, WriteCharacter);
+  WriteTable(_writer, m_outposts, WriteOutpost);
+
+  _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
+  for (const Neuron::Random& stream : m_randomStreams)
+  {
+    stream.WriteState(_writer);
+  }
+}
+
+bool World::Deserialize(Neuron::ByteReader& _reader)
+{
+  std::uint16_t version = 0;
+  if (!_reader.Read(version) || version != SCHEMA_VERSION)
+  {
+    return false;
+  }
+
+  // Into a fresh world, so that a buffer that runs out half way leaves nothing partial behind for a caller to act on.
+  World loaded{0};
+  if (!_reader.Read(loaded.m_seed) || !_reader.ReadTick(loaded.m_tick))
+  {
+    return false;
+  }
+
+  if (!ReadTable(_reader, loaded.m_companies, ReadCompany) || !ReadTable(_reader, loaded.m_empires, ReadEmpire) ||
+      !ReadTable(_reader, loaded.m_fleets, ReadFleet) || !ReadTable(_reader, loaded.m_characters, ReadCharacter) ||
+      !ReadTable(_reader, loaded.m_outposts, ReadOutpost))
+  {
+    return false;
+  }
+
+  std::uint32_t streamCount = 0;
+  if (!_reader.Read(streamCount) || streamCount != RANDOM_STREAM_COUNT)
+  {
+    return false;
+  }
+  for (Neuron::Random& stream : loaded.m_randomStreams)
+  {
+    if (!stream.ReadState(_reader))
+    {
+      return false;
+    }
+  }
+
+  *this = std::move(loaded);
+  return true;
+}
+
+std::uint64_t World::Hash() const
+{
+  Neuron::ByteWriter writer;
+  Serialize(writer);
+  return HashBytes(writer.Bytes());
+}
+
+} // namespace Nomad
