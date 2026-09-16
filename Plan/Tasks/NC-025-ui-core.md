@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient | L | **yes** | **yes** | Done (pending commit) |
+| 1 | NeuronClient | L | **yes** | **yes** | Done (4ca158a) |
 
 **Depends on:** NC-022, NC-023, NC-024
 **Read first:** GDD §3 whole (every panel it names), §13 ("The interface presents decisions, not data"); AGENTS.md R12 (no immediate-mode helper layers), R13 (colours embedded), §5 (blending is a pass's own business; panels are opaque by default)

@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronServer | S | no | no | Done (pending commit) |
+| 1 | NeuronServer | S | no | no | Done (4ca158a) |
 
 **Depends on:** NC-010
 **Read first:** AGENTS.md R13 (the second sanctioned file), R24 whole; GDD §15 (*Measured outcomes*)

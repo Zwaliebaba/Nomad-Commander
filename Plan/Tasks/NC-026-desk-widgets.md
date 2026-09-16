@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient | L | **yes** | no | Done (pending commit) |
+| 1 | NeuronClient | L | **yes** | no | Done (4ca158a) |
 
 **Depends on:** NC-025
 **Read first:** GDD §3 (the board, the accusation panel, the composer, the plan editor: what each needs to show and take), §4 (hypothesis as selection; plan rules), §11 (the three governor policies)

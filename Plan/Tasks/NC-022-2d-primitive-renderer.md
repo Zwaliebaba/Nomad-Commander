@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient | L | **yes** | no | Done (pending commit) |
+| 1 | NeuronClient | L | **yes** | no | Done (4ca158a) |
 
 **Depends on:** NC-021
 **Read first:** GDD §13 (2D map, "the game's complexity is informational, not visual"); AGENTS.md §5 (*Blending and samplers are a pass's own business, and the shared defaults stay opaque*), R12, R13 (shaders at build time)

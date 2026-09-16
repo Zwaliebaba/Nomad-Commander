@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronServer, NeuronCore | M | no | **yes** | Done (pending commit) |
+| 1 | NeuronServer, NeuronCore | M | no | **yes** | Done (4ca158a) |
 
 **Depends on:** NC-014
 **Read first:** AGENTS.md R13 whole (the two sanctioned files; "write it before the first byte is saved"; "a path a host writes resolves beside the executable"), R16 (the seed and every input re-resolved), §6 (figures in an ADR are measured); GDD §1, §7

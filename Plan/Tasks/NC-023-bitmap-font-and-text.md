@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient | M | **yes** | no | Done (pending commit) |
+| 1 | NeuronClient | M | **yes** | no | Done (4ca158a) |
 
 **Depends on:** NC-022
 **Read first:** AGENTS.md R13 ("a bitmap font is 96 glyphs, 8×8, one bit a pixel, 768 bytes, and nothing to load"), §5 (*A sampler on text costs the 1:1 guarantee* — why the glyph path uses `Texture2D<uint>::Load()`), R14

@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient | S | **yes** | no | Done (pending commit) |
+| 1 | NeuronClient | S | **yes** | no | Done (4ca158a) |
 
 **Depends on:** NC-020
 **Read first:** GDD §3 (what a desk session does with a mouse), §13; AGENTS.md §2 (NeuronClient: input)

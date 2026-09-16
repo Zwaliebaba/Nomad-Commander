@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient | L | **yes** | **yes** | Done (pending commit) |
+| 1 | NeuronClient | L | **yes** | **yes** | Done (4ca158a) |
 
 **Depends on:** NC-021, NC-022
 **Read first:** GDD §13 whole (v1.7: the map is 3D, the desk is 2D, and the guard that replaced "it waits"), §16 (*The 3D client* — the risk this task is the realisation of); AGENTS.md R12 whole (and the open anti-aliasing collision under it), §5, R13, R14, R23
