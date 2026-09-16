@@ -89,11 +89,14 @@
     <ClCompile Include="ByteStreamTests.cpp" />
     <ClCompile Include="HundredthsTests.cpp" />
     <ClCompile Include="IdTests.cpp" />
+    <ClCompile Include="SimulationTests.cpp" />
+    <ClCompile Include="TickScheduleTests.cpp" />
     <ClCompile Include="IntegerMathTests.cpp" />
     <ClCompile Include="RandomTests.cpp" />
     <ClCompile Include="TickTests.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CounterSimulation.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>

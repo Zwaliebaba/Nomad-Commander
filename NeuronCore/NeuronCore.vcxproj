@@ -82,6 +82,7 @@
     <ClCompile Include="ByteWriter.cpp" />
     <ClCompile Include="Debug.cpp" />
     <ClCompile Include="Random.cpp" />
+    <ClCompile Include="TickSchedule.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -94,6 +95,8 @@
     <ClInclude Include="IntegerMath.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="Serializable.h" />
+    <ClInclude Include="Simulation.h" />
+    <ClInclude Include="TickSchedule.h" />
     <ClInclude Include="Tick.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
