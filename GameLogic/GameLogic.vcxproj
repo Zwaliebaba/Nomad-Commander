@@ -81,6 +81,9 @@
     </ClCompile>
     <ClCompile Include="World.cpp" />
     <ClCompile Include="UniverseGenerator.cpp" />
+    <ClCompile Include="Explanation.cpp" />
+    <ClCompile Include="NomadSimulation.cpp" />
+    <ClCompile Include="TickResolver.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -98,6 +101,15 @@
     <ClInclude Include="Lane.h" />
     <ClInclude Include="StarSystem.h" />
     <ClInclude Include="UniverseGenerator.h" />
+    <ClInclude Include="Event.h" />
+    <ClInclude Include="Explanation.h" />
+    <ClInclude Include="Input.h" />
+    <ClInclude Include="NomadSimulation.h" />
+    <ClInclude Include="TickResolver.h" />
+    <ClInclude Include="Tuning.h" />
+    <ClInclude Include="WireEvent.h" />
+    <ClInclude Include="WireExplanation.h" />
+    <ClInclude Include="WireInput.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

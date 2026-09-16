@@ -39,27 +39,11 @@ struct ShipStats
   Credits hullPriceCreditsBase;
 };
 
-/// The per-class table (R20: a tuning value is data, named, and cites its section).
+/// The values that fill this shape live in `Tuning.h` (R20: one table a tuner edits).
 ///
-/// **Every number here is a guess and is meant to be changed.** GDD §12 fixes the four classes and what they differ
-/// in; it fixes no figure, and the appendix puts these among the values play answers. NC-092 and NC-103 are where they
-/// get tuned, and AGENTS.md's last risk says not to tune them from tests. What the table is for is that there is one
-/// place to change them and nobody writes a 3 into a resolver.
-///
-/// NC-042 builds `Tuning.h`, and may move this table there; the task allows either and asks only that there be one
-/// home and not two. It is here for now because ShipCounts below is the type that gives the array its length.
-inline constexpr ShipStats SHIP_CLASS_STATS[SHIP_CLASS_COUNT] = {
-  // jumpTime  fuel  sensor  cargo  strength  upkeep  price
-  {70, 1, 3, 0, 1, 2, 120},     // Scout: fastest, sees furthest, carries nothing, dies to anything
-  {90, 2, 1, 2, 4, 6, 400},     // Raider: takes cargo (GDD §5, "Loot is evidence")
-  {110, 3, 1, 0, 12, 18, 1400}, // Warship: the thing an escort contract is bought for
-  {130, 3, 0, 12, 1, 5, 500}    // Hauler: the convoy, and what a raid is aimed at
-};
-
-[[nodiscard]] constexpr const ShipStats& StatsOf(ShipClass _shipClass) noexcept
-{
-  return SHIP_CLASS_STATS[static_cast<std::uint32_t>(_shipClass)];
-}
+/// NC-040 left the choice of home to this task and asked only that there be one and not two. A tuner changing hull
+/// prices should not have to know which header the enumerator lives in, so the numbers went to `Tuning.h` and the
+/// shape stayed here, beside the enumerator that gives the array its length.
 
 /// Ships within a fleet are counts per class, never individual hulls (GDD §12). A public aggregate with a plain field
 /// (R8), so a fleet's complement brace-initializes.

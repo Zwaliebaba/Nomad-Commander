@@ -88,6 +88,9 @@
     </ClCompile>
     <ClCompile Include="WorldTests.cpp" />
     <ClCompile Include="UniverseGeneratorTests.cpp" />
+    <ClCompile Include="NomadSimulationTests.cpp" />
+    <ClCompile Include="TickResolverTests.cpp" />
+    <ClCompile Include="WireTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
