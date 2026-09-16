@@ -15,7 +15,7 @@ const wchar_t* const WINDOW_CLASS_NAME = L"NomadCommanderWindow";
 bool g_classRegistered = false;
 
 // A fixed-size window: a caption, a system menu and a minimize box, and deliberately no WS_THICKFRAME and no
-// WS_MAXIMIZEBOX, because the screen is 1280x720 and nothing scales it (R12).
+// WS_MAXIMIZEBOX, because the screen is 1920x1080 and nothing scales it (R12).
 //
 // WS_OVERLAPPED is named for what the window is, and contributes nothing: it is zero. AdjustWindowRectExForDpi
 // documents that the style must not be specified, which is a statement about a style that has no bits rather than one
@@ -27,8 +27,9 @@ constexpr DWORD WINDOW_EXTENDED_STYLE = 0;
 //
 // CreateWindowExW sends WM_GETMINMAXINFO to any window carrying WS_CAPTION before it returns, and clamps the new
 // window to that message's ptMaxTrackSize. The default is SM_CXMAXTRACK by SM_CYMAXTRACK, which is the size of the
-// ENTIRE DESKTOP -- so on a desktop narrower than 1280 the clamp silently hands back a smaller client area than the
-// one asked for, which is exactly the promise this class exists to keep (R12). GetSystemMetrics documents the way
+// ENTIRE DESKTOP -- so on any desktop smaller than the screen the clamp silently hands back a smaller client area
+// than the one asked for, which is exactly the promise this class exists to keep (R12). At 1920x1080 that is most
+// desktops, not a corner case. GetSystemMetrics documents the way
 // out: "A window can override this value by processing the WM_GETMINMAXINFO message." The procedure below does, and
 // this is the value it gives.
 //

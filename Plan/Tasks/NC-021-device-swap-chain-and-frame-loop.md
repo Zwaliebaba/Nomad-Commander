@@ -9,13 +9,13 @@
 
 ## Goal
 
-The Direct3D 12 device, its direct queue, and a two-buffer flip-model swap chain of 1280×720 `R8G8B8A8_UNORM` on the window, with a frame loop that clears the back buffer, presents with vsync, and fences correctly. Everything the renderer will ever need from D3D12 that is not a pipeline lives here; nothing here knows what a rectangle is.
+The Direct3D 12 device, its direct queue, and a two-buffer flip-model swap chain of 1920×1080 `R8G8B8A8_UNORM` on the window, with a frame loop that clears the back buffer, presents with vsync, and fences correctly. Everything the renderer will ever need from D3D12 that is not a pipeline lives here; nothing here knows what a rectangle is.
 
 ## Deliverables
 
 - `NeuronClient/GraphicsDevice.h` + `.cpp`: `class GraphicsDevice`, `struct Desc { bool useWarp; bool enableDebugLayer; }`, `Create`, `Device()`, `Queue()`, `Factory()`; adapter choice: the first hardware adapter that creates a `D3D_FEATURE_LEVEL_11_0` device, or WARP when asked or when none does; the debug layer and `ID3D12InfoQueue` set to break on error and corruption in `_DEBUG`.
 - `NeuronClient/SwapChainTarget.h` + `.cpp`: `class SwapChainTarget`, `enum class TargetFault : std::uint8_t { DeviceRemoved, BadFormat, OutOfVideoMemory }` (AGENTS.md's worked example, made real), `Create(GraphicsDevice&, HWND, const Desc&)`, `BeginFrame()` returning the open command list with the back buffer transitioned to render target and cleared to a colour, `EndFrame()` (transition to present, close, execute, `Present(1, 0)`, signal), a per-buffer allocator and fence value, `WaitForGpu()`, and `Fault()` after a failed present.
-- `NeuronClient/FrameTarget.h` + `.cpp` (test-only use in the game, but engine code): an offscreen 1280×720 `R8G8B8A8_UNORM` texture with the same `BeginFrame`/`EndFrame` shape plus `ReadBack(std::vector<std::uint32_t>&)`, so NeuronClientTests can render on WARP and inspect pixels (A12).
+- `NeuronClient/FrameTarget.h` + `.cpp` (test-only use in the game, but engine code): an offscreen 1920×1080 `R8G8B8A8_UNORM` texture with the same `BeginFrame`/`EndFrame` shape plus `ReadBack(std::vector<std::uint32_t>&)`, so NeuronClientTests can render on WARP and inspect pixels (A12).
 - `NomadCommander/Main.cpp` grows a loop: pump, begin frame, end frame, until closed; a device-removed fault ends the process with a message in the debug output and a non-zero exit.
 - `#pragma comment(lib, …)` for `d3d12.lib`, `dxgi.lib`, `dxguid.lib` in `GraphicsDevice.cpp`.
 - `NeuronClientTests/GraphicsDeviceTests.cpp` (WARP device creates; a `FrameTarget` clears to a colour and the readback shows that colour in every pixel).
@@ -33,7 +33,7 @@ The Direct3D 12 device, its direct queue, and a two-buffer flip-model swap chain
 
 ```powershell
 msbuild NomadCommander.slnx /p:Configuration=Debug /p:Platform=x64 /m /v:minimal /nologo /warnaserror
-x64\Debug\NomadCommander.exe        # a cleared 1280×720 window; watch the debug output for the info queue
+x64\Debug\NomadCommander.exe        # a cleared 1920×1080 window; watch the debug output for the info queue
 vstest.console.exe x64\Debug\NeuronClientTests.dll /Platform:x64
 ```
 

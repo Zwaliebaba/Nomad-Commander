@@ -2,7 +2,7 @@
 #include "pch.h"
 #include "Window.h"
 
-// The executable's entry point. It opens the 1280x720 window the game presents (AGENTS.md R12) and pumps it until it
+// The executable's entry point. It opens the 1920x1080 window the game presents (AGENTS.md R12) and pumps it until it
 // closes. There is nothing to see in it yet: NC-021 brings the device and the swap chain, and the composition root of
 // NC-070 replaces this loop with the hosted session and the client. The parameters stay unnamed until something reads
 // them; /W4 /WX would otherwise report them unreferenced.

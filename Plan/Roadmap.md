@@ -9,7 +9,7 @@ The plan covers v0.1 in tasks. GDD Milestone 2 and the full game are outlined at
 One executable, `x64\Release\NomadCommander.exe`, shipping alone (R13), that:
 
 1. hosts the simulation and the client in one process on a compressed local clock (GDD §15), writing one universe store and one instrumentation log beside itself and nothing else;
-2. plays the Kessel Convoy scenario end to end as GDD §3 describes it, with the mouse, on a 1280×720 2D map with the situation board, the accusation panel, hypothesis as selection, the operation composer, the plan editor with a branch budget, courier orders, and the receipt with a replay;
+2. plays the Kessel Convoy scenario end to end as GDD §3 describes it, with the mouse, on a 1920×1080 2D map with the situation board, the accusation panel, hypothesis as selection, the operation composer, the plan editor with a branch budget, courier orders, and the receipt with a replay;
 3. runs the sandbox: three empires and one company on about ten generated systems, with the economy, the hull market, insolvency, the floor, empire goals and wars that never go quiet, covert raids, the §6 inference rule, contracts paid by attribution, admirals choosing from the eight templates by trait, and outposts under governors;
 4. logs every event GDD §15 measures so that `Tools/MeasureLog.py` computes the measured outcomes after a playtest (R24);
 5. reproduces any run from its seed and its inputs (R16), which is what makes a bug in a playtest findable.
@@ -104,7 +104,7 @@ The three engine libraries as AGENTS.md §2 describes them, minus what A2 defers
 | NC-031 | The universe store *(owner-visible)* | NeuronServer, NeuronCore | M | NC-014 |
 | NC-032 | The instrumentation log | NeuronServer | S | NC-010 |
 
-**Exit:** `NomadCommander.exe` opens a 1280×720 window, presents at the display's rate, draws text and primitives, reacts to the mouse and closes on the close box; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
+**Exit:** `NomadCommander.exe` opens a 1920×1080 window, presents at the display's rate, draws text and primitives, reacts to the mouse and closes on the close box; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
 
 ### Phase 2 — The simulation kernel, headless
 
@@ -214,7 +214,7 @@ Numbers are assigned when they land (Design/README.md). Each recommendation is t
 | Tick duration and the compressed clock (**ADR-005**) | NC-014 | A7. | **yes** |
 | Client–host transport in v0.1 (**ADR-006**) | NC-015 | A2. | **yes** |
 | Test-only offscreen target on WARP | NC-021 | A12. | no |
-| The UI model | NC-025 | Immediate mode in pixel space; the 8×8 font at `GLYPH_SCALE` 2 gives 16-pixel cells and an 80×45 grid; widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque because there is no blending (R12). | **yes** |
+| The UI model | NC-025 | Immediate mode in pixel space; the 8×8 font at `GLYPH_SCALE` 3 gives 24-pixel cells and an 80×45 grid (the screen is exactly 1.5× the 1280×720 it was until 2026-09-16, so the grid is unchanged and only the glyphs grew; scale 2 would give 120×67½ cells and is rejected for the half); widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque because there is no blending (R12). | **yes** |
 | Universe store form | NC-031 | Seed plus an input journal, replayed through `Simulation` on load; written to a temporary file and renamed into place; a snapshot section is added only when a measured load exceeds two seconds, and the ADR records the measurement. | **yes** |
 | Instrumentation log format | NC-032 | One event a line: tick, wall-clock ISO-8601, kind, then `key=value` fields, tab-separated, UTF-8, flushed per line. | no |
 | Universe generation | NC-041 | The Kessel map is hand-authored data in the generator's types; the sandbox generator places systems on a jittered grid, builds a connected lane graph, and assigns roles by graph shape. | no |

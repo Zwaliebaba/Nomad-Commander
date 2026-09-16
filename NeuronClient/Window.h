@@ -8,11 +8,17 @@
 namespace Neuron
 {
 
-// The screen the game presents, fixed (AGENTS.md R12): 1280x720 physical pixels, drawn straight into the swap chain's
-// back buffer and presented 1:1. The window's CLIENT area is exactly these pixels on every display scaling, which is
-// what the per-monitor-v2 awareness in the executable's manifest and the DPI-aware frame arithmetic below are for.
-inline constexpr std::uint32_t SCREEN_WIDTH_PIXELS = 1280;
-inline constexpr std::uint32_t SCREEN_HEIGHT_PIXELS = 720;
+// The screen the game presents, fixed (AGENTS.md R12): 1920x1080 physical pixels, drawn straight into the swap
+// chain's back buffer and presented 1:1. The window's CLIENT area is exactly these pixels on every display scaling,
+// which is what the per-monitor-v2 awareness in the executable's manifest and the DPI-aware frame arithmetic below
+// are for.
+//
+// Note what this size does NOT fit: a 1920x1080 desktop. The frame adds a caption and borders, so the window is taller
+// than a 1080p screen and the taskbar takes more again. Nothing here scales to compensate, because R12 forbids it --
+// the window simply extends past the edges. Whether the game should instead refuse to start on a desktop that cannot
+// hold it is an open question for the owner; the code assumes no answer.
+inline constexpr std::uint32_t SCREEN_WIDTH_PIXELS = 1920;
+inline constexpr std::uint32_t SCREEN_HEIGHT_PIXELS = 1080;
 
 /// Why a window could not be created (the shape of AGENTS.md's worked example). A creation function that returns a
 /// bare false tells a caller nothing it can act on, and tells a build agent's log nothing at all.

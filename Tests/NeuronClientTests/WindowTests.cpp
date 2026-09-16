@@ -112,10 +112,10 @@ public:
   TEST_METHOD(AClientAreaLargerThanTheDesktopIsStillTheSizeAskedFor)
   {
     // The regression this suite was red on for three rounds. CreateWindowExW clamps a new WS_CAPTION window to the
-    // desktop-sized default in WM_GETMINMAXINFO's ptMaxTrackSize, so on the CI runner's 1024x768 desktop a 1280-wide
-    // client area came back 1028 wide while the height, which fitted, came back right. The five tests above catch that
-    // only on a desktop too small to hold the screen; this one asks for a width the desktop cannot hold whatever the
-    // desktop is, so the override in the window procedure is exercised on a developer's machine too.
+    // desktop-sized default in WM_GETMINMAXINFO's ptMaxTrackSize: on the CI runner's 1024x768 desktop the 1280-wide
+    // client area of the day came back 1028 wide, while the height, which fitted, came back right. The screen is
+    // 1920x1080 now, so the five tests above overshoot that desktop on both axes rather than one. This test overshoots
+    // whatever the desktop is, by reading its own maximum, so the override is exercised on a developer's machine too.
     const int maxTrackWidth = GetSystemMetrics(SM_CXMAXTRACK);
     Assert::IsTrue(maxTrackWidth > 0, L"SM_CXMAXTRACK is not available on this desktop");
     const std::uint32_t overWideClientPixels = static_cast<std::uint32_t>(maxTrackWidth) + 64u;

@@ -2,7 +2,7 @@
 
 Operating instructions for every agent (and human) writing code in this repository. **Read this before generating a single line.**
 
-*Nomad Commander* is a greenfield C++23 game and a hobby project with one developer: an **asynchronous operational strategy game driven by imperfect information and persistent AI relationships**. The player commands a nomad mothership fleet with no country of its own, moving between AI empires that hire it, fear it, suspect it and remember it, in a universe that runs whether the player is present or not. It is single-player by design. Technically it is a Direct3D 12 client and an authoritative simulation host, in **one executable**, presenting a fixed **1280×720 R8G8B8A8** screen, drawn straight into the swap chain's back buffer and presented 1:1. The client is a 2D map with simple battle visualisation, and the design protects that decision. There is no legacy tree here and nothing is grandfathered. A rule below is not a target to migrate towards; it describes the code as it must be written today, and a whole-tree run of any checker comes back clean.
+*Nomad Commander* is a greenfield C++23 game and a hobby project with one developer: an **asynchronous operational strategy game driven by imperfect information and persistent AI relationships**. The player commands a nomad mothership fleet with no country of its own, moving between AI empires that hire it, fear it, suspect it and remember it, in a universe that runs whether the player is present or not. It is single-player by design. Technically it is a Direct3D 12 client and an authoritative simulation host, in **one executable**, presenting a fixed **1920×1080 R8G8B8A8** screen, drawn straight into the swap chain's back buffer and presented 1:1. The client is a 2D map with simple battle visualisation, and the design protects that decision. There is no legacy tree here and nothing is grandfathered. A rule below is not a target to migrate towards; it describes the code as it must be written today, and a whole-tree run of any checker comes back clean.
 
 **What is authoritative, in order:**
 
@@ -84,8 +84,8 @@ namespace Neuron
 {
 
 // R3: constant → UPPER_CASE. R6: the unit is in the name.
-inline constexpr std::uint32_t SCREEN_WIDTH_PIXELS = 1280;
-inline constexpr std::uint32_t SCREEN_HEIGHT_PIXELS = 720;
+inline constexpr std::uint32_t SCREEN_WIDTH_PIXELS = 1920;
+inline constexpr std::uint32_t SCREEN_HEIGHT_PIXELS = 1080;
 
 // R1 (enumerator) → PascalCase, unlike the constants above.
 enum class TargetFault : std::uint8_t
@@ -95,7 +95,7 @@ enum class TargetFault : std::uint8_t
   OutOfVideoMemory
 };
 
-/// The 1280x720 color framebuffer the game draws into, and the depth buffer that goes with it.
+/// The 1920x1080 color framebuffer the game draws into, and the depth buffer that goes with it.
 /// R2: no prefix on the type. R8: private state carries m_.
 class SceneTarget
 {
@@ -137,7 +137,7 @@ private:
 | Path | What it is | May you edit it? |
 |---|---|---|
 | `NeuronCore/` | Engine static library used by **both** halves: `Debug.h`, the typed index `Id`, the pinned PRNG, integer arithmetic the simulation can trust, the byte reader and writer, the `Simulation` seam, the `TickSchedule`, and the wire protocol between client and host — `Socket`, `FrameStream`, `Protocol` | Yes |
-| `NeuronClient/` | Engine static library used by the **client only**: the window, the D3D12 device and swap chain, the 1280×720 colour target, input, audio, UI | Yes |
+| `NeuronClient/` | Engine static library used by the **client only**: the window, the D3D12 device and swap chain, the 1920×1080 colour target, input, audio, UI | Yes |
 | `NeuronServer/` | Engine static library used by the **host only**: `Session` owns a simulation and drives it on a schedule, a store persists it, a server puts it on a socket. It never names a game type — the seam speaks in bytes | Yes |
 | `GameLogic/` | The game itself, in the design's own terms: the universe graph and its generator (GDD §7), empires and their goals, admirals and the eight templates (§8), fleets and the mobility rules (§12), contracts, the economy (§10), evidence and the inference rule (§6), beliefs and opinions (§9), couriers, plans and the branch budget (§4), the tick resolver, and the receipt and the explanation every consequence carries. Host-side; the client never links it | Yes |
 | `NomadCommander/` | The executable and the composition root — the one thing that sees both halves. The situation board and the desk session (GDD §3), the 2D map and battle visualisation (§13), hypothesis and plan authoring, the receipt, the client connection, and the hosted simulation. Where every embedded asset and compiled shader ends up | Yes |
@@ -245,7 +245,9 @@ x64\Debug\NomadCommander.exe
 
 ## 5. Rules for this codebase
 
-**R12 — Graphics is Direct3D 12 only**, and the screen it presents is fixed. **1280×720 `R8G8B8A8_UNORM`** — not `_SRGB`, so a channel authored as `0xAA` is presented as `0xAA` — drawn straight into the swap chain's back buffer, whose client area is those same 1280×720 pixels. There is no intermediate render target, no resolve pass and no present scale. No D3D11, no D3D11On12, no immediate-mode helper layers. COM lifetimes are RAII from the first line — a raw `AddRef`/`Release` pair in new code is a defect, not a style.
+**R12 — Graphics is Direct3D 12 only**, and the screen it presents is fixed. **1920×1080 `R8G8B8A8_UNORM`** — not `_SRGB`, so a channel authored as `0xAA` is presented as `0xAA` — drawn straight into the swap chain's back buffer, whose client area is those same 1920×1080 pixels. There is no intermediate render target, no resolve pass and no present scale. No D3D11, no D3D11On12, no immediate-mode helper layers. COM lifetimes are RAII from the first line — a raw `AddRef`/`Release` pair in new code is a defect, not a style.
+
+**1920×1080 does not fit on a 1920×1080 desktop, and that is understood rather than overlooked** (owner decision, 2026-09-16; it was 1280×720 until then). A caption and borders put the window at roughly 1926×1117, which is taller than a 1080p screen before the taskbar takes its share, so on the most common PC display the window extends past the edges. Nothing scales to compensate, because the sentence above forbids it: a client area that is not exactly these pixels is a swap chain that is no longer presented 1:1. **What the game should do on a desktop that cannot hold its screen — overhang, as it does today, or refuse to start and say so — is open, and the first task that needs an answer writes the ADR.** Until then no code assumes one. Note also that the screen is exactly 1.5× the old one, which is why the 8×8 font's cell grid survives the change intact at `GLYPH_SCALE` 3 (§ the UI model, NC-025): 1920/24 by 1080/24 is the same 80×45 it always was.
 
 **The client is 2D, and the design protects that.** GDD §13: the game's complexity is informational, not visual; v0.1 is a 2D map with simple battle visualisation; the 3D client is "the reward for a working 2D game, the largest cost in the project and the least validated value, and it waits." A mesh pipeline, a camera, a lighting model or any other step towards it is not a task anyone has. It appears in a report as a proposal, never in a diff.
 

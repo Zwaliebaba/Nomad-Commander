@@ -16,7 +16,7 @@ Text on screen from data compiled into the executable: the 96 printable ASCII gl
 - `NeuronClient/BitmapFont.h`: `inline constexpr std::array<std::uint8_t, 768> FONT_8X8_GLYPHS`, ASCII 0x20–0x7F, eight bytes a glyph, most significant bit leftmost; a header comment stating the provenance (authored here, or a set published as public domain with its source named; anything under a licence needs owner approval first, R14's spirit).
 - `NeuronClient/Shaders/GlyphVS.hlsl`, `GlyphPS.hlsl`: quads with integer texel coordinates; `Texture2D<uint>` and `Load`; `discard` on zero.
 - `NeuronClient/GlyphPipeline.h` + `.cpp`: root signature with a descriptor table (one SRV) and root constants; one PSO from `PipelineDefaults`; a shader-visible CBV/SRV/UAV heap of a few slots owned here.
-- `NeuronClient/TextRenderer.h` + `.cpp`: uploads the atlas (128×48 texels, `R8_UINT`, 16 glyphs a row) once; `Draw(x, y, std::string_view, colorRgba, scale = GLYPH_SCALE)`, `Measure(text, scale)`, `GLYPH_SCALE = 2`, `GLYPH_WIDTH_PIXELS = 8`; unknown characters draw the 0x7F glyph.
+- `NeuronClient/TextRenderer.h` + `.cpp`: uploads the atlas (128×48 texels, `R8_UINT`, 16 glyphs a row) once; `Draw(x, y, std::string_view, colorRgba, scale = GLYPH_SCALE)`, `Measure(text, scale)`, `GLYPH_SCALE = 3`, `GLYPH_WIDTH_PIXELS = 8` (scale 3 because the screen is 1920×1080: a 24-pixel cell divides it exactly, into the same 80×45 grid the 16-pixel cell gave at 1280×720); unknown characters draw the 0x7F glyph.
 - `NeuronClientTests/TextRendererTests.cpp`: on WARP, draw `"A"` at (0, 0) scale 1 and read back the eight rows against the glyph's bits.
 
 ## Acceptance criteria

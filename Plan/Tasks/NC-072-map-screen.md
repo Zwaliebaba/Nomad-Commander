@@ -9,7 +9,7 @@
 
 ## Goal
 
-The 2D map: systems as nodes with their role and owner, lanes, the company's fleets and outposts, and everything else only as the company's reports show it, with age. Selecting a system or a fleet opens what the desk knows about it. No camera, no zoom beyond what the fixed screen holds: about ten systems fit at 1280×720 by design.
+The 2D map: systems as nodes with their role and owner, lanes, the company's fleets and outposts, and everything else only as the company's reports show it, with age. Selecting a system or a fleet opens what the desk knows about it. No camera, no zoom beyond what the fixed screen holds: about ten systems fit at 1920×1080 with room to spare, by design.
 
 ## Deliverables
 

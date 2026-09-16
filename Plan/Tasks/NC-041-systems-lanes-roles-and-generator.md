@@ -42,7 +42,7 @@ Production flows (NC-045), goals (NC-047), the Kessel map (NC-090).
 
 ## Notes
 
-- Positions are for the map screen only; keep them integers on a 1280×720 grid with margins so NC-072 draws them unchanged.
+- Positions are for the map screen only; keep them integers on a 1920×1080 grid with margins so NC-072 draws them unchanged.
 
 ## Report
 

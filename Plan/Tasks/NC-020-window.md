@@ -5,38 +5,38 @@
 | 1 | NeuronClient, NomadCommander | M | **yes** | no | Done (PR #3), desktop run outstanding |
 
 **Depends on:** NC-002
-**Read first:** GDD §13; AGENTS.md §2 (NeuronClient), §4 (`NeuronCore.h` owns the macros; `NOGDI` means GDI is gone), R12 (1280×720, presented 1:1), R13
+**Read first:** GDD §13; AGENTS.md §2 (NeuronClient), §4 (`NeuronCore.h` owns the macros; `NOGDI` means GDI is gone), R12 (1920×1080, presented 1:1), R13
 
 ## Goal
 
-A Win32 window whose client area is exactly 1280×720 physical pixels, that cannot be resized or maximized, that pumps messages without blocking the frame, and that the executable opens and closes. It is the first thing a person can see, and the one place `<windows.h>`'s window functions are called.
+A Win32 window whose client area is exactly 1920×1080 physical pixels, that cannot be resized or maximized, that pumps messages without blocking the frame, and that the executable opens and closes. It is the first thing a person can see, and the one place `<windows.h>`'s window functions are called.
 
 ## Deliverables
 
-- `NeuronClient/Window.h` + `.cpp`: `class Window` with `struct Desc { std::uint32_t clientWidthPixels; std::uint32_t clientHeightPixels; std::wstring_view title; }`, `[[nodiscard]] static bool Create(const Desc&, Window&)`, `Handle()` (`HWND`), `PumpMessages()` returning `false` when the window has been closed, a fixed-size style (`WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX`), `AdjustWindowRectExForDpi` for the frame, centred on the primary monitor; per-monitor-v2 DPI awareness confirmed at runtime (`GetDpiForWindow`), so the client area is the pixels asked for.
+- `NeuronClient/Window.h` + `.cpp`: `class Window` with `struct Desc { std::uint32_t clientWidthPixels; std::uint32_t clientHeightPixels; const wchar_t* title; }`, `[[nodiscard]] static bool Create(const Desc&, Window&)`, `Handle()` (`HWND`), `PumpMessages()` returning `false` when the window has been closed, a fixed-size style (`WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX`), `AdjustWindowRectExForDpi` for the frame, centred on the primary monitor; per-monitor-v2 DPI awareness confirmed at runtime (`GetDpiForWindow`), so the client area is the pixels asked for.
 - `SCREEN_WIDTH_PIXELS` and `SCREEN_HEIGHT_PIXELS` as `inline constexpr` in `Window.h` (the shape of AGENTS.md's worked example); NC-021's swap chain and test target take the size through their `Desc` from these.
 - `NomadCommander/Main.cpp`: creates the window with those constants, pumps until closed, exits 0. Escape closes the window too, until NC-024 gives input a home.
 - `NeuronClientTests/WindowTests.cpp`: creates and destroys a window on the CI runner (a window can be created without a desktop session; showing it is optional), asserts the client rectangle.
 
 ## Acceptance criteria
 
-- [ ] On a 100 % and a 150 % display, `GetClientRect` reports 1280×720 and the window is not blurred or scaled by the system (the manifest's DPI awareness from NC-001 is in force; the report says which displays were tried).
+- [ ] On a 100 % and a 150 % display, `GetClientRect` reports 1920×1080 and the window is not blurred or scaled by the system (the manifest's DPI awareness from NC-001 is in force; the report says which displays were tried). A 1080p display cannot show the whole window; that it overhangs is expected, and what matters is that the client area measures 1920×1080.
 - [ ] The window cannot be resized by the frame or maximized; the close box and Escape both end the process with exit code 0.
 - [x] `PumpMessages` returns promptly with no messages pending (`PeekMessage`, not `GetMessage`).
 - [x] No GDI call anywhere (`NOGDI` makes one a compile error; the criterion is that nobody worked around it).
-- [ ] `WindowTests` pass on the CI runner.
+- [x] `WindowTests` pass on the CI runner (run 18, 86 of 86 green; re-proved at 1920×1080 in the run this change triggers).
 
 ## Verification
 
 ```powershell
 msbuild NomadCommander.slnx /p:Configuration=Debug /p:Platform=x64 /m /v:minimal /nologo /warnaserror
-x64\Debug\NomadCommander.exe        # a 1280×720 window, black; close it
+x64\Debug\NomadCommander.exe        # a 1920×1080 window, black; close it
 vstest.console.exe x64\Debug\NeuronClientTests.dll /Platform:x64
 ```
 
 ## Decisions to record
 
-None.
+None by this task. The screen changed from 1280×720 to 1920×1080 by owner decision on 2026-09-16; AGENTS.md R12 carries it, which is where the screen is stated. The question R12 now leaves open — what the game does on a desktop that cannot hold its screen — belongs to whichever task first needs an answer, and that task writes the ADR.
 
 ## Out of scope
 
@@ -50,7 +50,7 @@ Rendering (NC-021), input state (NC-024), fullscreen, resizing, a second window,
 
 ## Report
 
-**Not verified here, and this task is not finished until it is:** the first two acceptance criteria are desktop criteria. Nobody has yet seen this window on a 100 % or a 150 % display, clicked its close box, or confirmed that Windows is not scaling it. This session is Linux; there is no Windows machine attached to it. The owner runs `x64\Debug\NomadCommander.exe`, sees a 1280×720 window titled "Nomad Commander", closes it with the close box and with Escape, and records here which displays were tried. Until then NC-021 should not be built on it.
+**Not verified here, and this task is not finished until it is:** the first two acceptance criteria are desktop criteria. Nobody has yet seen this window on a 100 % or a 150 % display, clicked its close box, or confirmed that Windows is not scaling it. This session is Linux; there is no Windows machine attached to it. The owner runs `x64\Debug\NomadCommander.exe`, sees a 1920×1080 window titled "Nomad Commander", closes it with the close box and with Escape, and records here which displays were tried. Until then NC-021 should not be built on it.
 
 **Verified here (Linux):** the C++ structure of `Window.h` and `Window.cpp` parses under Clang with `-Wall -Wextra` against hand-written stand-ins for the Win32 declarations it names. That proves the shape — names, arities, member access, control flow — and not that the SDK agrees; the stub is mine, not Microsoft's. It caught one real defect: a free function in an anonymous namespace cannot take the address of `Window::WindowProcedure`, which is private, so the class registration moved inside `Window::Create`. The signatures of the five calls this task depends on (`AdjustWindowRectExForDpi`, `GetDpiForWindow`, `GetDpiForSystem`, `RegisterClassExW`, the `lpCreateParams`/`GWLP_USERDATA` pattern) were checked against their Microsoft Learn pages rather than recalled. `CheckFormat.py` and `CheckProjectFiles.py` pass. **Verified by CI:** the MSVC build, and `WindowTests` — five tests that create a hidden window, assert its client area is 1280×720, assert the style carries neither `WS_THICKFRAME` nor `WS_MAXIMIZEBOX`, pump a hundred times without blocking, see a requested close reported by a later pump, and create a second window after the first is gone.
 
@@ -93,3 +93,13 @@ Two are `bugprone-implicit-widening-of-multiplication-result` in NC-015's test f
 **Verified here:** `performance-no-int-to-ptr` and `bugprone-implicit-widening-of-multiplication-result` were reproduced on scratch units with clang-tidy 22.1.8 — the version CI pins — against this repository's own `.clang-tidy`, and both come back clean in the fixed spelling. `bugprone-exception-escape` could **not** be reproduced locally: its throw path runs through MSVC's standard library and libstdc++ does not offer the same one, so that fix is reasoned from the note chain rather than measured, and the next CI run is what confirms it. `Window.cpp` and `WindowTests.cpp` parse clean under clang++ and g++ in both configurations after the signature change; `CheckFormat.py` and `CheckProjectFiles.py` pass.
 
 **Noticed, left alone:** `Plan/Roadmap.md`'s table of ADRs the plan expects was not amended. ADR-007 is a decision the plan did not foresee, and the table records predictions, not the register — `Design/ADR/` is the register.
+
+**Round 6 — the screen is 1920×1080 (owner decision, 2026-09-16).** The rounds above are left as they were written: they are the record of five CI runs against a 1280×720 screen, and rewriting their numbers would falsify it. What they say happened, happened at 1280×720.
+
+What changed is `SCREEN_WIDTH_PIXELS` and `SCREEN_HEIGHT_PIXELS`, and the documentation that quotes them — AGENTS.md's opening statement, its §1 worked example, its §2 repository map and R12; this plan's roadmap, glossary and the task files for NC-001, NC-021, NC-023, NC-025, NC-041 and NC-072. `Design/GameDesign.md` needed no edit: it never stated a resolution, which is why R12 is the only authority on one. No ADR was written, because the screen is an AGENTS.md fact rather than an engineering decision taken while building.
+
+**Nothing in `Window` needed changing, and that is the point.** The class was already written against its `Desc` rather than against two constants, and round 4's `WM_GETMINMAXINFO` override already told Windows the desktop is not a limit. The five tests assert `SCREEN_*_PIXELS`, so they followed the constants; on the CI runner's 1024×768 desktop they now overshoot on *both* axes instead of one, which is a harder case than the one that was red for four rounds. Had round 4 been resolved by making the test tolerant instead of fixing the window, this change would have silently gone untested.
+
+**The cost, stated plainly.** A 1920×1080 client area does not fit on a 1920×1080 desktop: the caption and borders put the window near 1926×1117, taller than the screen before the taskbar takes its share. At 1280×720 the overhang case was CI runners and old hardware; at 1920×1080 it is the most common PC display. The open question in the "Noticed, not decided" note above is therefore no longer an edge case, and R12 now records it as open in its own words.
+
+**GLYPH_SCALE moves from 2 to 3,** in NC-023's deliverable and NC-025's criteria and ADR recommendation. 1080 ÷ 16 is 67½, so a 16-pixel cell no longer divides the screen. The new screen is exactly 1.5× the old one, so a 24-pixel cell gives back the identical 80×45 grid with larger glyphs, and every layout NC-025 and NC-072 assume carries over untouched. Neither task is built, so this costs a line to reverse if the owner would rather have 120×67 cells and the density.

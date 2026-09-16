@@ -30,7 +30,7 @@ Make AGENTS.md §2 and §3 true for the five product projects: a solution that b
 - [x] No project lists its own directory in `AdditionalIncludeDirectories`; cross-project directories are `$(SolutionDir)<Project>` (§3).
 - [ ] `NOMAD_ASSERT(expr)` breaks into the debugger with the expression, file and line in `_DEBUG` and compiles to a non-evaluating reference in `NDEBUG` without provoking C4189 on a variable used only in the assert; `NOMAD_VERIFY(expr)` always evaluates. `Debug.h` includes no Windows header (GameLogic includes it); `Debug.cpp` does.
 - [ ] `x64\Debug\NomadCommander.exe` runs and exits 0.
-- [x] `NomadCommander.vcxproj` sets the manifest tool's `EnableDpiAwareness` to `PerMonitorHighDPIAware` (the `MT` task's parameter, per Microsoft Learn) so that NC-020's 1280×720 client area is 1280×720 physical pixels (R12: presented 1:1).
+- [x] `NomadCommander.vcxproj` sets the manifest tool's `EnableDpiAwareness` to `PerMonitorHighDPIAware` (the `MT` task's parameter, per Microsoft Learn) so that NC-020's 1920×1080 client area is 1920×1080 physical pixels (R12: presented 1:1).
 - [x] `.filters` files list every file the `.vcxproj` lists, under `Source Files` / `Header Files`.
 
 ## Verification
