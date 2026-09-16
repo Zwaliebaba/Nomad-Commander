@@ -84,7 +84,7 @@ NomadSimulation::NomadSimulation(std::uint64_t _seed)
 
 void NomadSimulation::Advance()
 {
-  TickResolver::Advance(m_world, PendingInputs(), m_events);
+  TickResolver::Advance(m_world, PendingInputs(), m_events, m_log);
 }
 
 Neuron::Tick NomadSimulation::CurrentTick() const

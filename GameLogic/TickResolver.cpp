@@ -2,7 +2,10 @@
 #include "pch.h"
 #include "TickResolver.h"
 
+#include "LogEvent.h"
 #include "Tuning.h"
+
+#include <array>
 
 namespace Nomad
 {
@@ -14,7 +17,7 @@ namespace
 ///
 /// Order matters and is the receipt order: two inputs for one tick apply in the order the player made them, because
 /// that is the order the receipt will explain them in and the order a replay reproduces (GDD §4, R16).
-void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents)
+void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents, LogSink* _log)
 {
   const Neuron::Tick tick = _world.CurrentTick();
   for (const Input& input : _inputs)
@@ -40,6 +43,15 @@ void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Ev
       _outEvents.emplace_back(tick, EventKind::ActiveWindowChanged, subjects, Because(ReasonCode::ActiveWindowChanged));
       break;
     }
+    }
+
+    // GDD §15 counts "decisions per hour and the share of them reversed", so every applied input is a line. It is
+    // written here rather than at each kind, so a kind added later cannot forget it (R24).
+    if (_log != nullptr)
+    {
+      const std::array<LogField, 2> fields = {LogField{LogEvent::Field::KIND, std::to_string(static_cast<std::uint32_t>(input.kind))},
+                                              LogField{LogEvent::Field::COMPANY, std::to_string(input.company.Index())}};
+      _log->Write(tick, LogEvent::DECISION, fields);
     }
   }
 }
@@ -69,10 +81,27 @@ void ResolveEncounters([[maybe_unused]] World& _world, [[maybe_unused]] std::vec
 }
 
 /// Phase 6 -- the daily systems, on tick multiples of a day so that a store saved at any tick replays identically.
-void ResolveDaily([[maybe_unused]] World& _world, [[maybe_unused]] std::vector<Event>& _outEvents)
+void ResolveDaily(World& _world, [[maybe_unused]] std::vector<Event>& _outEvents, LogSink* _log)
 {
   // Economy NC-045, upkeep NC-046, empires NC-047, inference NC-052, contracts NC-056, outposts NC-066, in that
   // order, because inference reads what the economy and the empires did today.
+
+  // GDD §15 requires "at least two willing employers after two months", which is a series and not a reading, so it
+  // is written every day from the first. **This count is a placeholder**: nothing models tolerance yet, so it counts
+  // the empires that are alive. NC-051 gives it its real meaning and NC-101 reads the same name either way.
+  if (_log != nullptr)
+  {
+    std::uint32_t willing = 0;
+    for (const Empire& empire : _world.Empires().Rows())
+    {
+      if (empire.alive)
+      {
+        ++willing;
+      }
+    }
+    const std::array<LogField, 1> fields = {LogField{LogEvent::Field::COUNT, std::to_string(willing)}};
+    _log->Write(_world.CurrentTick(), LogEvent::EMPLOYERS_WILLING, fields);
+  }
 }
 
 /// Phase 7 -- the board. What the player finds on return (GDD §3).
@@ -83,7 +112,7 @@ void ResolveBoard([[maybe_unused]] World& _world, [[maybe_unused]] std::vector<E
 
 } // namespace
 
-void TickResolver::Advance(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents)
+void TickResolver::Advance(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents, LogSink* _log)
 {
   // The clock moves first, so that everything below happens *at* this tick rather than at the one before it: an
   // input scheduled for tick N applies when the world says N, and an event carries the tick it happened on.
@@ -92,14 +121,14 @@ void TickResolver::Advance(World& _world, std::span<const Input> _inputs, std::v
   // The table of contents. Each line is one phase, in the order the header documents, and the order is an ADR's to
   // change (TickResolver.h). A phase that is not built yet is a call to an empty function rather than a gap, so that
   // adding its body is a change to one file and the order cannot be got wrong by accident.
-  ResolveInputs(_world, _inputs, _outEvents);
+  ResolveInputs(_world, _inputs, _outEvents, _log);
   ResolveMovement(_world, _outEvents);
   ResolveDetection(_world, _outEvents);
   ResolveCouriers(_world, _outEvents);
   ResolveEncounters(_world, _outEvents);
   if (IsDailyTick(_world.CurrentTick()))
   {
-    ResolveDaily(_world, _outEvents);
+    ResolveDaily(_world, _outEvents, _log);
   }
   ResolveBoard(_world, _outEvents);
 }

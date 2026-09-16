@@ -3,6 +3,7 @@
 
 #include "Event.h"
 #include "Input.h"
+#include "LogSink.h"
 #include "World.h"
 
 #include <span>
@@ -41,7 +42,9 @@ public:
   /// The inputs are every input the simulation holds; this decides which of them apply now, by `applyAtTick`. It is
   /// the resolver's business and not the caller's, because "which tick did this apply on" is the whole of what makes
   /// a replay reproduce (R16).
-  static void Advance(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents);
+  /// `_log` may be null, and usually is: a test that is not measuring anything passes nothing, and the cost of the
+  /// instrumentation is then a null check a tick (R24).
+  static void Advance(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents, LogSink* _log = nullptr);
 
   /// Whether the daily systems run on this tick. Public so a test can say what it is checking rather than compute it.
   [[nodiscard]] static constexpr bool IsDailyTick(Neuron::Tick _tick) noexcept

@@ -3,6 +3,7 @@
 
 #include "Event.h"
 #include "Input.h"
+#include "LogSink.h"
 #include "World.h"
 
 #include "Simulation.h"
@@ -47,6 +48,14 @@ public:
     return m_world;
   }
 
+  /// Where GDD §15's measured outcomes are written (R24). Null until something connects one, which the executable
+  /// does in its composition root (NC-070) and a test does with a recording sink. The simulation does not own it:
+  /// the file outlives a reload and the simulation does not.
+  void SetLogSink(LogSink* _log) noexcept
+  {
+    m_log = _log;
+  }
+
   /// Inputs accepted and not yet applied, in the order they arrived.
   [[nodiscard]] std::span<const Input> PendingInputs() const noexcept
   {
@@ -62,6 +71,8 @@ private:
 
   /// What has happened since the last drain.
   std::vector<Event> m_events;
+
+  LogSink* m_log = nullptr;
 };
 
 } // namespace Nomad

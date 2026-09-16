@@ -4,6 +4,7 @@
     <ClCompile Include="WorldTests.cpp" />
     <ClCompile Include="UniverseGeneratorTests.cpp" />
     <ClCompile Include="NomadSimulationTests.cpp" />
+    <ClCompile Include="DeterminismTests.cpp" />
     <ClCompile Include="TickResolverTests.cpp" />
     <ClCompile Include="WireTests.cpp" />
     <ClCompile Include="pch.cpp" />
