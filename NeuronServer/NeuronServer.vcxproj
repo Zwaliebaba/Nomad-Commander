@@ -76,12 +76,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="InstrumentationLog.cpp" />
+    <ClCompile Include="Session.cpp" />
+    <ClCompile Include="UniverseStore.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="ServerSmoke.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="InstrumentationLog.h" />
+    <ClInclude Include="Session.h" />
+    <ClInclude Include="UniverseStore.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>

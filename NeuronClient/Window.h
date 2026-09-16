@@ -114,8 +114,23 @@ public:
   /// The client area as Windows reports it, for a caller that wants to check rather than assume.
   [[nodiscard]] bool ClientSizePixels(std::uint32_t& _outWidth, std::uint32_t& _outHeight) const noexcept;
 
+  /// Where the window's messages go besides the window procedure, so that input can be read without this class
+  /// knowing what input is (NC-024). A plain function pointer and a context: connecting the two allocates nothing,
+  /// and Create stays noexcept.
+  ///
+  /// The sink sees a message BEFORE the procedure's own handling and says whether it took it; a message it takes is
+  /// still handled here, because a window must go on answering WM_CLOSE whatever else is listening.
+  using MessageSink = bool (*)(void*, UINT, WPARAM, LPARAM);
+
+  void SetMessageSink(MessageSink _sink, void* _context) noexcept
+  {
+    m_messageSink = _sink;
+    m_messageSinkContext = _context;
+  }
+
   /// Asks the window to close, as Alt+F4 does. The next pump reports it. A borderless window has no close box, so
-  /// until NC-024 gives input a home this and the Escape key in the window procedure are the whole of the way out.
+  /// this and Alt+F4 are the whole of the way out; since NC-024, Escape reaches it through InputState and the
+  /// executable's own loop rather than through a special case in the window procedure.
   void RequestClose() noexcept;
 
   [[nodiscard]] bool Closed() const noexcept
@@ -127,6 +142,10 @@ private:
   static LRESULT CALLBACK WindowProcedure(HWND _handle, UINT _message, WPARAM _wparam, LPARAM _lparam) noexcept;
 
   HWND m_handle = nullptr;
+  MessageSink m_messageSink = nullptr;
+  void* m_messageSinkContext = nullptr;
+  /// How many mouse buttons are held, so the capture is released when the last one is (NC-024).
+  std::uint32_t m_buttonsHeld = 0;
   bool m_closed = false;
   WindowFault m_fault = WindowFault::None;
   bool m_requiresPresentScale = false;

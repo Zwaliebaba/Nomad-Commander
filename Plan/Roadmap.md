@@ -35,7 +35,7 @@ Where an ADR has since landed, it supersedes the assumption and the row says so.
 | A9 | A `--headless <days>` launch option arrives in Phase 7 because the §15 sandbox targets need runs nobody watches. It is a switch on the one executable (AGENTS.md: "a role and not a binary"), not Milestone 2's headless run, which merely scales it. | NC-102 |
 | A10 | Decisions the owner should see before dependent work starts are gated by dependency order and small PRs, not by a new rule in AGENTS.md. | README.md |
 | A11 | *Settled for the names the reference screens use.* Content the GDD does not supply is invented by the implementer and listed in the scenario header. The owner kept the `Design/UI` package's names on 2026-09-16 — `Sedu Compact`, and `Harrow`, `Tessa Gate`, `Pale Anchor`, `Ashfall`, `Cinder Reach`, `Low Meridian`, `Sedu Hold` — so those are canon and the header lists them as provenance, not as a rename queue. Officer and admiral names beyond Varik are still the implementer's. | NC-090 |
-| A12 | NeuronClientTests render into a test-owned offscreen texture on the WARP adapter so that CI, which has no GPU and no window, exercises the D3D12 code. The game's own path stays "straight into the swap chain" (R12); the test target is not a render target the game has. | NC-021 |
+| A12 | *Half true, and the false half is better.* NeuronClientTests do render on the WARP adapter so that CI, which has no GPU and no window, exercises the D3D12 code — that held. But **there is no test-only target**: ADR-009 made the 1920×1080 scene target the game's own before NC-021 was built, so the suite reads back the very pixels a player would see rather than a parallel object. `FrameTarget` was never created and the ADR this row expected was never needed. | NC-021 |
 | A13 | Milestone 2 and the full game are outlined, not tasked. Their tasks are written when v0.1's measured outcomes are in, because those outcomes decide what they contain (GDD §15). | — |
 
 ## Conventions the plan fixes beyond AGENTS.md
@@ -105,7 +105,7 @@ The three engine libraries as AGENTS.md §2 describes them, minus what A2 defers
 | NC-031 | The universe store *(owner-visible)* | NeuronServer, NeuronCore | M | NC-014 |
 | NC-032 | The instrumentation log | NeuronServer | S | NC-010 |
 
-**Exit:** `NomadCommander.exe` opens a 1920×1080 window, presents at the display's rate, draws text and primitives *and a depth-tested sphere in perspective*, reacts to the mouse and closes on the close box; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
+**Exit:** `NomadCommander.exe` opens a borderless window covering the monitor and presents a 1920×1080 scene target into it at the display's rate (ADR-009, ADR-010), draws text and primitives *and a depth-tested sphere in perspective*, reacts to the mouse and **closes on Escape or Alt+F4 — there is no close box**; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
 
 ### Phase 2 — The simulation kernel, headless
 
@@ -206,6 +206,8 @@ The unscripted game and the numbers GDD §15 asks for.
 
 Numbers are assigned when they land (Design/README.md). Each recommendation is the plan's, not a decision; the ADR may reject it with reasons.
 
+**This table is a set of predictions, not the register — `Design/ADR/` is the register.** Seven decisions have been written that the plan did not foresee, which is what the distinction is for: **ADR-007** clang-tidy and the Win32 message protocol, **ADR-008** the 1920×1080 screen at `GLYPH_SCALE` 3, **ADR-009** the scene target and the present scale, **ADR-010** the borderless window, **ADR-011** the AVX2 baseline and shader model 6.7, **ADR-013** anti-aliasing the 3D map, and — by removal — the test-only WARP target below, which ADR-009 made unnecessary before it was written.
+
 | Topic | Task | Recommendation | Owner-visible |
 |---|---|---|---|
 | Pinned PRNG algorithm and the distribution functions (**ADR-002**) | NC-011 | PCG32 (64-bit state, 64-bit stream), hand-written; `NextBelow(n)` by Lemire's method with rejection; state serializable. | no |
@@ -214,10 +216,10 @@ Numbers are assigned when they land (Design/README.md). Each recommendation is t
 | Include edges and the `Wire*.h` seam (**ADR-001**) | NC-004 | As stated under *Conventions*. | no |
 | Tick duration and the compressed clock (**ADR-005**) | NC-014 | A7. | **yes** |
 | Client–host transport in v0.1 (**ADR-006**) | NC-015 | A2. | **yes** |
-| Test-only offscreen target on WARP | NC-021 | A12. | no |
-| The UI model | NC-025 | Immediate mode in pixel space; the 8×8 font at `GLYPH_SCALE` 3 gives 24-pixel cells and an 80×45 grid (the screen is exactly 1.5× the 1280×720 it was until 2026-09-16, so the grid is unchanged and only the glyphs grew; scale 2 would give 120×67½ cells and is rejected for the half); widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque by default, and a pass that wants blending sets it (AGENTS.md §5, owner decision 2026-09-16). | **yes** |
-| Universe store form | NC-031 | Seed plus an input journal, replayed through `Simulation` on load; written to a temporary file and renamed into place; a snapshot section is added only when a measured load exceeds two seconds, and the ADR records the measurement. | **yes** |
-| Instrumentation log format | NC-032 | One event a line: tick, wall-clock ISO-8601, kind, then `key=value` fields, tab-separated, UTF-8, flushed per line. | no |
+| ~~Test-only offscreen target on WARP~~ | NC-021 | **Not written, and not needed.** ADR-009 removed the premise: the scene target is the game's own, so there is no test-only object to justify. See A12 and NC-021's report. | no |
+| The UI model (**ADR-012**) | NC-025 | *Taken unchanged.* Immediate mode in pixel space; the 8×8 font at `GLYPH_SCALE` 3 gives 24-pixel cells and an 80×45 grid (the screen is exactly 1.5× the 1280×720 it was until 2026-09-16, so the grid is unchanged and only the glyphs grew; scale 2 would give 120×67½ cells and is rejected for the half); widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque by default, and a pass that wants blending sets it (AGENTS.md §5, owner decision 2026-09-16). | **yes** |
+| Universe store form (**ADR-014**) | NC-031 | *Taken, and the threshold was tested rather than assumed:* seed plus an input journal, replayed through `Simulation` on load; written to a temporary file and renamed into place. A thousand inputs reload in **9 ms** against the two-second threshold, so **no snapshot section exists**. | **yes** |
+| Instrumentation log format (**ADR-015**) | NC-032 | *Taken unchanged.* One event a line: tick, wall-clock ISO-8601 in UTC, kind, then `key=value` fields, tab-separated, UTF-8, flushed per line. A tab or a newline in a value asserts and writes nothing. | no |
 | Universe generation | NC-041 | The Kessel map is hand-authored data in the generator's types; the sandbox generator places systems on a jittered grid, builds a connected lane graph, and assigns roles by graph shape. | no |
 | Detection and report noise | NC-050 | Sensor range in jumps per ship class; a report carries counts and hull classes with a PRNG spread scaled by range; identity only when marked or in the same system. | no |
 | Battle resolution model | NC-062 | Round-based, twelve rounds an engagement window; each side's template is a posture per round; losses by integer strength with the pinned spread; triggers recognized with a delay in rounds and executed with a failure chance from `Tuning`. | **yes** |

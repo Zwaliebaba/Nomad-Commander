@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient | L | **yes** | no | Done (PR #4) |
+| 1 | NeuronClient | L | **yes** | no | Done (e486053) |
 
 **Depends on:** NC-020, NC-006
 **Read first:** AGENTS.md R12 whole (format, the scene target and the present scale, no D3D11, COM is RAII), **ADR-009**, R13, R14 (and the D3D12 paragraph under it), §4 (include order; `<windows.h>` before D3D12/DXGI), §5 (*Blending and samplers are a pass's own business*, and why MSAA is unavailable on a flip-model back buffer); `Plan/Roadmap.md` A12
@@ -106,6 +106,6 @@ The fix makes it structurally impossible rather than merely corrected: `SceneTar
 - **MSAA, the depth buffer and device-removed recovery** stay out of scope as the task says. The scene target is created with `SampleDesc.Count` 1; NC-027 decides whether to pay for more, and ADR-009 made that decision possible rather than made it.
 - **`SetMaximumFrameLatency` was not used.** The task allows it without an ADR. Two buffers and vsync are enough for a desk, and adding a latency knob before anything draws would be tuning a number nobody has felt.
 
-**Bent:** one task per PR. This branch also carries NC-020's borderless window and ADR-010, because the window had to be settled before a swap chain could sit on it and the owner asked for both in one sitting. They are separate commits.
+**Bent:** one task per PR, twice over. This work also carries NC-020's borderless window and ADR-010, because the window had to be settled before a swap chain could sit on it and the owner asked for both in one sitting; and it reached `main` as a single commit, `e486053`, rather than through a pull request. The status lines name that commit rather than a PR number that does not exist, because `Plan/README.md` makes the status on `main` the truth about `main`.
 
 **Noticed, left alone:** `Plan/Roadmap.md`'s assumption A12 still reads "The game's own path stays 'straight into the swap chain' (R12); the test target is not a render target the game has." ADR-009 reversed that on 2026-09-16, so the assumption is false as written — though the thing it was protecting, that CI can exercise D3D12 with no GPU and no window, is exactly what happens. It is a roadmap assumption rather than a rule, and correcting it is not this task's to do.

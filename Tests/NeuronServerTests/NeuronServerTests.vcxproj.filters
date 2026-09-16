@@ -2,6 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="SuiteSmoke.cpp" />
+    <ClCompile Include="InstrumentationLogTests.cpp" />
+    <ClCompile Include="UniverseStoreTests.cpp" />
+    <ClCompile Include="SessionTests.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>

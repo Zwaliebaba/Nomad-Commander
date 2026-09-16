@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient, NomadCommander | M | **yes** | **yes** | Done (PR #3); borderless window and desktop run in PR #4 |
+| 1 | NeuronClient, NomadCommander | M | **yes** | **yes** | Done (PR #3); borderless window and desktop run in e486053 |
 
 **Depends on:** NC-002
 **Read first:** GDD §13; AGENTS.md §2 (NeuronClient), §4 (`NeuronCore.h` owns the macros; `NOGDI` means GDI is gone), R12 (1920×1080, and the borderless window), R13; **ADR-009**, **ADR-010**

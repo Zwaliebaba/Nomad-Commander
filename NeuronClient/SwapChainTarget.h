@@ -84,6 +84,13 @@ public:
   [[nodiscard]] ID3D12Resource* BackBuffer() const noexcept;
   [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE BackBufferView() const noexcept;
 
+  /// Which back buffer the open frame is drawing into. It is also the slice a per-frame upload ring writes into:
+  /// BeginFrame has already waited on this slot's fence, so the slice is one the GPU has finished with.
+  [[nodiscard]] std::uint32_t BufferIndex() const noexcept
+  {
+    return m_bufferIndex;
+  }
+
   /// How many frames have been presented. The frame loop's own count, for the report and the log.
   [[nodiscard]] std::uint64_t PresentedFrames() const noexcept
   {

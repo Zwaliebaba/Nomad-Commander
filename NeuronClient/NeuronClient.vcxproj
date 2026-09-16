@@ -90,20 +90,44 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="DepthTarget.cpp" />
+    <ClCompile Include="GlyphPipeline.cpp" />
     <ClCompile Include="GraphicsDevice.cpp" />
+    <ClCompile Include="InputState.cpp" />
+    <ClCompile Include="MeshBuilder.cpp" />
+    <ClCompile Include="MeshPipeline.cpp" />
+    <ClCompile Include="PipelineDefaults.cpp" />
     <ClCompile Include="PresentPass.cpp" />
+    <ClCompile Include="PrimitiveBatch.cpp" />
     <ClCompile Include="PrimitivePipeline.cpp" />
     <ClCompile Include="SceneTarget.cpp" />
     <ClCompile Include="SwapChainTarget.cpp" />
+    <ClCompile Include="TextRenderer.cpp" />
+    <ClCompile Include="Ui.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="BitmapFont.h" />
+    <ClInclude Include="GlyphPipeline.h" />
     <ClInclude Include="GraphicsDevice.h" />
+    <ClInclude Include="IconAtlas.h" />
+    <ClInclude Include="InputState.h" />
+    <ClInclude Include="PipelineDefaults.h" />
     <ClInclude Include="PresentPass.h" />
+    <ClInclude Include="PrimitiveBatch.h" />
     <ClInclude Include="PrimitivePipeline.h" />
     <ClInclude Include="SceneTarget.h" />
     <ClInclude Include="SwapChainTarget.h" />
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="DepthTarget.h" />
+    <ClInclude Include="MeshBuilder.h" />
+    <ClInclude Include="MeshPipeline.h" />
+    <ClInclude Include="Palette.h" />
+    <ClInclude Include="Rect.h" />
+    <ClInclude Include="TextRenderer.h" />
+    <ClInclude Include="Ui.h" />
+    <ClInclude Include="UiState.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -117,6 +141,18 @@
       <ShaderType>Vertex</ShaderType>
     </FXCompile>
     <FXCompile Include="Shaders\PresentPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FXCompile>
+    <FXCompile Include="Shaders\GlyphVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FXCompile>
+    <FXCompile Include="Shaders\GlyphPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FXCompile>
+    <FXCompile Include="Shaders\MeshVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FXCompile>
+    <FXCompile Include="Shaders\MeshPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FXCompile>
   </ItemGroup>

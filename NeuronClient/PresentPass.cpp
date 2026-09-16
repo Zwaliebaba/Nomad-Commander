@@ -1,6 +1,7 @@
 // NeuronClient/PresentPass.cpp
 #include "pch.h"
 #include "PresentPass.h"
+#include "PipelineDefaults.h"
 #include "Debug.h"
 // Build output (AGENTS.md §2): one header per shader, declaring `const BYTE g_<Shader>[]`.
 #include "CompiledShaders/PresentVS.h"
@@ -36,13 +37,12 @@ void TransitionResource(ID3D12GraphicsCommandList* _commandList, ID3D12Resource*
   _commandList->ResourceBarrier(1, &barrier);
 }
 
-// Each of the four helpers below names every field rather than zero-initializing and patching. That is not style: a
-// good many D3D12 enums have no zero-valued enumerator -- D3D12_BLEND, D3D12_BLEND_OP, D3D12_COMPARISON_FUNC,
-// D3D12_STENCIL_OP, D3D12_FILL_MODE, D3D12_CULL_MODE and D3D12_TEXTURE_ADDRESS_MODE all start at 1 or 2 -- so a
-// `DESC state{}` holds values those enums have no name for. d3dx12.h's CD3DX12_* constructors are what a D3D12 sample
-// would use to avoid this, and R14 excludes them, so these are that, written by hand.
-
-/// One static sampler.
+/// One static sampler. Samplers are a pass's own business (AGENTS.md §5), so PipelineDefaults holds none and this
+/// stays here; the blend, rasterizer and depth-stencil states this pass used to spell out for itself now come from
+/// PipelineDefaults, which NC-022 built out of exactly these.
+///
+/// Every field is named rather than zero-initialized and patched, because D3D12_TEXTURE_ADDRESS_MODE has no
+/// zero-valued enumerator -- so `D3D12_STATIC_SAMPLER_DESC sampler{}` would hold a value the enum has no name for.
 [[nodiscard]] D3D12_STATIC_SAMPLER_DESC StaticSampler(UINT _shaderRegister, D3D12_FILTER _filter) noexcept
 {
   return D3D12_STATIC_SAMPLER_DESC{.Filter = _filter,
@@ -61,61 +61,6 @@ void TransitionResource(ID3D12GraphicsCommandList* _commandList, ID3D12Resource*
                                    .ShaderRegister = _shaderRegister,
                                    .RegisterSpace = 0,
                                    .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL};
-}
-
-/// Blending off on every render target. This pass writes each pixel of its rectangle exactly once and reads nothing
-/// underneath it, so blending would be a cost with no effect (AGENTS.md §5: a pass sets what it needs, and opaque is
-/// the default because it is the common case).
-[[nodiscard]] D3D12_BLEND_DESC OpaqueBlend() noexcept
-{
-  const D3D12_RENDER_TARGET_BLEND_DESC target{.BlendEnable = FALSE,
-                                              .LogicOpEnable = FALSE,
-                                              .SrcBlend = D3D12_BLEND_ONE,
-                                              .DestBlend = D3D12_BLEND_ZERO,
-                                              .BlendOp = D3D12_BLEND_OP_ADD,
-                                              .SrcBlendAlpha = D3D12_BLEND_ONE,
-                                              .DestBlendAlpha = D3D12_BLEND_ZERO,
-                                              .BlendOpAlpha = D3D12_BLEND_OP_ADD,
-                                              .LogicOp = D3D12_LOGIC_OP_NOOP,
-                                              .RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL};
-  return D3D12_BLEND_DESC{.AlphaToCoverageEnable = FALSE,
-                          .IndependentBlendEnable = FALSE,
-                          .RenderTarget = {target, target, target, target, target, target, target, target}};
-}
-
-/// Solid, unculled, un-anti-aliased. No culling because the triangle's winding is whatever SV_VertexID produced and
-/// there is exactly one of it.
-[[nodiscard]] D3D12_RASTERIZER_DESC SolidRasterizer() noexcept
-{
-  return D3D12_RASTERIZER_DESC{.FillMode = D3D12_FILL_MODE_SOLID,
-                               .CullMode = D3D12_CULL_MODE_NONE,
-                               .FrontCounterClockwise = FALSE,
-                               .DepthBias = D3D12_DEFAULT_DEPTH_BIAS,
-                               .DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
-                               .SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-                               .DepthClipEnable = TRUE,
-                               .MultisampleEnable = FALSE,
-                               .AntialiasedLineEnable = FALSE,
-                               .ForcedSampleCount = 0,
-                               .ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF};
-}
-
-/// No depth and no stencil anywhere in this frame loop; NC-027 brings a depth buffer with the 3D map. The operations
-/// are still named, because a disabled stage's fields are read by the debug layer even when the hardware ignores them.
-[[nodiscard]] D3D12_DEPTH_STENCIL_DESC DepthStencilDisabled() noexcept
-{
-  const D3D12_DEPTH_STENCILOP_DESC face{.StencilFailOp = D3D12_STENCIL_OP_KEEP,
-                                        .StencilDepthFailOp = D3D12_STENCIL_OP_KEEP,
-                                        .StencilPassOp = D3D12_STENCIL_OP_KEEP,
-                                        .StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS};
-  return D3D12_DEPTH_STENCIL_DESC{.DepthEnable = FALSE,
-                                  .DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO,
-                                  .DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS,
-                                  .StencilEnable = FALSE,
-                                  .StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK,
-                                  .StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK,
-                                  .FrontFace = face,
-                                  .BackFace = face};
 }
 
 } // namespace
@@ -257,15 +202,15 @@ bool PresentPass::Create(GraphicsDevice& _device, const SceneTarget& _scene, Pre
   const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline{.pRootSignature = _outPass.m_rootSignature.Get(),
                                                     .VS = {g_PresentVS, sizeof g_PresentVS},
                                                     .PS = {g_PresentPS, sizeof g_PresentPS},
-                                                    .BlendState = OpaqueBlend(),
+                                                    .BlendState = PipelineDefaults::Blend(),
                                                     .SampleMask = UINT_MAX,
-                                                    .RasterizerState = SolidRasterizer(),
-                                                    .DepthStencilState = DepthStencilDisabled(),
+                                                    .RasterizerState = PipelineDefaults::Rasterizer(),
+                                                    .DepthStencilState = PipelineDefaults::DepthStencil(),
                                                     .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
                                                     .NumRenderTargets = 1,
                                                     .RTVFormats = {DXGI_FORMAT_R8G8B8A8_UNORM},
                                                     .DSVFormat = DXGI_FORMAT_UNKNOWN,
-                                                    .SampleDesc = {1, 0},
+                                                    .SampleDesc = PipelineDefaults::SampleDesc(),
                                                     .NodeMask = 0,
                                                     .Flags = D3D12_PIPELINE_STATE_FLAG_NONE};
 

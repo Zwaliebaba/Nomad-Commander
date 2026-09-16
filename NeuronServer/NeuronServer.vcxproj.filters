@@ -2,9 +2,15 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="ServerSmoke.cpp" />
+    <ClCompile Include="InstrumentationLog.cpp" />
+    <ClCompile Include="Session.cpp" />
+    <ClCompile Include="UniverseStore.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="InstrumentationLog.h" />
+    <ClInclude Include="Session.h" />
+    <ClInclude Include="UniverseStore.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
 </Project>

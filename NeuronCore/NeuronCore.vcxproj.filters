@@ -4,6 +4,7 @@
     <ClCompile Include="ByteReader.cpp" />
     <ClCompile Include="ByteWriter.cpp" />
     <ClCompile Include="Debug.cpp" />
+    <ClCompile Include="ExecutablePath.cpp" />
     <ClCompile Include="MemoryTransport.cpp" />
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="Protocol.cpp" />
@@ -14,6 +15,7 @@
     <ClInclude Include="ByteReader.h" />
     <ClInclude Include="ByteWriter.h" />
     <ClInclude Include="Debug.h" />
+    <ClInclude Include="ExecutablePath.h" />
     <ClInclude Include="Hundredths.h" />
     <ClInclude Include="Id.h" />
     <ClInclude Include="IntegerMath.h" />

@@ -242,6 +242,15 @@ LRESULT CALLBACK Window::WindowProcedure(HWND _handle, UINT _message, WPARAM _wp
 
   // NOLINTNEXTLINE(performance-no-int-to-ptr) -- GWLP_USERDATA round-trips the pointer stored above; see ADR-007.
   Window* const window = reinterpret_cast<Window*>(GetWindowLongPtrW(_handle, GWLP_USERDATA));
+
+  // Input first, and it never stops a message reaching the handling below: since ADR-010 removed the close box,
+  // Escape is the way out of this window, and NC-024 moved that key from this procedure into InputState. A sink that
+  // swallowed WM_CLOSE would be a window that cannot be closed at all.
+  if (window != nullptr && window->m_messageSink != nullptr)
+  {
+    (void)window->m_messageSink(window->m_messageSinkContext, _message, _wparam, _lparam);
+  }
+
   switch (_message)
   {
   case WM_CLOSE:
@@ -259,17 +268,6 @@ LRESULT CALLBACK Window::WindowProcedure(HWND _handle, UINT _message, WPARAM _wp
     }
     return 0;
 
-  case WM_KEYDOWN:
-    // Escape closes, until NC-024 gives input a home of its own. A borderless window has no close box, so this and
-    // Alt+F4 are the only ways out of it -- which makes this temporary path load-bearing rather than a convenience
-    // (ADR-010).
-    if (_wparam == VK_ESCAPE && window != nullptr)
-    {
-      window->RequestClose();
-      return 0;
-    }
-    break;
-
   case WM_GETMINMAXINFO:
   {
     // Sent before WM_NCCREATE, so there is no instance to read here yet -- and none is needed: the answer is the same
@@ -286,6 +284,32 @@ LRESULT CALLBACK Window::WindowProcedure(HWND _handle, UINT _message, WPARAM _wp
     }
     return 0;
   }
+
+  case WM_LBUTTONDOWN:
+  case WM_RBUTTONDOWN:
+  case WM_MBUTTONDOWN:
+    // Capture, so a drag that leaves the window still delivers its release here rather than to whatever it passed
+    // over. Since ADR-010 the window is the whole monitor, so this only bites on a second one — which is exactly the
+    // case nobody would think to test.
+    if (window != nullptr)
+    {
+      ++window->m_buttonsHeld;
+      SetCapture(_handle);
+    }
+    break;
+
+  case WM_LBUTTONUP:
+  case WM_RBUTTONUP:
+  case WM_MBUTTONUP:
+    if (window != nullptr && window->m_buttonsHeld > 0)
+    {
+      --window->m_buttonsHeld;
+      if (window->m_buttonsHeld == 0)
+      {
+        ReleaseCapture();
+      }
+    }
+    break;
 
   case WM_ERASEBKGND:
     // Nothing erases the background: the swap chain writes every pixel every frame (R12), and there is no brush.

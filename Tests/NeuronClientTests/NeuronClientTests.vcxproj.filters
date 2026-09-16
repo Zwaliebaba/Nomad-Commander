@@ -4,6 +4,12 @@
     <ClCompile Include="WindowTests.cpp" />
     <ClCompile Include="PrimitivePipelineTests.cpp" />
     <ClCompile Include="GraphicsDeviceTests.cpp" />
+    <ClCompile Include="PrimitiveBatchTests.cpp" />
+    <ClCompile Include="InputStateTests.cpp" />
+    <ClCompile Include="TextRendererTests.cpp" />
+    <ClCompile Include="UiTests.cpp" />
+    <ClCompile Include="UiWidgetTests.cpp" />
+    <ClCompile Include="MeshPipelineTests.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>
