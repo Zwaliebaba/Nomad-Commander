@@ -57,20 +57,24 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Ship class (four in v0.1) | §12 | `ShipClass`, `ShipCounts`, `ShipStats`, `SHIP_CLASS_STATS` | `ShipClass.h` | NC-040 |
 | Fleet (counts per class, commander, history, veterancy) | §12 | `Fleet`, `FleetOwner`, `FleetRole`, `FleetPosition` (`FleetId` in `EntityIds.h`) | `Fleet.h` | NC-040 |
 | Character: leader, admiral, officer | §8, §11 | `Character`, `CharacterRole`, `Allegiance` (`CharacterId` in `EntityIds.h`) | `Character.h` | NC-040 |
-| Good (four) and a system's market | §10 | `Good`, `Market`, `MarketState` | `Good.h`, `Market.h` | NC-045 |
+| Good (four) and a system's market | §10 | `Good`, `Stock`, `Market`, `MarketState`, `ProjectDaysRemaining` | `Good.h`, `Market.h` | NC-045 |
+| The economy: flows, prices, states and convoys | §10 | `Economy` | `Economy.h` | NC-045 |
 | Convoy | §10 | a `Fleet` with `FleetRole::Convoy` and cargo | `Fleet.h` | NC-045 |
 | Credits and the treasury | §5 | `Credits` | `Credits.h` | NC-040 |
-| Upkeep, insolvency, mothballing | §5 | `Upkeep`, `MothballedHull` | `Upkeep.h` | NC-046 |
+| Upkeep, insolvency, mothballing | §5 | `Upkeep`; `MothballedHull` in its own header, because `World` holds the table and `Upkeep` needs `World` | `Upkeep.h`, `MothballedHull.h` | NC-046 |
 | Shipyard and the hull market | §5 | `Shipyard` | `Shipyard.h` | NC-046 |
 | The fabricator (the floor) | §5 | `Fabricator` | `Fabricator.h` | NC-046 |
 | Empire goal | §8 | `EmpireGoal`, `GoalKind` | `EmpireGoal.h` | NC-047 |
 | War, truce, grudge | §7, §8 | `Relation`, `RelationState` | `Relation.h` | NC-047 |
+| Empire politics: wars, truces, grudges, and the rule that the region is never quiet | §7, §8 | `Politics` | `Politics.h` | NC-047 |
+| What an empire believes it is looking at — the only input a decision routine takes (R18) | §9 | `BelievedSituation` | `Politics.h` | NC-047, NC-050 |
 | The tick resolver and its phase order | §2, §7 | `TickResolver` | `TickResolver.h` | NC-042 |
+| The seven verbs of mobility (GDD §12) | §7, §12 | `Mobility` | `Mobility.h` | NC-044 |
 | Tuning values (R20) | §5, §6, §7, §10 | `Tuning` tables | `Tuning.h` | NC-042 |
-| Consequence with its explanation (R19) | §9 | `Event`, `Explanation` | `Event.h`, `Explanation.h` | NC-042 |
+| Consequence with its explanation (R19) | §9 | `Event`, `EventSubjects`, `Explanation`, `EvidenceLine`, `Because`, `ExplanationText` | `Event.h`, `Explanation.h` | NC-042 |
 | Player input | §3, §4 | `Input`, `InputKind` | `Input.h` | NC-042 |
 | The game's `Simulation` | — | `NomadSimulation` | `NomadSimulation.h` | NC-042 |
-| Wire schema the client may see (R18) | §4, §9 | `Wire*` records | `Wire*.h` | NC-042 onward |
+| Wire schema the client may see (R18, ADR-018) | §4, §9 | `WireInput`, `WireEvent`, `WireExplanation`, `InputKind`, `EventKind`, `ReasonCode`, `WIRE_INDEX_NONE` | `WireInput.h`, `WireEvent.h`, `WireExplanation.h` | NC-042 onward |
 | Report: source, age, reliability | §4 | `Report`, `ReportSource`, `SourceRecord` | `Report.h` | NC-050 |
 | Sensor range and detection | §12 | `Sensor` | `Sensor.h` | NC-050 |
 | Incident (a raid or attack an empire suffered) | §6 | `Incident`, `IncidentId` | `Incident.h` | NC-051 |
@@ -99,7 +103,8 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Situation board item | §3 | `BoardItem`, `BoardItemKind` | `BoardItem.h` | NC-067 |
 | Intelligence purchase | §2, §4 | `IntelligenceOffer` | `BoardItem.h` | NC-067 |
 | The scripted scenario | §15 | `Scenario`, `KESSEL_SCENARIO` | `Scenario.h`, `KesselScenario.h` | NC-090 |
-| Instrumentation event kinds (R24) | §15 | `LogEvent` names | `LogEvent.h` | NC-043 |
+| Instrumentation event kinds (R24) | §15 | `LogEvent` names and field keys | `LogEvent.h` | NC-043 |
+| Where the simulation writes what §15 measures; the executable connects it to `InstrumentationLog` | §15 | `LogSink`, `LogField` | `LogSink.h` | NC-043, NC-070 |
 
 ## Client (NomadCommander, the game half)
 
