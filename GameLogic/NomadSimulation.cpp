@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "NomadSimulation.h"
 
+#include "Mobility.h"
 #include "TickResolver.h"
 #include "Tuning.h"
 
@@ -35,12 +36,117 @@ namespace
     return false;
   }
 
+  // The fleet an order names, resolved once and checked against the company that sent the order. **A company may
+  // only order its own fleets**, and this is the only place that can say so: by the time the resolver runs, an id is
+  // an id and there is nothing left to compare it against.
+  const auto fleet = FleetId::FromIndex(_wire.fleetIndex);
+  const bool namesAFleet = _wire.fleetIndex != WIRE_INDEX_NONE && _world.Fleets().Holds(fleet);
+  const bool ownsTheFleet = namesAFleet && _world.Fleets().Get(fleet).owner == FleetOwner{company};
+
+  std::vector<LaneId> route;
+  route.reserve(_wire.laneRoute.size());
+  for (const std::uint32_t laneIndex : _wire.laneRoute)
+  {
+    const auto lane = LaneId::FromIndex(laneIndex);
+    if (!_world.Lanes().Holds(lane))
+    {
+      return false;
+    }
+    route.push_back(lane);
+  }
+
   switch (_wire.kind)
   {
   case InputKind::SetActiveWindow:
     // A window must start within a day and last a positive part of one (GDD §7).
     if (_wire.activeWindowStartTickOfDay >= Neuron::TICKS_PER_DAY || _wire.activeWindowLengthTicks == 0 ||
         _wire.activeWindowLengthTicks > Neuron::TICKS_PER_DAY)
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::MoveFleet:
+  {
+    // GDD §7: "A fleet without fuel in a hostile system is a fleet the player failed to plan for, and the plan
+    // interface says so **before departure**." This is where it says so. A route that is not a path, or that the
+    // fleet cannot fuel end to end, is refused here rather than half-flown.
+    if (!ownsTheFleet)
+    {
+      return false;
+    }
+    const Fleet& ordered = _world.Fleets().Get(fleet);
+    if (!Mobility::CanBeOrdered(_world, ordered) || !Mobility::IsContiguousRoute(_world, ordered, route) ||
+        !Mobility::CanFuelRoute(_world, ordered, route))
+    {
+      return false;
+    }
+    break;
+  }
+
+  case InputKind::EmergencyJump:
+    // The one order that may be given with too little fuel: it still has to be one lane the fleet is standing on.
+    if (!ownsTheFleet || route.size() != 1 || !Mobility::CanBeOrdered(_world, _world.Fleets().Get(fleet)) ||
+        !Mobility::IsContiguousRoute(_world, _world.Fleets().Get(fleet), route))
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::DetachScout:
+    if (!ownsTheFleet || _world.Fleets().Get(fleet).ships.Of(ShipClass::Scout) == 0 ||
+        !Mobility::CanBeOrdered(_world, _world.Fleets().Get(fleet)))
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::SplitFleet:
+  {
+    if (!ownsTheFleet || !Mobility::CanBeOrdered(_world, _world.Fleets().Get(fleet)))
+    {
+      return false;
+    }
+    const Fleet& parent = _world.Fleets().Get(fleet);
+    std::uint32_t taken = 0;
+    for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
+    {
+      if (_wire.shipCounts[index] > parent.ships.byClass[index])
+      {
+        return false;
+      }
+      taken += _wire.shipCounts[index];
+    }
+    // A split that takes nothing or everything leaves a fleet with no hulls, which is not a fleet.
+    if (taken == 0 || taken == parent.ships.Total())
+    {
+      return false;
+    }
+    break;
+  }
+
+  case InputKind::MergeFleets:
+  {
+    const auto second = FleetId::FromIndex(_wire.secondFleetIndex);
+    if (!ownsTheFleet || !_world.Fleets().Holds(second) || second == fleet)
+    {
+      return false;
+    }
+    const Fleet& target = _world.Fleets().Get(fleet);
+    const Fleet& source = _world.Fleets().Get(second);
+    if (source.owner != target.owner || Mobility::LocationOf(source) != Mobility::LocationOf(target) ||
+        !Mobility::CanBeOrdered(_world, target) || !Mobility::CanBeOrdered(_world, source))
+    {
+      return false;
+    }
+    break;
+  }
+
+  case InputKind::Refuel:
+  case InputKind::SetEngageIntent:
+    // Neither needs CanBeOrdered. A drifting fleet may be refuelled -- that is the whole point of a rescue (GDD
+    // §7) -- and a fleet in a lane may be told what to do when it gets there. Owning it is the whole test.
+    if (!ownsTheFleet)
     {
       return false;
     }
@@ -52,6 +158,15 @@ namespace
   _outInput.company = company;
   _outInput.activeWindowStartTickOfDay = _wire.activeWindowStartTickOfDay;
   _outInput.activeWindowLengthTicks = _wire.activeWindowLengthTicks;
+  _outInput.fleet = namesAFleet ? fleet : FleetId{};
+  _outInput.secondFleet = _wire.secondFleetIndex == WIRE_INDEX_NONE ? FleetId{} : FleetId::FromIndex(_wire.secondFleetIndex);
+  _outInput.route = std::move(route);
+  for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
+  {
+    _outInput.shipCounts.byClass[index] = _wire.shipCounts[index];
+  }
+  _outInput.system = _wire.systemIndex == WIRE_INDEX_NONE ? SystemId{} : SystemId::FromIndex(_wire.systemIndex);
+  _outInput.engage = _wire.engage;
   return true;
 }
 
@@ -72,6 +187,20 @@ void WriteInput(Neuron::ByteWriter& _writer, const Input& _input)
   _outInput.company = CompanyId::FromIndex(wire.companyIndex);
   _outInput.activeWindowStartTickOfDay = wire.activeWindowStartTickOfDay;
   _outInput.activeWindowLengthTicks = wire.activeWindowLengthTicks;
+  _outInput.fleet = wire.fleetIndex == WIRE_INDEX_NONE ? FleetId{} : FleetId::FromIndex(wire.fleetIndex);
+  _outInput.secondFleet = wire.secondFleetIndex == WIRE_INDEX_NONE ? FleetId{} : FleetId::FromIndex(wire.secondFleetIndex);
+  _outInput.route.clear();
+  _outInput.route.reserve(wire.laneRoute.size());
+  for (const std::uint32_t laneIndex : wire.laneRoute)
+  {
+    _outInput.route.push_back(LaneId::FromIndex(laneIndex));
+  }
+  for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
+  {
+    _outInput.shipCounts.byClass[index] = wire.shipCounts[index];
+  }
+  _outInput.system = wire.systemIndex == WIRE_INDEX_NONE ? SystemId{} : SystemId::FromIndex(wire.systemIndex);
+  _outInput.engage = wire.engage;
   return true;
 }
 
@@ -147,7 +276,8 @@ bool NomadSimulation::ReadState(Neuron::ByteReader& _reader)
     return false;
   }
 
-  constexpr std::uint64_t SMALLEST_INPUT_BYTES = 8 + 1 + 4 + 8 + 8;
+  // A record is at least its fixed fields: two ticks, a kind, three indices, a route length, four counts and a flag.
+  constexpr std::uint64_t SMALLEST_INPUT_BYTES = 8 + 1 + 4 + 8 + 8 + 4 + 4 + 4 + 4 * 4 + 4 + 1;
   std::uint32_t inputCount = 0;
   if (!_reader.Read(inputCount) || static_cast<std::uint64_t>(inputCount) * SMALLEST_INPUT_BYTES > _reader.Remaining())
   {

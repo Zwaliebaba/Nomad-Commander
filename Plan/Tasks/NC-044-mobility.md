@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | L | no | no | Open |
+| 2 | GameLogic | L | no | no | Done (PENDING) |
 
 **Depends on:** NC-043
 **Read first:** GDD §12 whole ("the verbs of the operational game and the first design task of v0.1"), §7 (*Fuel*: drifting), §4 (*Orders travel*; a recall is an order); AGENTS.md R6 (units in names), R21
@@ -45,4 +45,39 @@ Detection and reports (NC-050), battles (NC-062), couriers as entities (NC-053; 
 
 ## Report
 
-_Filled in on hand-back._
+**The verbs are in, and a route is a commitment.** `Mobility` holds all of GDD §12's mobility: departure and arrival per lane, fuel per class per jump times the lane's multiplier, interception at systems, scouting as a detached hull, splitting and merging, the emergency jump at double fuel, refuelling, and interdiction. Sixteen tests, one per verb plus the rules that make them mean something.
+
+**Refined against the code as it is.**
+
+- **Interdiction is not an input kind, and that follows from the task's own parenthesis.** The task listed it among the orders and then said "an empire's act; the player's fleets can be interdicted, not interdict, in v0.1". A wire kind the player may not send is a hole in the seam waiting for someone to notice it is unguarded, so it is a world operation — `Mobility::Interdict` — that an empire's AI calls (NC-047) and that nothing on the wire can reach. `InputKind` has seven verbs, not eight.
+- **A company may only order its own fleets**, checked at the seam. `NomadSimulation::Accept` is the only place that can say so: by the time the resolver runs, an id is an id and there is nothing left to compare it against.
+- **Fuel is spent at departure, not on arrival.** A fleet that has committed to a lane has burned the fuel. That is what makes GDD §7's "arrives late and drifting at the next system" a consequence rather than a special case: a fleet that departs with too little pays what it has, crosses at 150 hundredths of the normal time, and arrives immobile.
+- **The emergency jump pays its extra at the order and its base at departure**, so the two together are the multiplier and the drifting path is reached through the same code as any other shortfall. It is the one order that may be given with too little fuel, which is what makes it the verb a player reaches for when the alternative is worse.
+- **A route is validated twice, on purpose.** `Accept` refuses a route that is not a path or that the fleet cannot fuel — GDD §7's "the plan interface says so **before departure**" — and `ApplyOrder` checks again at the tick it applies, because the world moves between the two and an order accepted three days ago may no longer be flyable. The second check is silent; the first is a refusal the player sees.
+- **A fleet moves at the speed of its slowest hull.** GDD §12 gives the four classes different speeds and says nothing about a mixed fleet; anything else would mean a hauler convoy arrives at scout speed.
+- **Arrivals resolve before departures, in table order.** A fleet that arrives with route left carries on the same tick rather than losing one, and walking the table rather than a queue is what keeps it deterministic whatever order the fleets were created in (R16).
+- **Encounters are computed after both**, over pairs at systems. Ownership is all there is to go on until NC-047 brings relations, so "hostile" is "different owners" for now and the comment says so.
+
+**The acceptance criteria, checked.**
+
+- **Each verb has a test naming the GDD §12 sentence it implements** — sixteen tests, and the sentence is quoted in the comment.
+- **Departure and arrival ticks are exact.** A scout on a 200-tick lane crosses in 140; the test ticks through every intermediate tick and asserts the fleet has *not* arrived on each one, then asserts it has on the 140th. **Two fleets crossing one lane in opposite directions pass without an encounter** — the criterion that makes a chokepoint a place rather than a line.
+- **Fuel never goes negative**, drifting is the outcome of reaching zero mid-lane, and a drifting fleet cannot be ordered to move. All three asserted.
+- **The determinism harness still passes with movement scripted.** NC-043's script now builds a fleet, moves it and sets its engage intent, so the movement and encounter phases both do work inside the scripted month. The measured figure moved from **6.8M to 3.0M ticks a second** — half the throughput for the first real system, which is the number worth watching as NC-045 to NC-047 fill the rest in.
+
+**A test written in NC-042 caught a real defect in this task, which is what it was for.** `EveryReasonCodeHasWordsForIt` went red the moment I added nine reason codes without adding claim text for them: they composed to the fallback sentence, which reads like a bug in the game rather than a gap in a table. That is a check earning its place two tasks after it was written.
+
+**clang-tidy found two, and both were real.** `LocationOf` was declared `noexcept` and ended with `std::get<InLane>`, which throws `std::bad_variant_access` — on a resolver path where an exception has nowhere to go. It is `get_if` and an assert now. And `Accept` had two consecutive identical switch branches (`Refuel` and `SetEngageIntent`), which is a duplicate begging to drift apart; they share a label and a comment saying why neither needs `CanBeOrdered`.
+
+**Verified:** `CheckFormat.py` (152 files), `CheckProjectFiles.py` (9 projects, clean), `RunClangTidy.py` (**65 translation units clean**). Debug builds with zero warnings. `GameLogicTests`: **59 of 59 green**, 16 new here. Release not built; integer arithmetic throughout and NC-048's soak is where that gets checked under optimisation.
+
+**Assumed:** that a system with a shipyard sells fuel. GDD §12 names "outposts, harbours and tankers" as the places a fleet refuels; an outpost's stock is NC-066's and a harbour's market is NC-045's, and neither exists. A yard that sells hulls selling fuel is the reading that makes the verb testable today, and the comment names the two that will replace it. **The tanker half is real** — a fleet of the same owner sharing the system transfers fuel, and the test asserts the transfer conserves it.
+
+**Bent:** nothing.
+
+**Noticed and left alone.**
+
+- **An accepted order is validated against the world as it was when it arrived**, not as it will be when it applies. That is correct for a client — a player plans from what they can see — but it means a move scheduled for three days hence can be accepted and then silently do nothing. GDD §4's receipt is where the player should find out; **NC-064 should decide whether a silently-dropped order is an event**.
+- **`Refuel` fills to capacity in one tick.** Nothing in GDD §12 says refuelling takes time, and nothing in v0.1 needs it to, but a tanker that empties instantly is a logistics decision made by omission.
+- **`FuelCapacity` is recomputed from the hull counts every time it is asked**, including inside `AddScouts` in the tests. It is four multiplies; if a headless year ever calls it per fleet per tick it is the first thing to cache.
+- **`DifferentOwners` is the whole of hostility.** Two fleets of different empires at peace will produce an encounter if either has engage intent. NC-047's relations are what make that a question about a war rather than about a flag, and NC-062 is what resolves the encounter either way.

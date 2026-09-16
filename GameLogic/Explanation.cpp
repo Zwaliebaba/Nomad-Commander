@@ -29,6 +29,24 @@ namespace
     return "your claim was revoked";
   case ReasonCode::ToleranceWithdrawn:
     return "your tolerance was withdrawn";
+  case ReasonCode::OutOfFuel:
+    return "a fleet ran out of fuel mid-lane and is drifting";
+  case ReasonCode::OrderedToMove:
+    return "a fleet was ordered along a route";
+  case ReasonCode::OrderedToSplit:
+    return "a fleet was split";
+  case ReasonCode::OrderedToMerge:
+    return "two fleets were merged";
+  case ReasonCode::OrderedToScout:
+    return "a scout was detached";
+  case ReasonCode::EmergencyJumpTaken:
+    return "a fleet made an emergency jump";
+  case ReasonCode::Refuelled:
+    return "a fleet refuelled";
+  case ReasonCode::PinnedByAnEmpire:
+    return "an empire pinned a fleet in place";
+  case ReasonCode::FleetsSharedASystem:
+    return "two fleets met, and one of them meant to";
   }
   return "something happened that nobody recorded a reason for";
 }

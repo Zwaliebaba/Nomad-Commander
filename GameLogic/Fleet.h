@@ -70,6 +70,19 @@ struct Fleet
 
   std::uint32_t fuel;
 
+  /// The lanes still to cross, in order. The resolver pops one on each arrival, so a route is a commitment the world
+  /// holds rather than a plan the client remembers (GDD §12: departure and arrival times per lane).
+  std::vector<LaneId> route;
+
+  /// Whether this fleet wants to engage (GDD §12: "interception happens when two fleets share a system and at least
+  /// one wants to engage"). **Set by an order or a plan and never inferred from allegiance**, so a convoy and a
+  /// raider can share a harbour under a truce without a battle.
+  bool engageIntent;
+
+  /// Pinned in place until this tick (GDD §12's interdiction). Zero when free. An empire's act in v0.1: the player's
+  /// fleets can be interdicted and cannot interdict.
+  Neuron::Tick interdictedUntilTick;
+
   /// Cargo by good. NC-045 brings the Good enumerator and the market; until then the vector is the shape the hold
   /// takes and is empty. Loot is evidence (GDD §5), so NC-055 gives these entries their origin marks.
   std::vector<std::uint32_t> cargoByGood;

@@ -4,6 +4,7 @@
 #include "ByteWriter.h"
 #include "LogEvent.h"
 #include "LogSink.h"
+#include "Mobility.h"
 #include "NomadSimulation.h"
 #include "Tuning.h"
 #include "UniverseGenerator.h"
@@ -116,10 +117,49 @@ private:
   company.alive = true;
   const Nomad::CompanyId id = _simulation.MutableWorld().Companies().Add(company);
 
+  // A fleet, so the script moves something. NC-044's acceptance criterion asks this harness to keep passing with
+  // movement scripted, and movement is the first system with arrival ticks, fuel and encounters in it.
+  Nomad::Fleet fleet{};
+  fleet.name = "Ashfall Picket";
+  fleet.owner = id;
+  fleet.role = Nomad::FleetRole::Operational;
+  fleet.ships.Add(Nomad::ShipClass::Scout, 2);
+  fleet.ships.Add(Nomad::ShipClass::Raider, 1);
+  fleet.position = Nomad::AtSystem{Nomad::SystemId::FromIndex(0)};
+  fleet.alive = true;
+  const Nomad::FleetId fleetId = _simulation.MutableWorld().Fleets().Add(fleet);
+  _simulation.MutableWorld().Fleets().Get(fleetId).fuel = Nomad::Mobility::FuelCapacity(_simulation.CurrentWorld().Fleets().Get(fleetId));
+
   for (const Nomad::WireInput& wire : Script(id.Index()))
   {
     Assert::IsTrue(_simulation.ApplyInput(WireBytes(wire)), L"a scripted input was refused");
   }
+
+  // One move along the first lane out of the fleet's system, and an engage intent, so the movement and encounter
+  // phases both do work inside the scripted month.
+  const Nomad::StarSystem& start = _simulation.CurrentWorld().Systems().Get(Nomad::SystemId::FromIndex(0));
+  Assert::IsTrue(!start.lanes.empty(), L"the generated map left a system with no lanes");
+
+  Nomad::WireInput move{};
+  move.applyAtTick = 2;
+  move.kind = Nomad::InputKind::MoveFleet;
+  move.companyIndex = id.Index();
+  move.fleetIndex = fleetId.Index();
+  move.secondFleetIndex = Nomad::WIRE_INDEX_NONE;
+  move.systemIndex = Nomad::WIRE_INDEX_NONE;
+  move.laneRoute = {start.lanes.front().Index()};
+  Assert::IsTrue(_simulation.ApplyInput(WireBytes(move)), L"the scripted move was refused");
+
+  Nomad::WireInput engage{};
+  engage.applyAtTick = 3;
+  engage.kind = Nomad::InputKind::SetEngageIntent;
+  engage.companyIndex = id.Index();
+  engage.fleetIndex = fleetId.Index();
+  engage.secondFleetIndex = Nomad::WIRE_INDEX_NONE;
+  engage.systemIndex = Nomad::WIRE_INDEX_NONE;
+  engage.engage = true;
+  Assert::IsTrue(_simulation.ApplyInput(WireBytes(engage)), L"the scripted engage intent was refused");
+
   return id.Index();
 }
 
@@ -228,7 +268,9 @@ public:
     (void)RunScript(SCRIPT_TICKS, &sink);
 
     const std::size_t decisions = sink.CountOf(Nomad::LogEvent::DECISION);
-    Assert::AreEqual(Script(0).size(), decisions, L"the decisions logged are not the decisions applied");
+    // The scripted window changes, plus the move and the engage intent NC-044 added.
+    constexpr std::size_t MOBILITY_DECISIONS = 2;
+    Assert::AreEqual(Script(0).size() + MOBILITY_DECISIONS, decisions, L"the decisions logged are not the decisions applied");
 
     // Daily, from the first day: "willing employers after two months" is a series, not a reading.
     Assert::AreEqual(SCRIPT_DAYS, static_cast<Neuron::Tick>(sink.CountOf(Nomad::LogEvent::EMPLOYERS_WILLING)),

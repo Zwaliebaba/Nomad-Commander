@@ -20,10 +20,17 @@ enum class EventKind : std::uint8_t
   TickAdvanced,
   ActiveWindowChanged,
   FleetDeparted,
-  FleetArrived
+  FleetArrived,
+  FleetDrifting,
+  FleetSplit,
+  FleetMerged,
+  ScoutDetached,
+  FleetInterdicted,
+  FleetRefuelled,
+  EncounterBegan
 };
 
-inline constexpr std::uint8_t EVENT_KIND_COUNT = 4;
+inline constexpr std::uint8_t EVENT_KIND_COUNT = 11;
 
 /// One consequence, as the client is told it (ADR-018).
 ///

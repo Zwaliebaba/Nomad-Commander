@@ -301,6 +301,9 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
   WriteFleetPosition(_writer, _fleet.position);
   _writer.Write(_fleet.fuel);
   WriteCounts(_writer, _fleet.cargoByGood);
+  WriteIds(_writer, _fleet.route);
+  _writer.WriteBool(_fleet.engageIntent);
+  _writer.WriteTick(_fleet.interdictedUntilTick);
   _writer.WriteBool(_fleet.marked);
   _writer.WriteHundredths(_fleet.veterancy);
   WriteIds(_writer, _fleet.history);
@@ -313,8 +316,9 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
   return _reader.ReadString(_outFleet.name) && ReadFleetOwner(_reader, _outFleet.owner) &&
          ReadEnum(_reader, _outFleet.role, FLEET_ROLE_COUNT) && _reader.ReadId(_outFleet.commander) &&
          ReadShipCounts(_reader, _outFleet.ships) && ReadFleetPosition(_reader, _outFleet.position) && _reader.Read(_outFleet.fuel) &&
-         ReadCounts(_reader, _outFleet.cargoByGood) && _reader.ReadBool(_outFleet.marked) && _reader.ReadHundredths(_outFleet.veterancy) &&
-         ReadIds(_reader, _outFleet.history) && _reader.ReadBool(_outFleet.alive);
+         ReadCounts(_reader, _outFleet.cargoByGood) && ReadIds(_reader, _outFleet.route) && _reader.ReadBool(_outFleet.engageIntent) &&
+         _reader.ReadTick(_outFleet.interdictedUntilTick) && _reader.ReadBool(_outFleet.marked) &&
+         _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) && _reader.ReadBool(_outFleet.alive);
 }
 
 void WriteCharacter(Neuron::ByteWriter& _writer, const Character& _character)

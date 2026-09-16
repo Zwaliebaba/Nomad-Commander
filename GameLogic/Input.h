@@ -3,7 +3,10 @@
 
 #include "EntityIds.h"
 #include "Explanation.h"
+#include "ShipClass.h"
 #include "WireInput.h"
+
+#include <vector>
 
 #include "Tick.h"
 
@@ -23,12 +26,37 @@ struct Input
 
   Neuron::Tick activeWindowStartTickOfDay;
   Neuron::Tick activeWindowLengthTicks;
+
+  FleetId fleet;
+  FleetId secondFleet;
+  std::vector<LaneId> route;
+  ShipCounts shipCounts;
+  SystemId system;
+  bool engage;
 };
 
 [[nodiscard]] inline WireInput ToWire(const Input& _input)
 {
-  return WireInput{_input.applyAtTick, _input.kind, WireIndexOf(_input.company), _input.activeWindowStartTickOfDay,
-                   _input.activeWindowLengthTicks};
+  WireInput wire{};
+  wire.applyAtTick = _input.applyAtTick;
+  wire.kind = _input.kind;
+  wire.companyIndex = WireIndexOf(_input.company);
+  wire.activeWindowStartTickOfDay = _input.activeWindowStartTickOfDay;
+  wire.activeWindowLengthTicks = _input.activeWindowLengthTicks;
+  wire.fleetIndex = WireIndexOf(_input.fleet);
+  wire.secondFleetIndex = WireIndexOf(_input.secondFleet);
+  wire.laneRoute.reserve(_input.route.size());
+  for (const LaneId lane : _input.route)
+  {
+    wire.laneRoute.push_back(lane.Index());
+  }
+  for (std::uint32_t index = 0; index < WIRE_SHIP_CLASS_COUNT; ++index)
+  {
+    wire.shipCounts[index] = _input.shipCounts.byClass[index];
+  }
+  wire.systemIndex = WireIndexOf(_input.system);
+  wire.engage = _input.engage;
+  return wire;
 }
 
 } // namespace Nomad

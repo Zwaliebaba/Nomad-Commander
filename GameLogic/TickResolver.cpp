@@ -3,6 +3,7 @@
 #include "TickResolver.h"
 
 #include "LogEvent.h"
+#include "Mobility.h"
 #include "Tuning.h"
 
 #include <array>
@@ -28,6 +29,16 @@ void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Ev
     }
     switch (input.kind)
     {
+    case InputKind::MoveFleet:
+    case InputKind::DetachScout:
+    case InputKind::SplitFleet:
+    case InputKind::MergeFleets:
+    case InputKind::EmergencyJump:
+    case InputKind::Refuel:
+    case InputKind::SetEngageIntent:
+      Mobility::ApplyOrder(_world, input, _outEvents);
+      break;
+
     case InputKind::SetActiveWindow:
     {
       if (!_world.Companies().Holds(input.company))
@@ -57,9 +68,9 @@ void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Ev
 }
 
 /// Phase 2 -- movement. Departures and arrivals along lanes (GDD §12's seven verbs).
-void ResolveMovement([[maybe_unused]] World& _world, [[maybe_unused]] std::vector<Event>& _outEvents)
+void ResolveMovement(World& _world, std::vector<Event>& _outEvents)
 {
-  // NC-044.
+  Mobility::ResolveMovement(_world, _outEvents);
 }
 
 /// Phase 3 -- detection. Who saw what, and the reports it produced (GDD §4's source, age and reliability).

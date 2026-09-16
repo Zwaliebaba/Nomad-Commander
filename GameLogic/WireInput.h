@@ -6,6 +6,7 @@
 #include "Tick.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace Nomad
 {
@@ -19,10 +20,25 @@ namespace Nomad
 enum class InputKind : std::uint8_t
 {
   /// GDD §7's daily active window, which outpost reinforcement timers are defined against (A5).
-  SetActiveWindow
+  SetActiveWindow,
+
+  // GDD §12's verbs, as the player issues them. Interdiction is absent on purpose: it is an empire's act, and in
+  // v0.1 the player's fleets can be interdicted and cannot interdict.
+  MoveFleet,
+  DetachScout,
+  SplitFleet,
+  MergeFleets,
+  EmergencyJump,
+  Refuel,
+  SetEngageIntent
 };
 
-inline constexpr std::uint8_t INPUT_KIND_COUNT = 1;
+inline constexpr std::uint8_t INPUT_KIND_COUNT = 8;
+
+/// The four ship classes, as the wire counts them. A wire header sees only NeuronCore (ADR-001), so it cannot include
+/// the enumerator; `Mobility.cpp` static_asserts that this and `SHIP_CLASS_COUNT` are the same number, which is where
+/// a mismatch is caught at compile time rather than on the wire.
+inline constexpr std::uint32_t WIRE_SHIP_CLASS_COUNT = 4;
 
 /// One decision, on its way in.
 ///
@@ -35,10 +51,25 @@ struct WireInput
   InputKind kind;
   std::uint32_t companyIndex;
 
-  /// The payload, flat rather than a variant: there is one kind so far, and a union on the wire would be a schema
-  /// with a shape before it has a second member to justify one. NC-044 is the task that will want one.
+  /// The payload, flat rather than a union: every kind reads the fields it needs and the rest are zero. A union on
+  /// the wire buys a few bytes and costs a schema whose meaning depends on a discriminant, which is what a
+  /// forward-compatible reader is worst at. Eight kinds is not enough to change that.
   Neuron::Tick activeWindowStartTickOfDay;
   Neuron::Tick activeWindowLengthTicks;
+
+  /// The fleet an order is aimed at, and the second one a merge folds into it.
+  std::uint32_t fleetIndex;
+  std::uint32_t secondFleetIndex;
+
+  /// MoveFleet's route, as lane indices in crossing order.
+  std::vector<std::uint32_t> laneRoute;
+
+  /// SplitFleet's hulls, and DetachScout's target system.
+  std::uint32_t shipCounts[WIRE_SHIP_CLASS_COUNT];
+  std::uint32_t systemIndex;
+
+  /// SetEngageIntent.
+  bool engage;
 };
 
 inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
@@ -48,6 +79,19 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
   _writer.Write(_input.companyIndex);
   _writer.WriteTick(_input.activeWindowStartTickOfDay);
   _writer.WriteTick(_input.activeWindowLengthTicks);
+  _writer.Write(_input.fleetIndex);
+  _writer.Write(_input.secondFleetIndex);
+  _writer.Write(static_cast<std::uint32_t>(_input.laneRoute.size()));
+  for (const std::uint32_t lane : _input.laneRoute)
+  {
+    _writer.Write(lane);
+  }
+  for (const std::uint32_t count : _input.shipCounts)
+  {
+    _writer.Write(count);
+  }
+  _writer.Write(_input.systemIndex);
+  _writer.WriteBool(_input.engage);
 }
 
 [[nodiscard]] inline bool Deserialize(Neuron::ByteReader& _reader, WireInput& _outInput)
@@ -55,7 +99,34 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
   std::uint8_t kind = 0;
   if (!_reader.ReadTick(_outInput.applyAtTick) || !_reader.Read(kind) || kind >= INPUT_KIND_COUNT ||
       !_reader.Read(_outInput.companyIndex) || !_reader.ReadTick(_outInput.activeWindowStartTickOfDay) ||
-      !_reader.ReadTick(_outInput.activeWindowLengthTicks))
+      !_reader.ReadTick(_outInput.activeWindowLengthTicks) || !_reader.Read(_outInput.fleetIndex) ||
+      !_reader.Read(_outInput.secondFleetIndex))
+  {
+    return false;
+  }
+
+  std::uint32_t routeLength = 0;
+  if (!_reader.Read(routeLength) || static_cast<std::uint64_t>(routeLength) * sizeof(std::uint32_t) > _reader.Remaining())
+  {
+    return false;
+  }
+  _outInput.laneRoute.resize(routeLength);
+  for (std::uint32_t& lane : _outInput.laneRoute)
+  {
+    if (!_reader.Read(lane))
+    {
+      return false;
+    }
+  }
+
+  for (std::uint32_t& count : _outInput.shipCounts)
+  {
+    if (!_reader.Read(count))
+    {
+      return false;
+    }
+  }
+  if (!_reader.Read(_outInput.systemIndex) || !_reader.ReadBool(_outInput.engage))
   {
     return false;
   }

@@ -83,6 +83,7 @@
     <ClCompile Include="UniverseGenerator.cpp" />
     <ClCompile Include="Explanation.cpp" />
     <ClCompile Include="NomadSimulation.cpp" />
+    <ClCompile Include="Mobility.cpp" />
     <ClCompile Include="TickResolver.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -106,6 +107,7 @@
     <ClInclude Include="Input.h" />
     <ClInclude Include="LogEvent.h" />
     <ClInclude Include="LogSink.h" />
+    <ClInclude Include="Mobility.h" />
     <ClInclude Include="NomadSimulation.h" />
     <ClInclude Include="TickResolver.h" />
     <ClInclude Include="Tuning.h" />

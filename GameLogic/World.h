@@ -61,7 +61,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 2;
+  static constexpr std::uint16_t SCHEMA_VERSION = 3;
 
   explicit World(std::uint64_t _seed);
 

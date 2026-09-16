@@ -78,6 +78,27 @@ inline constexpr Neuron::Hundredths MOTHBALL_RECOVERY_FEE = Neuron::Hundredths::
 /// "Captured hulls from broken enemy fleets can be salvaged at a fraction of their value."
 inline constexpr Neuron::Hundredths SALVAGE_FRACTION = Neuron::Hundredths::FromRaw(30);
 
+// --- GDD §12: mobility --------------------------------------------------------------------------------------------
+
+/// "An emergency jump, which costs double fuel and breaks the current plan."
+inline constexpr std::uint32_t EMERGENCY_JUMP_FUEL_MULTIPLIER = 2;
+
+/// How many jumps a fleet carries fuel for when it is full. A tank is stated in jumps rather than in units because
+/// that is how a player thinks about a route (R6).
+inline constexpr std::uint32_t FUEL_CAPACITY_JUMPS = 6;
+
+/// A fleet that runs dry mid-lane "arrives late and drifting at the next system" (GDD §7). This is how much late, as
+/// a multiplier on the lane's own time in hundredths.
+inline constexpr std::uint32_t DRIFTING_ARRIVAL_MULTIPLIER_HUNDREDTHS = 150;
+
+/// What a courier crossing a lane costs in time against a fleet's. A courier is a single fast hull (GDD §9); NC-053
+/// is what spends this.
+inline constexpr std::uint32_t COURIER_SPEED_MULTIPLIER_HUNDREDTHS = 60;
+
+/// GDD §12's interdiction "pins a fleet in a system for a stated time". The bounds an empire may state.
+inline constexpr Neuron::Tick INTERDICTION_MIN_TICKS = 2 * Neuron::TICKS_PER_HOUR;
+inline constexpr Neuron::Tick INTERDICTION_MAX_TICKS = 12 * Neuron::TICKS_PER_HOUR;
+
 // --- GDD §6: how an empire decides who did it --------------------------------------------------------------------
 //
 // The weights are §6's table, verbatim, as fractions of a full attribution in integer hundredths (ADR-003). NC-052 is

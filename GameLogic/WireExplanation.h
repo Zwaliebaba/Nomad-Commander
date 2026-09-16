@@ -29,10 +29,19 @@ enum class ReasonCode : std::uint16_t
   FleetArrived,
   ConvoyAttacked,
   ClaimRevoked,
-  ToleranceWithdrawn
+  ToleranceWithdrawn,
+  OutOfFuel,
+  OrderedToMove,
+  OrderedToSplit,
+  OrderedToMerge,
+  OrderedToScout,
+  EmergencyJumpTaken,
+  Refuelled,
+  PinnedByAnEmpire,
+  FleetsSharedASystem
 };
 
-inline constexpr std::uint16_t REASON_CODE_COUNT = 8;
+inline constexpr std::uint16_t REASON_CODE_COUNT = 17;
 
 /// One item of evidence as the player reads it: what it is, and what it was worth (GDD §6's weights, as a fraction of
 /// a full attribution in integer hundredths).
