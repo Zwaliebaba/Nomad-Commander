@@ -17,6 +17,9 @@
     <ClCompile Include="IdTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RandomTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="TickTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
