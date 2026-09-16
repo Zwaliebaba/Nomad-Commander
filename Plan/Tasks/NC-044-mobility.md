@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | L | no | no | Done (PENDING) |
+| 2 | GameLogic | L | no | no | Done (caf5df1) |
 
 **Depends on:** NC-043
 **Read first:** GDD §12 whole ("the verbs of the operational game and the first design task of v0.1"), §7 (*Fuel*: drifting), §4 (*Orders travel*; a recall is an order); AGENTS.md R6 (units in names), R21
