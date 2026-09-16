@@ -53,6 +53,37 @@ inline constexpr Neuron::Tick WAR_MIN_TICKS = 7 * Neuron::TICKS_PER_DAY;
 inline constexpr Neuron::Tick WAR_MAX_TICKS = 21 * Neuron::TICKS_PER_DAY;
 inline constexpr Neuron::Tick STANDING_ORDERS_TICKS = 7 * Neuron::TICKS_PER_DAY;
 
+/// GDD §8's politics, and §7's "the world is never allowed to go quiet".
+///
+/// **These are what guarantee "at least one conflict must be active in the region at any time"**, which the design
+/// calls a rule and not a tendency: "A three-empire world at peace is a bug." The rules below make wars common, and
+/// `Politics::ResolveDaily` has an explicit last resort on top of them, because a guarantee that emerges from tuning
+/// is a guarantee that stops holding when somebody tunes it.
+inline constexpr Neuron::Hundredths GOAL_PRIORITY_HOLD = Neuron::Hundredths::FromRaw(80);
+inline constexpr Neuron::Hundredths GOAL_PRIORITY_TAKE = Neuron::Hundredths::FromRaw(50);
+
+/// Where two empires start: not friends, not yet enemies.
+inline constexpr Neuron::Hundredths GRUDGE_AT_START = Neuron::Hundredths::FromRaw(20);
+
+/// A day of quiet forgives a little; a day of war does the opposite.
+inline constexpr Neuron::Hundredths GRUDGE_DECAY_PER_QUIET_DAY = Neuron::Hundredths::FromRaw(1);
+inline constexpr Neuron::Hundredths GRUDGE_PER_WAR_DAY = Neuron::Hundredths::FromRaw(2);
+
+/// "A truce that expires while the grudge that started the war is still above a threshold resumes the war" (GDD §7).
+inline constexpr Neuron::Hundredths GRUDGE_RESUME_THRESHOLD = Neuron::Hundredths::FromRaw(35);
+
+/// What a war has to cost before both sides will stop. Counted in days under arms until NC-062 counts hulls.
+inline constexpr std::uint32_t WAR_EXHAUSTION = 12;
+
+/// How many wars at once make an empire look for a cheaper one (GDD §7's straining empire).
+inline constexpr std::uint32_t INSTABILITY_WAR_COUNT = 2;
+
+/// How many fleets an empire keeps. NC-060 gives them admirals.
+inline constexpr std::uint32_t FLEETS_PER_EMPIRE = 3;
+
+/// What a convoy's escort grows to when its empire is at war (NC-045 reads it).
+inline constexpr std::uint32_t CONVOY_ESCORT_AT_WAR = 3;
+
 /// "An offer lasts at least one full day, so a player who checks in daily never misses one" (GDD §7).
 inline constexpr Neuron::Tick OFFER_MINIMUM_TICKS = Neuron::TICKS_PER_DAY;
 

@@ -1,6 +1,7 @@
 // GameLogic/Empire.h
 #pragma once
 
+#include "EmpireGoal.h"
 #include "EntityIds.h"
 
 #include <cstdint>
@@ -27,6 +28,9 @@ struct Empire
 
   std::vector<SystemId> systemsHeld;
   std::vector<FleetId> fleets;
+
+  /// What it wants, for years (GDD §8). Contracts are generated from these and dry up when one is met (NC-056).
+  std::vector<EmpireGoal> goals;
 
   /// Companies this empire has revoked (GDD §5: hulls are "unavailable from an empire that has revoked the
   /// player's tolerance"). A list on the empire until NC-051 gives tolerance a belief behind it.

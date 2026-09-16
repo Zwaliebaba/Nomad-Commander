@@ -3,6 +3,7 @@
 #include "UniverseGenerator.h"
 
 #include "Economy.h"
+#include "Politics.h"
 
 #include "IntegerMath.h"
 #include "Random.h"
@@ -545,6 +546,7 @@ bool UniverseGenerator::Generate(const Desc& _desc, World& _outWorld)
   // The economy is part of a universe, not a thing a caller remembers to add afterwards (NC-045). Seeding it here is
   // what makes "generate a world and run it for a year" one call.
   Economy::Seed(_outWorld);
+  Politics::Seed(_outWorld);
   return true;
 }
 

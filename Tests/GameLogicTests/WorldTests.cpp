@@ -37,6 +37,7 @@ namespace
                                                                  {Nomad::SystemId::FromIndex(2), Nomad::SystemId::FromIndex(3)},
                                                                  {Nomad::FleetId::FromIndex(0)},
                                                                  {},
+                                                                 {},
                                                                  true});
 
   Nomad::Company first;

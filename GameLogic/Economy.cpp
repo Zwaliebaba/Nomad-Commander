@@ -3,6 +3,7 @@
 #include "Economy.h"
 
 #include "Mobility.h"
+#include "Politics.h"
 #include "Tuning.h"
 
 #include "IntegerMath.h"
@@ -127,7 +128,7 @@ void DispatchConvoy(World& _world, EmpireId _empire, SystemId _from, SystemId _t
   convoy.owner = _empire;
   convoy.role = FleetRole::Convoy;
   convoy.ships.Add(ShipClass::Hauler, Tuning::CONVOY_HAULERS);
-  convoy.ships.Add(ShipClass::Warship, Tuning::CONVOY_ESCORT_WARSHIPS);
+  convoy.ships.Add(ShipClass::Warship, Politics::EscortStrengthFor(_world, _empire));
   convoy.position = AtSystem{_from};
   convoy.cargoByGood.assign(GOOD_COUNT, 0);
   convoy.alive = true;

@@ -6,6 +6,7 @@
 #include "Fabricator.h"
 #include "LogEvent.h"
 #include "Mobility.h"
+#include "Politics.h"
 #include "Upkeep.h"
 #include "Tuning.h"
 
@@ -109,6 +110,7 @@ void ResolveDaily(World& _world, [[maybe_unused]] std::vector<Event>& _outEvents
   // that order, because inference reads what the economy and the empires did today.
   Economy::ResolveDaily(_world, _outEvents);
   Upkeep::ResolveDaily(_world, _outEvents);
+  Politics::ResolveDaily(_world, _outEvents);
   Fabricator::ResolveDaily(_world, _outEvents);
 
   // GDD §15 requires "at least two willing employers after two months", which is a series and not a reading, so it

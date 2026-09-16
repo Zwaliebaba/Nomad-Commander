@@ -67,6 +67,22 @@ namespace
     return "the fabricator built a hull from salvage and bought metals";
   case ReasonCode::ReserveFuelSpent:
     return "the mothership jumped on its reserve fuel";
+  case ReasonCode::GoalsCollided:
+    return "two empires want the same system";
+  case ReasonCode::GoalSatisfied:
+    return "an empire got what it wanted";
+  case ReasonCode::BothSidesAreExhausted:
+    return "the war had cost both sides more than it was worth";
+  case ReasonCode::TheGrudgeOutlastedTheTruce:
+    return "the truce ran out and the grudge that started the war had not";
+  case ReasonCode::TheTruceHeld:
+    return "the truce ran out and nobody wanted the war back";
+  case ReasonCode::TheRegionWasTooQuiet:
+    return "an old grudge found nothing else to do";
+  case ReasonCode::ACheaperWarWasAvailable:
+    return "an empire traded a costly war for one it would rather fight";
+  case ReasonCode::ATreatyWasBroken:
+    return "an empire broke its truce, and the region will remember";
   }
   return "something happened that nobody recorded a reason for";
 }

@@ -8,6 +8,7 @@
 #include "Lane.h"
 #include "Market.h"
 #include "MothballedHull.h"
+#include "Relation.h"
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
@@ -63,7 +64,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 5;
+  static constexpr std::uint16_t SCHEMA_VERSION = 6;
 
   explicit World(std::uint64_t _seed);
 
@@ -156,6 +157,17 @@ public:
     return m_mothballs;
   }
 
+  /// Where each pair of empires stands (GDD §7, §8). One row per unordered pair.
+  [[nodiscard]] Table<Relation, RelationId>& Relations() noexcept
+  {
+    return m_relations;
+  }
+
+  [[nodiscard]] const Table<Relation, RelationId>& Relations() const noexcept
+  {
+    return m_relations;
+  }
+
   /// What JumpsBetween answers when there is no route at all. A disconnected map is a generator bug (NC-041 asserts
   /// connectivity), but a route to a system that does not exist is an ordinary caller error and gets an answer.
   static constexpr std::uint32_t UNREACHABLE = 0xFFFFFFFFu;
@@ -223,6 +235,7 @@ private:
   Table<Lane, LaneId> m_lanes;
   Table<Market, SystemId> m_markets;
   Table<MothballedHull, MothballId> m_mothballs;
+  Table<Relation, RelationId> m_relations;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

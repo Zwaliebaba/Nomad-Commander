@@ -48,10 +48,18 @@ enum class ReasonCode : std::uint16_t
   MothershipWork,
   BoughtAtAShipyard,
   BuiltFromSalvage,
-  ReserveFuelSpent
+  ReserveFuelSpent,
+  GoalsCollided,
+  GoalSatisfied,
+  BothSidesAreExhausted,
+  TheGrudgeOutlastedTheTruce,
+  TheTruceHeld,
+  TheRegionWasTooQuiet,
+  ACheaperWarWasAvailable,
+  ATreatyWasBroken
 };
 
-inline constexpr std::uint16_t REASON_CODE_COUNT = 27;
+inline constexpr std::uint16_t REASON_CODE_COUNT = 35;
 
 /// One item of evidence as the player reads it: what it is, and what it was worth (GDD §6's weights, as a fraction of
 /// a full attribution in integer hundredths).

@@ -192,6 +192,70 @@ void WriteCompany(Neuron::ByteWriter& _writer, const Company& _company)
          _reader.ReadTick(_outCompany.activeWindow.lengthTicks) && _reader.ReadBool(_outCompany.alive);
 }
 
+void WriteGoal(Neuron::ByteWriter& _writer, const EmpireGoal& _goal)
+{
+  WriteEnum(_writer, _goal.kind);
+  _writer.WriteId(_goal.system);
+  _writer.WriteId(_goal.company);
+  _writer.WriteHundredths(_goal.priority);
+  _writer.WriteTick(_goal.adoptedAtTick);
+  _writer.WriteBool(_goal.satisfied);
+}
+
+[[nodiscard]] bool ReadGoal(Neuron::ByteReader& _reader, EmpireGoal& _outGoal)
+{
+  return ReadEnum(_reader, _outGoal.kind, GOAL_KIND_COUNT) && _reader.ReadId(_outGoal.system) && _reader.ReadId(_outGoal.company) &&
+         _reader.ReadHundredths(_outGoal.priority) && _reader.ReadTick(_outGoal.adoptedAtTick) && _reader.ReadBool(_outGoal.satisfied);
+}
+
+void WriteGoals(Neuron::ByteWriter& _writer, const std::vector<EmpireGoal>& _goals)
+{
+  _writer.Write(static_cast<std::uint32_t>(_goals.size()));
+  for (const EmpireGoal& goal : _goals)
+  {
+    WriteGoal(_writer, goal);
+  }
+}
+
+/// A goal is at least its own fixed fields, so a count larger than the bytes left is corrupt.
+[[nodiscard]] bool ReadGoals(Neuron::ByteReader& _reader, std::vector<EmpireGoal>& _outGoals)
+{
+  constexpr std::uint64_t SMALLEST_GOAL_BYTES = 1 + 4 + 4 + 4 + 8 + 1;
+  std::uint32_t count = 0;
+  if (!_reader.Read(count) || static_cast<std::uint64_t>(count) * SMALLEST_GOAL_BYTES > _reader.Remaining())
+  {
+    return false;
+  }
+  _outGoals.resize(count);
+  for (EmpireGoal& goal : _outGoals)
+  {
+    if (!ReadGoal(_reader, goal))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+void WriteRelation(Neuron::ByteWriter& _writer, const Relation& _relation)
+{
+  _writer.WriteId(_relation.first);
+  _writer.WriteId(_relation.second);
+  WriteEnum(_writer, _relation.state);
+  _writer.WriteTick(_relation.warStartedAtTick);
+  _writer.WriteTick(_relation.truceExpiresAtTick);
+  _writer.WriteHundredths(_relation.grudge);
+  _writer.Write(_relation.lossesSinceWarStarted);
+}
+
+[[nodiscard]] bool ReadRelation(Neuron::ByteReader& _reader, Relation& _outRelation)
+{
+  return _reader.ReadId(_outRelation.first) && _reader.ReadId(_outRelation.second) &&
+         ReadEnum(_reader, _outRelation.state, RELATION_STATE_COUNT) && _reader.ReadTick(_outRelation.warStartedAtTick) &&
+         _reader.ReadTick(_outRelation.truceExpiresAtTick) && _reader.ReadHundredths(_outRelation.grudge) &&
+         _reader.Read(_outRelation.lossesSinceWarStarted);
+}
+
 void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
 {
   _writer.WriteString(_empire.name);
@@ -200,6 +264,7 @@ void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
   _writer.Write(_empire.colorSlot);
   WriteIds(_writer, _empire.systemsHeld);
   WriteIds(_writer, _empire.fleets);
+  WriteGoals(_writer, _empire.goals);
   WriteIds(_writer, _empire.revokedCompanies);
   _writer.WriteBool(_empire.alive);
 }
@@ -208,7 +273,7 @@ void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
 {
   return _reader.ReadString(_outEmpire.name) && _reader.ReadId(_outEmpire.leader) && _reader.ReadId(_outEmpire.homeSystem) &&
          _reader.Read(_outEmpire.colorSlot) && ReadIds(_reader, _outEmpire.systemsHeld) && ReadIds(_reader, _outEmpire.fleets) &&
-         ReadIds(_reader, _outEmpire.revokedCompanies) && _reader.ReadBool(_outEmpire.alive);
+         ReadGoals(_reader, _outEmpire.goals) && ReadIds(_reader, _outEmpire.revokedCompanies) && _reader.ReadBool(_outEmpire.alive);
 }
 
 /// The variant's alternative index, then its payload. The index is the schema: appending an alternative is safe and
@@ -543,6 +608,7 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_lanes, WriteLane);
   WriteTable(_writer, m_markets, WriteMarket);
   WriteTable(_writer, m_mothballs, WriteMothballedHull);
+  WriteTable(_writer, m_relations, WriteRelation);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -570,7 +636,7 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
       !ReadTable(_reader, loaded.m_fleets, ReadFleet) || !ReadTable(_reader, loaded.m_characters, ReadCharacter) ||
       !ReadTable(_reader, loaded.m_outposts, ReadOutpost) || !ReadTable(_reader, loaded.m_systems, ReadStarSystem) ||
       !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket) ||
-      !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull))
+      !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull) || !ReadTable(_reader, loaded.m_relations, ReadRelation))
   {
     return false;
   }

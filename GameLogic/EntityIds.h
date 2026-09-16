@@ -24,6 +24,7 @@ struct SystemTag;
 struct LaneTag;
 struct EventTag;
 struct MothballTag;
+struct RelationTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -43,5 +44,8 @@ using EventId = Neuron::Id<EventTag>;
 
 /// A hull whose crew deserted, waiting out its grace period (NC-046).
 using MothballId = Neuron::Id<MothballTag>;
+
+/// Where one pair of empires stands (NC-047).
+using RelationId = Neuron::Id<RelationTag>;
 
 } // namespace Nomad
