@@ -102,11 +102,14 @@ The three engine libraries as AGENTS.md §2 describes them, minus what A2 defers
 | NC-026 | Desk widgets | NeuronClient | L | NC-025 |
 | NC-027 | The 3D map pipeline *(owner-visible)* | NeuronClient | L | NC-021, NC-022 |
 | NC-028 | The desk's text faces *(owner-visible)* | NeuronClient, Tools | L | NC-023, NC-025, NC-026 |
+| NC-029 | The present scale, measured — ADR-009's unpaid figures | NeuronClient | M | NC-021, NC-028 |
 | NC-030 | `Session` | NeuronServer | M | NC-014, NC-015 |
 | NC-031 | The universe store *(owner-visible)* | NeuronServer, NeuronCore | M | NC-014 |
 | NC-032 | The instrumentation log | NeuronServer | S | NC-010 |
 
 **Exit:** `NomadCommander.exe` opens a borderless window covering the monitor and presents a 1920×1080 scene target into it at the display's rate (ADR-009, ADR-010), draws text and primitives *and a depth-tested sphere in perspective*, reacts to the mouse and **closes on Escape or Alt+F4 — there is no close box**; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
+
+**Phase 1's build is complete; NC-029 is its unpaid measurement.** It was added after the fact (README.md, *Adding, splitting and dropping tasks*) because NC-021, NC-027 and NC-028 each reported ADR-009's figures as owed and each was read as needing a second monitor. It adds no engine capability, nothing depends on it, and **Phase 2 starts without it** — it is here rather than later because it is `NeuronClient` work that can run beside NC-040, and Phase 2 has room for exactly one agent otherwise.
 
 ### Phase 2 — The simulation kernel, headless
 
@@ -225,6 +228,7 @@ Numbers are assigned when they land (Design/README.md). Each recommendation is t
 | Universe generation | NC-041 | The Kessel map is hand-authored data in the generator's types; the sandbox generator places systems on a jittered grid, builds a connected lane graph, and assigns roles by graph shape. | no |
 | Detection and report noise | NC-050 | Sensor range in jumps per ship class; a report carries counts and hull classes with a PRNG spread scaled by range; identity only when marked or in the same system. | no |
 | Battle resolution model | NC-062 | Round-based, twelve rounds an engagement window; each side's template is a posture per round; losses by integer strength with the pinned spread; triggers recognized with a delay in rounds and executed with a failure chance from `Tuning`. | **yes** |
+| Anti-aliasing the 3D map, reopened (supersedes **ADR-013**) | NC-072 | *Owed against a trigger, not a date.* ADR-013 deferred MSAA until "the first task that moves the camera or a fleet along a lane", and warned the deferral "can be missed if nothing checks". NC-072 is that task — fleets advance along lanes with the tick — and carries the obligation in its criteria. | no |
 
 ## Findings the owner should look at
 
