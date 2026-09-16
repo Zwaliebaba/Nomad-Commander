@@ -9,4 +9,10 @@
   <Project Path="NeuronServer/NeuronServer.vcxproj" />
   <Project Path="GameLogic/GameLogic.vcxproj" />
   <Project Path="NomadCommander/NomadCommander.vcxproj" />
+  <Folder Name="/Tests/">
+    <Project Path="Tests/NeuronCoreTests/NeuronCoreTests.vcxproj" />
+    <Project Path="Tests/NeuronClientTests/NeuronClientTests.vcxproj" />
+    <Project Path="Tests/NeuronServerTests/NeuronServerTests.vcxproj" />
+    <Project Path="Tests/GameLogicTests/GameLogicTests.vcxproj" />
+  </Folder>
 </Solution>
