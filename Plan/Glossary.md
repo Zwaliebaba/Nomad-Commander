@@ -98,7 +98,7 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 |---|---|---|---|---|
 | The composition root: the one file that sees both halves | — | `App` | `App.h`, `App.cpp`, `Main.cpp` | NC-070 |
 | The client's model, built only from wire messages (R18) | §4, §9 | `ClientModel` | `ClientModel.h` | NC-071 |
-| The 2D map | §13 | `MapScreen` | `MapScreen.h` | NC-072 |
+| The map, 3D inside a 2D desk | §13 | `MapScreen` | `MapScreen.h` | NC-072 |
 | The situation board | §3 | `BoardScreen` | `BoardScreen.h` | NC-073 |
 | Report, dossier and projection panels | §3, §4 | `ReportPanel`, `DossierPanel` | `ReportPanel.h`, `DossierPanel.h` | NC-074 |
 | The accusation panel | §3, §9 | `AccusationPanel` | `AccusationPanel.h` | NC-075 |

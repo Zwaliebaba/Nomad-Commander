@@ -43,7 +43,7 @@ vstest.console.exe x64\Debug\NeuronClientTests.dll /Platform:x64
 
 ## Out of scope
 
-Any pipeline, root signature or shader use (NC-022); MSAA; a depth buffer (the game is 2D and painter-ordered); HDR; device-removed recovery (report and exit is v0.1).
+Any pipeline, root signature or shader use (NC-022); MSAA (DXGI will not multisample a flip-model back buffer, and R12 forbids the intermediate target a resolve needs — NC-027 writes the ADR); the depth buffer (NC-027, now that GDD v1.7 puts a 3D map in v0.1; this frame loop binds none); HDR; device-removed recovery (report and exit is v0.1).
 
 ## Notes
 

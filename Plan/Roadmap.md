@@ -9,12 +9,12 @@ The plan covers v0.1 in tasks. GDD Milestone 2 and the full game are outlined at
 One executable, `x64\Release\NomadCommander.exe`, shipping alone (R13), that:
 
 1. hosts the simulation and the client in one process on a compressed local clock (GDD §15), writing one universe store and one instrumentation log beside itself and nothing else;
-2. plays the Kessel Convoy scenario end to end as GDD §3 describes it, with the mouse, on a 1920×1080 2D map with the situation board, the accusation panel, hypothesis as selection, the operation composer, the plan editor with a branch budget, courier orders, and the receipt with a replay;
+2. plays the Kessel Convoy scenario end to end as GDD §3 describes it, with the mouse, on a 1920×1080 client — a 3D map inside a 2D desk (GDD §13, v1.7) — with the situation board, the accusation panel, hypothesis as selection, the operation composer, the plan editor with a branch budget, courier orders, and the receipt with a replay;
 3. runs the sandbox: three empires and one company on about ten generated systems, with the economy, the hull market, insolvency, the floor, empire goals and wars that never go quiet, covert raids, the §6 inference rule, contracts paid by attribution, admirals choosing from the eight templates by trait, and outposts under governors;
 4. logs every event GDD §15 measures so that `Tools/MeasureLog.py` computes the measured outcomes after a playtest (R24);
 5. reproduces any run from its seed and its inputs (R16), which is what makes a bug in a playtest findable.
 
-Everything else in the GDD waits, by the GDD's own word (§15: "No production chain, no 3D, no always-on host, no memory layers, no ghosts").
+Everything else in the GDD waits, by the GDD's own word (§15: "No production chain, no always-on host, no memory layers, no ghosts"). The 3D client left that list in v1.7 and is in v0.1, under the §13 guard: it earns its place when the player can say what it tells them that the 2D map did not, and the 2D map is built first and kept so the comparison can be made.
 
 ## Assumptions the conversion made
 
@@ -100,11 +100,12 @@ The three engine libraries as AGENTS.md §2 describes them, minus what A2 defers
 | NC-024 | Input | NeuronClient | S | NC-020 |
 | NC-025 | UI core *(owner-visible)* | NeuronClient | L | NC-022, NC-023, NC-024 |
 | NC-026 | Desk widgets | NeuronClient | L | NC-025 |
+| NC-027 | The 3D map pipeline *(owner-visible)* | NeuronClient | L | NC-021, NC-022 |
 | NC-030 | `Session` | NeuronServer | M | NC-014, NC-015 |
 | NC-031 | The universe store *(owner-visible)* | NeuronServer, NeuronCore | M | NC-014 |
 | NC-032 | The instrumentation log | NeuronServer | S | NC-010 |
 
-**Exit:** `NomadCommander.exe` opens a 1920×1080 window, presents at the display's rate, draws text and primitives, reacts to the mouse and closes on the close box; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
+**Exit:** `NomadCommander.exe` opens a 1920×1080 window, presents at the display's rate, draws text and primitives *and a depth-tested sphere in perspective*, reacts to the mouse and closes on the close box; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
 
 ### Phase 2 — The simulation kernel, headless
 
@@ -159,7 +160,7 @@ The AI is the content (GDD §8): admirals choose templates by trait from belief,
 
 ### Phase 5 — The client
 
-The desk session (GDD §3) on the 2D map (§13). The composition root hosts the session; everything else on the client is drawn from wire messages and never from `World`. Every task here is run on a desktop before it is done.
+The desk session (GDD §3) on the map (§13: the map is 3D, the desk around it is 2D). The composition root hosts the session; everything else on the client is drawn from wire messages and never from `World`. Every task here is run on a desktop before it is done.
 
 | Task | Title | Project(s) | Size | Depends on |
 |---|---|---|---|---|
@@ -245,8 +246,8 @@ In the GDD's order: the always-on host (`Socket`, `FrameStream`, `NeuronServer`'
 ## Implementation risks the GDD does not list
 
 - **The UI is the largest single cost and the least game-specific.** AGENTS.md rules out helper layers, so the board, the panels, the composer and the editor are a homegrown widget set on an 8×8 font. Phase 1's UI tasks are sized L for that reason; keep the widget set to what GDD §3 shows on screen.
-- **D3D12 boilerplate for a 2D game.** Descriptor heaps, fences and resource states cost the same for a rectangle as for a mesh. NC-021 and NC-022 are the whole of it; nothing later adds a pass without an ADR.
+- **D3D12 boilerplate.** Descriptor heaps, fences and resource states cost the same for a rectangle as for a mesh. NC-021, NC-022 and NC-027 are the whole of it; nothing later adds a pass without an ADR.
 - **Determinism drifts silently.** One `float`, one `std::unordered_map` iterated into the world, one `std::chrono::now()` inside GameLogic, and the replay is gone. NC-043's harness runs in every later PR; a task that makes it fail has found its own bug.
-- **Engine work is where scope hides.** "The engine needs" is how a 2D game grows a scene graph. Phase 1 builds what Phase 5 draws and nothing else.
+- **Engine work is where scope hides, and the 3D map is where it will hide next.** "The engine needs" is how a game grows a scene graph, a material system and a model format. Phase 1 builds what Phase 5 draws and nothing else; NC-027 is one depth buffer, one camera value type and one mesh pipeline, and its out-of-scope list is the guard.
 - **An agent cannot run the executable.** Desktop-run tasks end on the owner's machine. Batch them, and keep each one's "what you must see" specific enough to check in a minute.
 - **Tuning needs play.** Every number in `Tuning.h` is a guess until NC-092 and NC-103. Do not tune from tests.

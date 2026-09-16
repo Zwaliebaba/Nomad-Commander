@@ -4,12 +4,14 @@
 |---|---|---|---|---|---|
 | 5 | NomadCommander | L | **yes** | no | Open |
 
-**Depends on:** NC-071
+**Depends on:** NC-027, NC-071
 **Read first:** GDD §13 whole (2D map; the Homeworld feel through fleet identity; decisions, not data), §7 (the graph and the roles), §3 (7:00: the convoy route, the last sighting nine hours old, the picket at the jump point); AGENTS.md §5 (*The client's dimensionality is a design question, not a conformance rule* — and a 2D map camera is available); `Design/UI/UI-Spec.md` §1, §2, §4, `Design/UI/screens/02-map-isometric-1920x1080.png`; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 
-The 2D map: systems as nodes with their role and owner, lanes, the company's fleets and outposts, and everything else only as the company's reports show it, with age. Selecting a system or a fleet opens what the desk knows about it. A 2D map camera — pan and zoom — is available (AGENTS.md §5, owner decision 2026-09-16), but this task does not need one: about ten systems fit at 1920×1080 with room to spare, by design. Add it when a map outgrows the screen, not before.
+The map: systems as nodes with their role and owner, lanes, the company's fleets and outposts, and everything else only as the company's reports show it, with age. Selecting a system or a fleet opens what the desk knows about it.
+
+**Two maps, and that is deliberate.** GDD §13 (v1.7) puts a 3D map in v0.1 and §16 guards it: it earns its place when the player can say what it tells them that the 2D map did not. So this task draws the map through `PrimitiveBatch` in pixel space *and* through NC-027's mesh pass in perspective, switchable, and the report answers that question with both in front of it. The 2D map is built first and is not deleted. About ten systems fit at 1920×1080 with room to spare either way, so neither needs pan or zoom; add a camera controller when a map outgrows the screen, not before.
 
 ## Deliverables
 

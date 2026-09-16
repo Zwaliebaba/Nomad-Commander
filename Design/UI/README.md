@@ -30,6 +30,6 @@ It was authored against the tree as it stood on the morning of 2026-09-16, and t
 
 - The screen is 1920x1080, not 1280x720 (ADR-008).
 - Blending and samplers are no longer forbidden, so the aspirational effects in `screens/02` may be built as drawn and the flat fallbacks became a menu rather than a requirement. Multisampling is still unavailable — because DXGI will not multisample a flip-model back buffer, not because a rule forbids it.
-- A camera and a mesh pipeline are no longer forbidden by `AGENTS.md` §5, but GDD §13 and §15 still say the 3D client waits and they outrank it on design. A 2D map camera was never that question.
+- A camera and a mesh pipeline are no longer forbidden by `AGENTS.md` §5, and later the same day **GDD v1.7 put the 3D client inside v0.1**: the map in `screens/02` may be rendered in perspective for real. NC-027 builds the pipeline; NC-072 draws both maps, because GDD §16 guards the 3D one on the player being able to say what it tells them that the 2D one did not. The desk around the map stays flat.
 - NC-026 has icons, so "text labels are the icons" is gone.
 - **On-screen copy is ASCII** (owner decision). The font is 96 glyphs over 0x20-0x7E with no fallback glyph, and the screens were authored with typographic characters. UI §6 carries the substitution table. **The PNGs still show the originals**: they are pictures and cannot be edited here, so where a PNG and `UI-Spec.md` disagree, the file wins (Agent-Prompt rule 1). Regenerating them from `Nomad Commander Desk.dc.html` would settle it.
