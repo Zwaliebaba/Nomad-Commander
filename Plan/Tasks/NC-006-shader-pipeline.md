@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 0 | NeuronClient | S | no | no | Open |
+| 0 | NeuronClient | S | no | no | Done (PR #1) |
 
 **Depends on:** NC-001
 **Read first:** AGENTS.md §2 (the two sanctioned subdirectories), R13 (*Shaders are compiled at build time*), §4 (`.editorconfig` for `.hlsl`)
@@ -47,8 +47,14 @@ The real primitive shaders, a root signature, a pipeline state (NC-022).
 
 - The HLSL entry-point parameters may follow the C++ naming table (`_position`); nothing enforces it, and consistency is the reason.
 - `FXCompile`'s default `HeaderFileOutput` is empty; setting it is what turns on header output.
-- The `CompiledShaders/` directory does not exist in a fresh clone; `FXCompile` creates it. Confirm rather than assume.
+- The `CompiledShaders/` directory does not exist in a fresh clone, and `fxc.exe` does not create the directory of its `/Fh` output; a `CreateCompiledShadersDirectory` target in `NeuronClient.vcxproj` runs `MakeDir` before `FXCompile`.
 
 ## Report
 
-_Filled in on hand-back._
+**Verified here (Linux, no `fxc`):** `CheckProjectFiles.py` passes with the two shaders registered, and its R7 shader sub-rule fires in a scratch copy on a wrong `VariableName`, on a shader not named `<Name>VS`/`<Name>PS`, and (`Edges`) on a second `.cpp` including a compiled header; `CheckFormat.py` passes on the new `.cpp`/`.h`; `ClientSmoke.cpp` and NeuronClientTests' `SuiteSmoke.cpp` are deleted now that a real translation unit and a real test exist. **Verified by CI, not here:** that `FXCompile` produces both headers, that the build is incremental, that the two `PrimitivePipelineTests` pass, and that nothing lands beside the executable.
+
+**Assumed:** `ObjectFileOutput` left empty emits no `/Fo` and produces no `.cso`; if the `FXCompile` target insists on an object path, the fallback is `$(IntDir)%(Filename).cso` (intermediate output, not beside the executable), recorded here if it is needed.
+
+**Refined:** the `MakeDir` target above, since `fxc.exe` will not create `CompiledShaders\`; `TreatWarningAsError` on `FXCompile` so a shader warning is as fatal as a C++ one.
+
+**Bent:** R7 for `PrimitivePipeline.h`, which holds two functions and no type until NC-022 adds the class the task already names.

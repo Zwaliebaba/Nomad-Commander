@@ -56,6 +56,14 @@
       <PreprocessorDefinitions>_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)NeuronCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <FXCompile>
+      <ShaderModel>5.1</ShaderModel>
+      <EntryPointName>main</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)CompiledShaders\%(Filename).h</HeaderFileOutput>
+      <VariableName>g_%(Filename)</VariableName>
+      <ObjectFileOutput></ObjectFileOutput>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </FXCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -79,10 +87,19 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="ClientSmoke.cpp" />
+    <ClCompile Include="PrimitivePipeline.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="PrimitivePipeline.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FXCompile Include="Shaders\PrimitiveVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FXCompile>
+    <FXCompile Include="Shaders\PrimitivePS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FXCompile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">
@@ -92,4 +109,9 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <!-- FXCompile writes its headers into CompiledShaders\, which a fresh clone does not have (it is build
+       output, AGENTS.md §2). fxc.exe does not create the directory of its /Fh output, so this does. -->
+  <Target Name="CreateCompiledShadersDirectory" BeforeTargets="FXCompile">
+    <MakeDir Directories="$(ProjectDir)CompiledShaders" />
+  </Target>
 </Project>
