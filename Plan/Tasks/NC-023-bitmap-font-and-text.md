@@ -5,7 +5,7 @@
 | 1 | NeuronClient | M | **yes** | no | Open |
 
 **Depends on:** NC-022
-**Read first:** AGENTS.md R13 ("a bitmap font is 96 glyphs, 8×8, one bit a pixel, 768 bytes, and nothing to load"), §5 (*A bitmap font is read with `Texture2D<uint>::Load()`*), R14
+**Read first:** AGENTS.md R13 ("a bitmap font is 96 glyphs, 8×8, one bit a pixel, 768 bytes, and nothing to load"), §5 (*A sampler on text costs the 1:1 guarantee* — why the glyph path uses `Texture2D<uint>::Load()`), R14
 
 ## Goal
 
@@ -22,7 +22,7 @@ Text on screen from data compiled into the executable: the 96 printable ASCII gl
 ## Acceptance criteria
 
 - [ ] Every printable ASCII character is legible on screen at scale 2; the report says the full set was displayed and looked at.
-- [ ] No sampler exists in the root signature or the shader (AGENTS.md §5).
+- [ ] The glyph path uses `Texture2D<uint>::Load()` and no sampler — not because a sampler is disallowed (it is not, since 2026-09-16) but because filtering a glyph at a non-integer position is blur, which is what R12's 1:1 screen exists to prevent.
 - [ ] The readback test matches the glyph bits exactly.
 - [ ] The atlas upload happens once, through an upload heap and `CopyTextureRegion` with the 256-byte-aligned row pitch, and is released after the copy fences.
 - [ ] `Measure` agrees with what `Draw` covers, so NC-025 can lay text out.
@@ -44,7 +44,7 @@ Kerning, proportional widths, UTF-8 beyond ASCII (names in the GDD are ASCII), a
 
 ## Notes
 
-- `discard` is not blending: the pixel is not written. That is why panels can be opaque and text can sit on them without an alpha channel.
+- `discard` is not blending: the pixel is not written. That is why panels can be opaque and text can sit on them without an alpha channel, and it stays the cheaper path now that blending is available.
 - The atlas is `R8_UINT`, one texel a pixel, decoded from the bit array at upload; 6 KiB of texture for 768 bytes of data is a fine trade for a `Load` per pixel.
 
 ## Report

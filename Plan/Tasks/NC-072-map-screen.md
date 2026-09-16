@@ -5,11 +5,11 @@
 | 5 | NomadCommander | L | **yes** | no | Open |
 
 **Depends on:** NC-071
-**Read first:** GDD §13 whole (2D map; the Homeworld feel through fleet identity; decisions, not data), §7 (the graph and the roles), §3 (7:00: the convoy route, the last sighting nine hours old, the picket at the jump point); AGENTS.md §5 (*The client is 2D, and the design protects that*)
+**Read first:** GDD §13 whole (2D map; the Homeworld feel through fleet identity; decisions, not data), §7 (the graph and the roles), §3 (7:00: the convoy route, the last sighting nine hours old, the picket at the jump point); AGENTS.md §5 (*The client's dimensionality is a design question, not a conformance rule* — and a 2D map camera is available)
 
 ## Goal
 
-The 2D map: systems as nodes with their role and owner, lanes, the company's fleets and outposts, and everything else only as the company's reports show it, with age. Selecting a system or a fleet opens what the desk knows about it. No camera, no zoom beyond what the fixed screen holds: about ten systems fit at 1920×1080 with room to spare, by design.
+The 2D map: systems as nodes with their role and owner, lanes, the company's fleets and outposts, and everything else only as the company's reports show it, with age. Selecting a system or a fleet opens what the desk knows about it. A 2D map camera — pan and zoom — is available (AGENTS.md §5, owner decision 2026-09-16), but this task does not need one: about ten systems fit at 1920×1080 with room to spare, by design. Add it when a map outgrows the screen, not before.
 
 ## Deliverables
 
@@ -22,7 +22,7 @@ The 2D map: systems as nodes with their role and owner, lanes, the company's fle
 - [ ] The owner opens the map on the sandbox and sees the ten systems, the lanes, their fleets and a sighting with its age; the report says so.
 - [ ] Nothing drawn for another empire's fleet comes from anywhere but a report in `ClientModel` (the reviewer reads the draw code).
 - [ ] Ages update every frame from the session tick; a nine-hour-old sighting reads "9 h".
-- [ ] No transform other than pixel positions (AGENTS.md §5: no camera).
+- [ ] No transform other than pixel positions. A camera is permitted now (AGENTS.md §5, 2026-09-16); this task declines one because every system fits on the screen, and says so rather than inheriting a ban.
 
 ## Verification
 

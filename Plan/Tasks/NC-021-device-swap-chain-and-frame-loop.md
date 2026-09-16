@@ -5,7 +5,7 @@
 | 1 | NeuronClient | L | **yes** | no | Open |
 
 **Depends on:** NC-020, NC-006
-**Read first:** AGENTS.md R12 whole (format, no intermediate target, no D3D11, COM is RAII), R13, R14 (and the D3D12 paragraph under it), §4 (include order; `<windows.h>` before D3D12/DXGI), §5 (*The renderer starts with no sampler, no blending and no multisampling*); `Plan/Roadmap.md` A12
+**Read first:** AGENTS.md R12 whole (format, no intermediate target, no D3D11, COM is RAII), R13, R14 (and the D3D12 paragraph under it), §4 (include order; `<windows.h>` before D3D12/DXGI), §5 (*Blending and samplers are a pass's own business*, and why MSAA is unavailable on a flip-model back buffer); `Plan/Roadmap.md` A12
 
 ## Goal
 

@@ -5,16 +5,16 @@
 | 1 | NeuronClient | L | **yes** | no | Open |
 
 **Depends on:** NC-021
-**Read first:** GDD §13 (2D map, "the game's complexity is informational, not visual"); AGENTS.md §5 (*The client is 2D, and the design protects that*; *no sampler, no blending, no multisampling*), R12, R13 (shaders at build time)
+**Read first:** GDD §13 (2D map, "the game's complexity is informational, not visual"); AGENTS.md §5 (*Blending and samplers are a pass's own business, and the shared defaults stay opaque*), R12, R13 (shaders at build time)
 
 ## Goal
 
-Everything the map and the UI will draw that is not text: filled rectangles, lines, filled convex polygons and circles, in pixel coordinates with the origin at the top left, in painter's order, opaque, through one root signature and two pipeline states built from shared defaults that have blending, multisampling and anti-aliased lines off.
+Everything the map and the UI will draw that is not text: filled rectangles, lines, filled convex polygons and circles, in pixel coordinates with the origin at the top left, in painter's order, opaque, through one root signature and two pipeline states built from shared defaults that leave blending and anti-aliased lines off. Opaque is what these primitives need; it is a default this task keeps, not a rule it obeys.
 
 ## Deliverables
 
 - `NeuronClient/Shaders/PrimitiveVS.hlsl` and `PrimitivePS.hlsl` (replacing NC-006's stubs): the vertex shader turns `float2` pixel positions into clip space using the screen size from root constants and passes a `uint` packed colour through; the pixel shader unpacks and returns it.
-- `NeuronClient/PipelineDefaults.h` + `.cpp`: `PipelineDefaults::Rasterizer()` (cull none, `AntialiasedLineEnable` false, `MultisampleEnable` false), `Blend()` (no blend, write all), `DepthStencil()` (disabled), `SampleDesc()` (count 1), and a comment quoting AGENTS.md §5: a pass that wants otherwise writes an ADR.
+- `NeuronClient/PipelineDefaults.h` + `.cpp`: `PipelineDefaults::Rasterizer()` (cull none, `AntialiasedLineEnable` false, `MultisampleEnable` false), `Blend()` (no blend, write all), `DepthStencil()` (disabled), `SampleDesc()` (count 1 — DXGI does not multisample a flip-model back buffer, so this one is not a choice), and a comment saying which of these are defaults a later pass may override and which is a fact about the swap chain.
 - `NeuronClient/PrimitivePipeline.h` + `.cpp` (grown from NC-006): the root signature (root constants only), two `ID3D12PipelineState`s (triangle list, line list), `Create(GraphicsDevice&)`.
 - `NeuronClient/PrimitiveBatch.h` + `.cpp`: `struct PrimitiveVertex { float positionX; float positionY; std::uint32_t colorRgba; }` (R8; `float` is fine on the client, R16 binds GameLogic), a per-frame upload ring (`FRAMES_IN_FLIGHT` slices of a persistently mapped upload buffer), `Begin(commandList)`, `FillRect`, `Rect` (outline, 1 px), `Line`, `FillPolygon(std::span<const Point>)`, `FillCircle(centre, radius, segments)`, `End()` which records the draws in submission order.
 - `NeuronClientTests/PrimitiveBatchTests.cpp`: on WARP into a `FrameTarget`, fill a 10×10 rectangle at (20, 30) with `0xFF0000FF` and read back exactly those pixels changed; draw a horizontal line and read back its row.
@@ -36,11 +36,11 @@ vstest.console.exe x64\Debug\NeuronClientTests.dll /Platform:x64
 
 ## Decisions to record
 
-None. Blending, a sampler or MSAA would be one (AGENTS.md §5); this task adds none.
+None. Blending and samplers stopped needing one on 2026-09-16 (AGENTS.md §5); this task still uses neither, because opaque primitives need neither.
 
 ## Out of scope
 
-Text (NC-023), textures, transforms other than pixel-to-clip, a scene graph, a camera (AGENTS.md §5 names the camera as a step towards 3D that nobody has).
+Text (NC-023), textures, transforms other than pixel-to-clip, a scene graph, a camera. None of these is forbidden any more (AGENTS.md §5, 2026-09-16); they are simply not what this task draws.
 
 ## Notes
 

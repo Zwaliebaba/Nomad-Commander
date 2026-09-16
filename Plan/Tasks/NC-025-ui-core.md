@@ -5,7 +5,7 @@
 | 1 | NeuronClient | L | **yes** | **yes** | Open |
 
 **Depends on:** NC-022, NC-023, NC-024
-**Read first:** GDD §3 whole (every panel it names), §13 ("The interface presents decisions, not data"); AGENTS.md R12 (no immediate-mode helper layers), R13 (colours embedded), §5 (no blending: panels are opaque)
+**Read first:** GDD §3 whole (every panel it names), §13 ("The interface presents decisions, not data"); AGENTS.md R12 (no immediate-mode helper layers), R13 (colours embedded), §5 (blending is a pass's own business; panels are opaque by default)
 
 ## Goal
 
@@ -36,7 +36,7 @@ vstest.console.exe x64\Debug\NeuronClientTests.dll /Platform:x64
 
 ## Decisions to record
 
-**ADR — the UI model** (owner-visible). Recommendation (Roadmap): immediate mode in pixel space; the 8×8 font at scale 3 gives a 24-pixel cell and an 80×45 grid on the 1920×1080 screen; widgets are functions on `Ui` keyed by caller ids; opaque panels because there is no blending; disabled and dim states are colours, not alpha. What it forecloses: a retained widget tree, animation by blending, a second font size that is not an integer scale.
+**ADR — the UI model** (owner-visible). Recommendation (Roadmap): immediate mode in pixel space; the 8×8 font at scale 3 gives a 24-pixel cell and an 80×45 grid on the 1920×1080 screen; widgets are functions on `Ui` keyed by caller ids; panels opaque by default, with blending available to a widget that earns it; disabled and dim states are colours by default, and alpha is no longer ruled out. What it forecloses: a retained widget tree, a second font size that is not an integer scale.
 
 ## Out of scope
 

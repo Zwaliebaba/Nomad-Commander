@@ -22,7 +22,7 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | The D3D12 device and queue | `GraphicsDevice` | `GraphicsDevice.h` | NeuronClient | NC-021 |
 | The 1920×1080 back buffer and its frames | `SwapChainTarget`, `TargetFault` | `SwapChainTarget.h` | NeuronClient | NC-021 |
 | The test-only offscreen target with readback (A12) | `FrameTarget` | `FrameTarget.h` | NeuronClient | NC-021 |
-| Shared pipeline defaults (no blend, no MSAA, no AA lines) | `PipelineDefaults` | `PipelineDefaults.h` | NeuronClient | NC-022 |
+| Shared pipeline defaults (opaque by default; MSAA is unavailable on a flip-model back buffer) | `PipelineDefaults` | `PipelineDefaults.h` | NeuronClient | NC-022 |
 | 2D primitives in pixel space | `PrimitiveBatch`, `PrimitiveVertex` | `PrimitiveBatch.h`, `PrimitivePipeline.h` | NeuronClient | NC-006, NC-022 |
 | The bitmap font, 96 glyphs, 8×8, one bit a pixel (R13) | `FONT_8X8_GLYPHS` | `BitmapFont.h` | NeuronClient | NC-023 |
 | Text drawing | `TextRenderer`, `GLYPH_SCALE` | `TextRenderer.h`, `GlyphPipeline.h` | NeuronClient | NC-023 |
