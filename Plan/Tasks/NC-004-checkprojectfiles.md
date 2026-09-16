@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 0 | Build | L | no | no | Open |
+| 0 | Build | L | no | no | Done (PR #1) |
 
 **Depends on:** NC-002
 **Read first:** AGENTS.md §1 (R2, R7, R11 and the *Enforcement* table), §2 (the project graph, the flat-directory rule, the shader directories), §3 (*Debug and Release are aligned by rule*, the include-path rule), §6 (*Keep the project files honest*); `Plan/Roadmap.md` *Conventions*; `.clang-tidy` (`HeaderFilterRegex`, and the four rules it says this script carries)
@@ -23,7 +23,7 @@ The static gate that stands in for the Release build nobody runs and for the rul
   6. **Unique names.** No two headers in the tree share a base name, except the per-project files R7 exempts (`pch.h`, `framework.h`, `targetver.h`, `Resource.h`), which never cross a project boundary (Roadmap *Conventions*).
   7. **R2.** No `class`/`struct`/`enum`/`concept`/`using` declaration whose name starts with `I`, `C`, `S`, `E` followed by an uppercase letter and is followed by another uppercase-led word (`IFoo`, `CFoo`), or ends in `Base`, `Abstract`, `Impl` or `_t`. SDK identifiers are not declared by this tree, so the rule needs no exemption list; if one becomes necessary, it is a named constant with a reason.
   8. **R11.** No identifier (comments and string literals stripped) contains, case-insensitively, `colour`, `initialise`, `serialise`, `normalise`, `quantise`, `synchronise`, `behaviour`, `neighbour`, `centre`, `grey` or `cancelled`.
-  9. **Edges.** Resolving each `#include "…"` the way `cl.exe` does (the including file's directory, then the project's include directories in order): NeuronCore includes only itself; NeuronClient, NeuronServer and GameLogic include only themselves and NeuronCore; NeuronClient never includes NeuronServer or the reverse; no client-side file (all of NeuronClient; all of NomadCommander except `App.cpp`) includes a GameLogic header other than `Wire*.h`; `Wire*.h` include only NeuronCore and each other; a test project includes only the libraries it references. Windows and standard headers are ignored.
+  9. **Edges.** Resolving each `#include "…"` the way `cl.exe` does (the including file's directory, then the project's include directories in order): NeuronCore includes only itself; NeuronClient, NeuronServer and GameLogic include only themselves and NeuronCore; NeuronClient never includes NeuronServer or the reverse, and includes nothing from GameLogic (R9); no client-side file in NomadCommander other than `App.cpp` includes a GameLogic header other than `Wire*.h`; a `ProjectReference` or an include directory outside the graph is a finding too; `Wire*.h` include only NeuronCore and each other; a test project includes only the libraries it references. Windows and standard headers are ignored.
   10. **Solution.** `NomadCommander.slnx` lists exactly the nine projects and only the `x64` platform.
 - A `--list-rules` option printing the ten rules with one line each, so the script documents itself.
 
@@ -58,4 +58,10 @@ Anything clang-tidy checks (§1's *Enforcement* table). Formatting (NC-003). Run
 
 ## Report
 
-_Filled in on hand-back._
+**Verified here:** the script exits 0 on the Phase 0 tree (nine projects) in well under a second. Each rule was then exercised in a scratch copy of the tree with a deliberate violation, and each produced a finding naming the rule: Shape (toolset v143; the project's own directory on the include path; `NOMINMAX` passed through `PreprocessorDefinitions`), Alignment (`WarningLevel` Level3 in Release only; an extra define in Release), Registration (a file on disk not in the project; `debug.cpp` listed for `Debug.cpp` on disk; a header missing from the filters; and, in the real repository through the index, a file under `CompiledShaders/`), Flat (`NeuronServer/Sub/`), R7 (`badName.cpp`; a `.hpp`), UniqueNames (a second `Debug.h`), R2 (`ITransport`, `FleetBase`, with line numbers), R11 (`g_colourCount`, with the word in a comment left alone), Edges (NeuronServer on NeuronClient's include path; `Main.cpp` including `World.h`; a `ProjectReference` from NeuronClient to NeuronServer), Solution (a missing project; a `Win32` platform). The R7 shader sub-rule is exercised by NC-006, which brings the first shaders. `--list-rules` prints the ten. **Verified by CI:** the *Check the build shape* step as written.
+
+**Assumed:** nothing beyond the standard library and, for the `CompiledShaders/` commit check, `git` on the path (skipped with a printed warning when absent).
+
+**Refined:** the alignment allowlist gained `Link.LinkTimeCodeGeneration`, `Lib.LinkTimeCodeGeneration` and `ClCompile.WholeProgramOptimization`, which VS writes for the LTCG family AGENTS.md §3 names. `%(Name)` self-references in item metadata are expanded the way MSBuild does, which the first draft did not do and which hid a define leaked through the shared group; the negative test found it. The edge rule also checks `AdditionalIncludeDirectories` and `ProjectReference` against the graph, because an include the compiler cannot resolve is a build error rather than a finding, and the include path is where the edge is actually crossed.
+
+**Bent:** nothing.
