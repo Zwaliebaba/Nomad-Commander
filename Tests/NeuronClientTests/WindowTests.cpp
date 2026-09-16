@@ -20,6 +20,10 @@ namespace
 }
 
 /// What failed, in words, so that a build agent's log names the branch rather than only the line.
+///
+/// Call it AFTER the creation it describes, in a statement of its own. The order in which a call's arguments are
+/// evaluated is unspecified, so `Assert::IsTrue(Create(...), WhyItFailed(...).c_str())` may read the window before it
+/// has been created — which is exactly what happened on the first run that used this.
 [[nodiscard]] std::wstring WhyItFailed(const Neuron::Window& _window)
 {
   std::wstring reason = L"Window::Create failed: ";
@@ -53,7 +57,8 @@ public:
   TEST_METHOD(TheClientAreaIsExactlyTheScreen)
   {
     Neuron::Window window;
-    Assert::IsTrue(CreateHidden(window), WhyItFailed(window).c_str());
+    const bool created = CreateHidden(window);
+    Assert::IsTrue(created, WhyItFailed(window).c_str());
     Assert::IsNotNull(window.Handle());
 
     std::uint32_t width = 0;
@@ -66,7 +71,8 @@ public:
   TEST_METHOD(TheWindowCannotBeResizedOrMaximized)
   {
     Neuron::Window window;
-    Assert::IsTrue(CreateHidden(window), WhyItFailed(window).c_str());
+    const bool created = CreateHidden(window);
+    Assert::IsTrue(created, WhyItFailed(window).c_str());
     const LONG_PTR style = GetWindowLongPtrW(window.Handle(), GWL_STYLE);
     Assert::AreEqual(LONG_PTR{0}, style & WS_THICKFRAME);
     Assert::AreEqual(LONG_PTR{0}, style & WS_MAXIMIZEBOX);
@@ -76,7 +82,8 @@ public:
   TEST_METHOD(PumpingReturnsAtOnceWhileTheWindowIsOpen)
   {
     Neuron::Window window;
-    Assert::IsTrue(CreateHidden(window), WhyItFailed(window).c_str());
+    const bool created = CreateHidden(window);
+    Assert::IsTrue(created, WhyItFailed(window).c_str());
     for (int i = 0; i < 100; ++i)
     {
       Assert::IsTrue(window.PumpMessages());
@@ -87,7 +94,8 @@ public:
   TEST_METHOD(ClosingIsReportedByTheNextPump)
   {
     Neuron::Window window;
-    Assert::IsTrue(CreateHidden(window), WhyItFailed(window).c_str());
+    const bool created = CreateHidden(window);
+    Assert::IsTrue(created, WhyItFailed(window).c_str());
     window.RequestClose();
 
     // The close is posted, so it takes a pump to be seen; the pump that handles it also sees the quit that follows.
@@ -106,10 +114,12 @@ public:
     // The window class is registered once per process; a second creation must not fail because of it.
     {
       Neuron::Window first;
-      Assert::IsTrue(CreateHidden(first), WhyItFailed(first).c_str());
+      const bool createdFirst = CreateHidden(first);
+      Assert::IsTrue(createdFirst, WhyItFailed(first).c_str());
     }
     Neuron::Window second;
-    Assert::IsTrue(CreateHidden(second), WhyItFailed(second).c_str());
+    const bool createdSecond = CreateHidden(second);
+    Assert::IsTrue(createdSecond, WhyItFailed(second).c_str());
     std::uint32_t width = 0;
     std::uint32_t height = 0;
     Assert::IsTrue(second.ClientSizePixels(width, height));
