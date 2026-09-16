@@ -29,10 +29,12 @@ Cite as *UI §n*. Pixel values are given at 1920x1080 with the 1280x720 value in
 | HOSTILE | `#D9534F` | acting-against state (reserved; not on these screens) |
 | EMPIRE_0 (Varn) | `#C9524A` | |
 | EMPIRE_1 (Oren) | `#4F9DD3` | |
-| EMPIRE_2 (Sedu) | `#7BB765` | placeholder name; owner renames |
+| EMPIRE_2 (Sedu Compact) | `#7BB765` | canon since 2026-09-16 |
 | NEUTRAL | `#7F8796` | unclaimed systems |
 
 Text on ACCENT buttons is BACKGROUND. Dim variants of empire colours for old reports: Varn `#8A5A55`, edge `#5A3A36`.
+
+**Sphere shading** (owner decision, 2026-09-16; NC-072). Each empire slot carries three colours — highlight, body, limb — as `inline constexpr` in `Palette.h` beside the rest, so a system node is three concentric filled discs or a coloured triangle fan rather than a flat one. Interpolating a colour across a triangle is not blending, so this was reachable even before blending was allowed. The 3D map (NC-027) may light a real sphere instead; this table is what the 2D map uses, and GDD §16 keeps the 2D map.
 
 ## 3. Board (NC-073) — `screens/01`
 

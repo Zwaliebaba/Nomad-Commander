@@ -35,7 +35,9 @@ x64\Debug\NomadCommander.exe --sandbox 1
 
 ## Decisions to record
 
-None.
+**None outstanding for the sphere shading** — the owner settled it on 2026-09-16: `Palette.h` gains three colours per empire slot (highlight, body, limb) as `inline constexpr`, embedded like every other colour (R13), and a node is three concentric discs or a coloured triangle fan. Record the table's values in the report with a screenshot beside `screens/02`.
+
+Nothing else.
 
 ## Out of scope
 
