@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | M | no | no | Done (PENDING) |
+| 2 | GameLogic | M | no | no | Done (caece0d) |
 
 **Depends on:** NC-040
 **Read first:** GDD §7 (the graph, the roles, jump durations), §10 (what each role produces), §15 (about ten systems, three empires; Milestone 2: about twenty and five); AGENTS.md §2 (GameLogic: "the universe graph and its generator")
