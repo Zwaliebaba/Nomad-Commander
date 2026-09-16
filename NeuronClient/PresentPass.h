@@ -68,6 +68,19 @@ public:
   /// Records the present step into an open frame. The back buffer is already a bound, cleared render target.
   void Execute(ID3D12GraphicsCommandList* _commandList, SceneTarget& _scene, SwapChainTarget& _swapChain) noexcept;
 
+  /// The same step against any destination of a known size, which is what the one above is written in terms of.
+  ///
+  /// The destination is already bound as a cleared render target and is in RENDER_TARGET state; this pass binds no
+  /// target of its own, because the caller's clear colour is what fills the letterbox bars. The size is a parameter
+  /// rather than a question put to the resource, because it is the client area that decides the fit and the game's
+  /// destination is a back buffer, which knows its extent but not what ADR-009 means by it.
+  ///
+  /// It exists because the three filter cases are otherwise only reachable on a display of the matching size: a back
+  /// buffer's extent comes from DXGI_SWAP_CHAIN_DESC1 and a scene target's from its Desc, so NC-029 measures all three
+  /// on one monitor by presenting into a SceneTarget it can read back.
+  void Execute(ID3D12GraphicsCommandList* _commandList, SceneTarget& _scene, ID3D12Resource* _destination,
+               std::uint32_t _destinationWidthPixels, std::uint32_t _destinationHeightPixels) noexcept;
+
   /// What the last Execute did, for the report and the instrumentation log.
   [[nodiscard]] Placement LastPlacement() const noexcept
   {

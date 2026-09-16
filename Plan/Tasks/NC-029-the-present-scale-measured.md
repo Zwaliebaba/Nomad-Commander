@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient, Tests/NeuronClientTests | M | no | no | Open |
+| 1 | NeuronClient, Tests/NeuronClientTests | M | **yes** | no | Done (ab488a9) |
 
 **Depends on:** NC-021, NC-028
 **Read first:** [ADR-009](../../Design/ADR/ADR-009-the-scene-target-and-the-present-scale.md) whole, and its *Measurements* section twice; [ADR-010](../../Design/ADR/ADR-010-the-borderless-window.md); [ADR-016](../../Design/ADR/ADR-016-the-desk-text-faces.md); AGENTS.md R12, §5 (*A sampler on text costs the 1:1 guarantee*), §6 (*Figures in an ADR are measured, not estimated*); the reports of NC-021, NC-027 and NC-028, each of which names this debt unpaid
@@ -68,4 +68,43 @@ Changing which filter any case gets. MSAA and supersampling — [ADR-013](../../
 
 ## Report
 
-_Filled in on hand-back._
+**The debt was not hardware-blocked, and that is the finding.** NC-021, NC-027 and NC-028 each recorded ADR-009’s figures as owed and each named the same cause — one 1920×1080 monitor. All three read the obligation as a *photograph*, and a photograph of a scaled present really does need a display that is not 1920×1080. The numbers never did: a destination’s extent is a parameter, not a property of the monitor. Once that was seen the task was an afternoon.
+
+**The three figures ADR-009 asked for, and its *Measurements* section no longer reads "None quoted".**
+
+| | 1:1 — 1920×1080 | 2× point — 3840×2160 | 0.71× bilinear — 1366×768 |
+|---|---|---|---|
+| Pixels in the placement | 2,073,600 | 8,294,400 | 1,048,320 |
+| Pixels moved | **0** | **0** | 14,480 |
+| Largest single-channel move | 0 | 0 | **151** of 255 |
+| Colours the source does not contain | 0 | 0 | 6,530 |
+| Lit / partial | 21,538 / 15,905 | 86,152 / 63,620 | 15,056 / 14,669 |
+| Partial as a share of lit | 73 % | 73 % | **97 %** |
+
+**The 2× column is exact rather than close.** 86,152 is exactly 4 × 21,538 and 63,620 exactly 4 × 15,905 — every texel became precisely its own 2×2 block. That is a stronger statement than the criterion asked for (it wanted "no colour the source does not contain", which follows from it), and it is the kind of result that is either exact or wrong, so it is worth having as an equality.
+
+**The headline cost is 97 %.** After a 0.71× bilinear present only 3 % of the lit pixels are still full-strength ink where 27 % were before, and a single channel can move 151 of 255. ADR-009 guessed "softer text" and the guess was right; this is how soft.
+
+**Refined against the code as it is.**
+
+- **The one engine change the task anticipated was needed, and it is eleven lines.** `PresentPass::Execute` took a `SwapChainTarget` and nothing else, so the destination size was whatever the window happened to be. It now has an overload taking the destination resource and its extent, and the swap-chain one is written in terms of it — which is also the more honest decomposition, because this pass never needed a swap chain, only somewhere to put pixels and a size to fit against.
+- **No new type, and the destination is a `SceneTarget`.** A12’s lesson is `FrameTarget`: the suite reads the pixels a player would see rather than a parallel object. `SceneTarget::Desc` already carried width and height, so the destination needed no change at all — the thing that made all three cases reachable on one monitor was already in the tree and nobody had noticed.
+- **The sample is every glyph of every face, not a sentence.** A number about "text" should not be a number about the letters one sentence happened to use; a face’s widest stem and its thinnest diagonal resample differently and both are on screen. The prose line is there for ordinary spacing.
+- **The softness metric is deliberately ADR-013’s methodology.** Partial-over-lit is a coverage measure of the same shape as "655 of 655 edge pixels have exactly the background immediately outside", so the two ADRs can be read against each other rather than each in its own units.
+- **Desktop run moved from *no* to *yes*.** The task argued the run added nothing, and for the *figures* that is still true. But this changed the code path the game presents through on every frame, and AGENTS.md §7 requires a run for anything touching presentation — which outranks a task file. It was run.
+
+**`CheckProjectFiles.py` caught an R11 violation nobody would have caught by eye**: a test method named `...InventsNoColour`. Prose may spell it either way and this tree’s identifiers may not. That check earns its place on names like this one, where the word is buried in the middle of a forty-character method name.
+
+**Verified:** `CheckFormat.py` (115 files), `CheckProjectFiles.py` (9 projects, clean), `RunClangTidy.py` (**54 translation units clean**, on 22.1.3 against CI’s pinned 22.1.8). Debug **and** Release rebuild with zero warnings — Release because this changed engine code on the frame path and CI does not build it (§6). All four suites: **176 of 176 green**, 78 in `NeuronClientTests`, 3 new here. The debug layer said nothing across the run.
+
+**Run, and what that did and did not establish.** `x64\Debug\NomadCommander.exe` was launched, created its borderless 1920×1080 window, ran four seconds and exited with code 0 on Escape — so the widened `Execute` works against the real swap chain and not only against a `SceneTarget`. **The frame was not photographed.** Two attempts to capture it from a background shell came back with the desktop rather than the game, and the second also reproduced NC-028’s DPI trap (1536×864 until the capturing thread is made per-monitor aware). Both captures were deleted. This is a smaller loss than it sounds: the readback tests compare 11.4 million pixels against their sources, which is the point NC-027 made when a screenshot would have shown a perfectly plausible map with a broken depth test.
+
+**Assumed:** that WARP’s bilinear and point samplers behave as a discrete GPU’s do. The 1:1 and 2× columns cannot depend on it — a copy and an exact block mapping have nothing to round — but the 0.71× column is a filter’s arithmetic, and another adapter could land a channel a level or two elsewhere. The shape of the finding would not move; the last digit might.
+
+**Bent:** nothing.
+
+**Noticed and left alone.**
+
+- **ADR-010 says displays larger than the screen were "knowingly made worse", and at exactly 3840×2160 that is now measurably false** — the present is lossless there, four pixels a texel, nothing invented. 4K is a common desktop. That is an argument about ADR-010’s wording, the owner’s to make, and this task did not touch it.
+- **ADR-009’s *What this forecloses* paragraph is written about the 8×8 bitmap font ADR-016 replaced**, so "the one thing bitmap type is worst at" overstates the cost as the client now stands. Flagged inside the ADR’s *Measurements* section, where a reader of the figures will meet it; the paragraph itself is the owner’s to rewrite.
+- **The judgement half of the obligation is still open**, and no amount of readback closes it: nobody has seen the 0.71× case on a real 1366×768 panel. What changed is that the argument now has numbers on both sides of it.

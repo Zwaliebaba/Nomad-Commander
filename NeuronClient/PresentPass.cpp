@@ -225,11 +225,19 @@ bool PresentPass::Create(GraphicsDevice& _device, const SceneTarget& _scene, Pre
 
 void PresentPass::Execute(ID3D12GraphicsCommandList* _commandList, SceneTarget& _scene, SwapChainTarget& _swapChain) noexcept
 {
-  if (_commandList == nullptr || m_pipeline == nullptr)
+  // The frame's own call. A back buffer's extent IS the client area ADR-009 fits against, so there is nothing to
+  // decide here beyond naming the two.
+  Execute(_commandList, _scene, _swapChain.BackBuffer(), _swapChain.WidthPixels(), _swapChain.HeightPixels());
+}
+
+void PresentPass::Execute(ID3D12GraphicsCommandList* _commandList, SceneTarget& _scene, ID3D12Resource* _destination,
+                          std::uint32_t _destinationWidthPixels, std::uint32_t _destinationHeightPixels) noexcept
+{
+  if (_commandList == nullptr || m_pipeline == nullptr || _destination == nullptr)
   {
     return;
   }
-  const Placement placement = Fit(_scene.WidthPixels(), _scene.HeightPixels(), _swapChain.WidthPixels(), _swapChain.HeightPixels());
+  const Placement placement = Fit(_scene.WidthPixels(), _scene.HeightPixels(), _destinationWidthPixels, _destinationHeightPixels);
   m_lastPlacement = placement;
   if (placement.widthPixels == 0 || placement.heightPixels == 0)
   {
@@ -239,11 +247,10 @@ void PresentPass::Execute(ID3D12GraphicsCommandList* _commandList, SceneTarget& 
   if (placement.filter == Filter::None)
   {
     // The cheapest path there is, and the only one that is unfiltered by construction rather than by argument.
-    ID3D12Resource* const backBuffer = _swapChain.BackBuffer();
     _scene.Transition(_commandList, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    TransitionResource(_commandList, backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
-    _commandList->CopyResource(backBuffer, _scene.Resource());
-    TransitionResource(_commandList, backBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    TransitionResource(_commandList, _destination, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
+    _commandList->CopyResource(_destination, _scene.Resource());
+    TransitionResource(_commandList, _destination, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
     _scene.Transition(_commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
     return;
   }

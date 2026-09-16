@@ -5,6 +5,7 @@
     <ClCompile Include="PrimitivePipelineTests.cpp" />
     <ClCompile Include="GraphicsDeviceTests.cpp" />
     <ClCompile Include="PrimitiveBatchTests.cpp" />
+    <ClCompile Include="PresentScaleTests.cpp" />
     <ClCompile Include="InputStateTests.cpp" />
     <ClCompile Include="TextRendererTests.cpp" />
     <ClCompile Include="UiTests.cpp" />

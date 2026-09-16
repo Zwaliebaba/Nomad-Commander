@@ -90,6 +90,7 @@
     <ClCompile Include="InputStateTests.cpp" />
     <ClCompile Include="MeshPipelineTests.cpp" />
     <ClCompile Include="PrimitiveBatchTests.cpp" />
+    <ClCompile Include="PresentScaleTests.cpp" />
     <ClCompile Include="TextRendererTests.cpp" />
     <ClCompile Include="UiTests.cpp" />
     <ClCompile Include="UiWidgetTests.cpp" />

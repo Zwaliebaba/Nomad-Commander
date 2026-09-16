@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-16
-**Task:** NC-021 (implements); NC-020 amended, NC-027 relieved
+**Task:** NC-021 (implements); NC-020 amended, NC-027 relieved; NC-029 measures
 **Cites:** GDD §13 (v1.7); AGENTS.md R12, R13, R14, §5; ADR-008; `Design/UI/UI-Spec.md` §1
 
 ## Context
@@ -43,4 +43,23 @@ It does **not** foreclose going back: deleting the scene target and drawing into
 
 ## Measurements
 
-None quoted. The three filter cases in the decision are stated from how point and bilinear sampling behave, not from a measurement of this client; **NC-021 is to photograph the same text at 1:1, at 2× point and at 0.71× bilinear and put the three in its report**, because "softer text" is the kind of claim that should be looked at rather than argued about.
+**Measured by NC-029**, three reports after this ADR asked for them. NC-021, NC-027 and NC-028 each recorded the figures as owed and each read the obligation as a *photograph*, which needs a display that is not 1920×1080; the numbers never did. A destination’s extent is a parameter rather than a property of the monitor — a back buffer’s comes from `DXGI_SWAP_CHAIN_DESC1` and a scene target’s from its `Desc` — so `PresentScaleTests` presents one scene target into three destinations of its own making, on WARP, and reads each back. The figures therefore reproduce on a CI runner with no display at all.
+
+The sample is every printable glyph of all three faces (ADR-016) plus one line of ordinary prose, in `Palette::TEXT` on `Palette::BACKGROUND`. *Lit* is a pixel that is not the background; *partial* is lit but not the full ink — an anti-aliased edge rather than solid type. *Moved* is measured against the source texel each destination pixel stands over.
+
+| | 1:1 — 1920×1080 | 2× point — 3840×2160 | 0.71× bilinear — 1366×768 |
+|---|---|---|---|
+| Placement | 1920×1080 at (0,0) | 3840×2160 at (0,0) | 1365×768 at (0,0), one bar column |
+| Pixels in the placement | 2,073,600 | 8,294,400 | 1,048,320 |
+| **Pixels moved** | **0** | **0** | **14,480** |
+| Largest single-channel move | 0 | 0 | **151** of 255 |
+| Colours the source does not contain | 0 | 0 | 6,530 |
+| Lit pixels | 21,538 | 86,152 | 15,056 |
+| Partial (edge) pixels | 15,905 | 63,620 | 14,669 |
+| **Partial as a share of lit** | **73 %** | **73 %** | **97 %** |
+
+**The first two columns are exact, not approximate.** The 1:1 path moves no pixel because it is a `CopyResource` and there is no sampler to round anything. The 2× column is the same image four times over — 86,152 is exactly 4 × 21,538 and 63,620 exactly 4 × 15,905 — so every texel really did become its own 2×2 block and point sampling introduced no colour the scene target did not already hold. That is `PresentPass.h`’s claim that "a glyph’s bit pattern stays a bit pattern, just bigger", measured rather than asserted.
+
+**The third column is the cost, and 97 % is the number to quote.** After a 0.71× bilinear present only 3 % of the lit pixels are still full-strength ink, where 27 % were before; essentially every pixel carrying text moved (14,480 against 15,056 lit) and essentially none of the background did. A single channel moves by as much as 151 of 255, so this is not a subtle wash — an edge texel can land more than half way to the other colour. "Softer text" was the right words for it.
+
+**What this does not settle, and is still owed:** whether that is *acceptable to look at*. These are pixels, not a judgement, and nobody has yet seen the 0.71× case on a real 1366×768 panel — the machine this was measured on has one 1920×1080 display, which is why the numbers had to be taken this way in the first place. **Note also that *What this forecloses* above is written about an 8×8 bitmap font that [ADR-016](ADR-016-the-desk-text-faces.md) has since replaced with anti-aliased coverage**, so its "the one thing bitmap type is worst at" overstates the cost as the client now stands. Rewriting that paragraph is the owner’s call; NC-029 supplied the figure and left the prose alone.
