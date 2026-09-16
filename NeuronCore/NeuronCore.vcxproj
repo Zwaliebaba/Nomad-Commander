@@ -78,6 +78,8 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ByteReader.cpp" />
+    <ClCompile Include="ByteWriter.cpp" />
     <ClCompile Include="Debug.cpp" />
     <ClCompile Include="Random.cpp" />
   </ItemGroup>
@@ -85,10 +87,13 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="NeuronCore.h" />
     <ClInclude Include="Debug.h" />
+    <ClInclude Include="ByteReader.h" />
+    <ClInclude Include="ByteWriter.h" />
     <ClInclude Include="Hundredths.h" />
     <ClInclude Include="Id.h" />
     <ClInclude Include="IntegerMath.h" />
     <ClInclude Include="Random.h" />
+    <ClInclude Include="Serializable.h" />
     <ClInclude Include="Tick.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

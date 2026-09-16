@@ -86,6 +86,7 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ByteStreamTests.cpp" />
     <ClCompile Include="HundredthsTests.cpp" />
     <ClCompile Include="IdTests.cpp" />
     <ClCompile Include="IntegerMathTests.cpp" />
