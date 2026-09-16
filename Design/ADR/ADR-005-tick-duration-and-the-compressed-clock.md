@@ -44,8 +44,8 @@ The schedule's arithmetic was checked by compiling `TickSchedule.cpp` under GCC 
 
 | | MSVC `Debug\|x64`, CI runner | clang `-O0 -D_DEBUG` | clang `-O2 -DNDEBUG` |
 |---|---|---|---|
-| A simulated year | **7.46 s** | 1.56 s (median of five; 1.51–1.94) | 0.098 s |
-| Ticks a second, averaged over the year | **70,400** | 338,000 | 5.3 million |
+| A simulated year | **7.46 s** (two runs: 5.81, 7.46) | 1.56 s (median of five; 1.51–1.94) | 0.098 s |
+| Ticks a second, averaged over the year | **70,400** (to 90,400) | 338,000 | 5.3 million |
 | **A tick, averaged over the year** | **14.2 µs** | 3.0 µs | 0.19 µs |
 | A tick *at the end* of the year, 246 fleet rows | not measured separately | 5.7 µs | 0.36 µs |
 | **A pump of 4,096, at the average tick** | **58 ms** | 12 ms | 0.8 ms |
@@ -57,6 +57,6 @@ The schedule's arithmetic was checked by compiling `TickSchedule.cpp` under GCC 
 Two honest caveats rather than one confident number:
 
 - **The marginal tick is dearer than the average and gets dearer still**, because the cost is dominated by walking the fleet table and that table only grows: 240 rows a year on this map, none of them ever reclaimed. Measured under clang, a tick at the end of the year costs 1.9× the year's average. A constant cannot answer that, and 512 is set for the year a game is played over rather than the decade a sandbox runs. NC-048's report carries the finding.
-- **Nobody plays on a two-core CI runner.** It is in the table because it is the slowest machine the figure is taken on, which is the right machine to set a floor from and a conservative one to set a cap from.
+- **Nobody plays on a two-core CI runner, and it does not repeat itself closely.** Two runs of the same test came back 5.81 s and 7.46 s, a spread of 28 per cent of the smaller; NC-043's simulated month, measured in the same two runs, spread further still. Every MSVC figure above is the **slower** run, which is the conservative choice for both a floor and a cap. The runner is in the table because it is the slowest machine the figure is taken on, not because it is representative of anything anyone plays on.
 
 `SoakTests::OneYearFitsTheBudget` logs the figure on every CI run, and the workflow prints it, so the trend is readable rather than remembered.

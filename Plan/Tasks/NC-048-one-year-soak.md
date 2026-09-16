@@ -28,7 +28,7 @@ Phase 2's exit criterion as a test that stays in the suite: a generated three-em
 
 ## Acceptance criteria
 
-- [x] All five tests pass in Debug on the CI runner within the job's time; the report states the measured ticks per second there and on the developer machine. *Green on run [35151574903](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35151574903), both jobs, `MSVC Debug|x64`: **7.46 s a year = 70,446 ticks a second**, inside a 149 s test step for all four suites. There is no developer machine here — `Plan/README.md` step 6, "CI is the build you do not have" — so the second figure is this agent's, below, and it is labelled as such.*
+- [x] All five tests pass in Debug on the CI runner within the job's time; the report states the measured ticks per second there and on the developer machine. *Green on two runs, [35151574903](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35151574903) and [35152735380](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35152735380), both jobs each time. `MSVC Debug|x64`: **a year in 7.46 s and 5.81 s — 70,446 and 90,444 ticks a second**, inside a test step of 149 s and 143 s for all four suites. There is no developer machine here — `Plan/README.md` step 6, "CI is the build you do not have" — so the second figure is this agent's, below, and it is labelled as such.*
 - [x] The year replays from the journal in the time NC-031's ADR set as the snapshot threshold, or the ADR is updated with the measurement. *ADR-014 gains the measurement — and it is **not** the clean pass it looked like from here: 7.46 s in `Debug|x64` is over the 2,000 ms threshold, 0.098 s optimised is twenty times inside it. ADR-014 now states both, reads the threshold as binding the build a player runs, and hands the reading itself to the owner. See below.*
 
 ## Verification
@@ -82,14 +82,16 @@ There is no Windows on this agent, so the figures come from two places. **The `M
 
 | | MSVC `Debug\|x64`, CI | clang `-O0 -D_DEBUG` | clang `-O2 -DNDEBUG` |
 |---|---|---|---|
-| One simulated year, 525,600 ticks | **7.46 s** | 1.56 s (median of five: 1.51, 1.52, 1.56, 1.61, 1.94) | 0.098 s |
-| Ticks a second, averaged over the year | **70,446** | 338,000 | 5.3 million |
-| A tick, averaged over the year | **14.2 µs** | 3.0 µs | 0.19 µs |
+| One simulated year, 525,600 ticks | **7.46 s** and **5.81 s** (two runs) | 1.56 s (median of five: 1.51, 1.52, 1.56, 1.61, 1.94) | 0.098 s |
+| Ticks a second, averaged over the year | **70,446** and **90,444** | 338,000 | 5.3 million |
+| A tick, averaged over the year | **14.2 µs** (slower run) | 3.0 µs | 0.19 µs |
 | A tick on day zero, 0 fleet rows | — | 0.032 µs | 0.005 µs |
 | **A tick at the end of the year**, 246 fleet rows | — | **5.7 µs** | **0.36 µs** |
 | The whole `SoakTests` class, seven year-runs | ~52 s of a 149 s test step | 11.5 s (10.8–12.0 over four runs) | 0.65 s |
 
-**MSVC `Debug|x64` is 4.8× slower than clang `-O0`**, which is close to the middle of what I had assumed when setting the floor, and it is the number the floor should be read against: 70,446 measured against a floor of 5,000 is fourteen times of headroom, which catches an order-of-magnitude regression without being flaky on a shared runner. The test's comment now carries all three figures.
+**MSVC `Debug|x64` is 3.7 to 4.8× slower than clang `-O0`**, close to the middle of what I had assumed when setting the floor, and it is the number the floor should be read against: 70,446 against a floor of 5,000 is fourteen times of headroom. Every derived MSVC figure in this report and in ADR-005 is taken from the **slower** run.
+
+**The spread between the two CI runs is the other thing worth recording: 5.81 s and 7.46 s, 28 per cent of the smaller, on code that differs only in comments.** NC-043's simulated month, measured in the same two runs, came back at 2.17 and 3.21 million ticks a second — a spread of 48 per cent. **A shared two-core runner does not repeat itself closely enough to support a tight budget**, which is the strongest possible argument for the floor NC-043 set the precedent for, and it is why I left the floor at 5,000 rather than tightening it once the real figure was in hand. The test's comment now carries all three configurations and says which run the floor is set against.
 
 **And the three configurations end the year on the same state hash — `4645623721177526390`, identical across MSVC and clang and across three optimisation levels.** That is not proof of R16, but it is the strongest evidence available without a second Windows toolchain, and it is worth more than the timing figures: a `float` in `GameLogic`, an unordered iteration or a contracted FMA would be very unlikely to survive it. The stock figures agree to the unit as well (7,200 → 6,120) and so does the fleet-row count (240).
 
@@ -135,7 +137,7 @@ ADR-014 said: "NC-048's one-year soak is what measures a real tick cost … The 
 
 **Not done, and not claimable:** **no Release build** and **the executable was never run**. There is no Windows on this agent and CI builds Debug only (AGENTS.md §6). Nothing here is optimisation-sensitive in a way Debug would hide — it is a test file, a constant and four documents — but the claim is not mine to make.
 
-**Assumed, and then checked:** that `-O0 -D_DEBUG` under clang is a fair stand-in for `Debug|x64` under MSVC for the purpose of setting a floor. CI settled it: MSVC is **4.8× slower**, which is inside the 2–5× I had allowed for, and the floor is fourteen times below the real figure rather than the 68× I had planned against the stand-in. Kept at 5,000 rather than tightened: fourteen times still catches an order of magnitude, and a runner having a bad day should not turn `main` red.
+**Assumed, and then checked:** that `-O0 -D_DEBUG` under clang is a fair stand-in for `Debug|x64` under MSVC for the purpose of setting a floor. CI settled it: MSVC is **3.7 to 4.8× slower**, inside the 2–5× I had allowed for, and the floor is fourteen times below the slower real figure rather than the 68× I had planned against the stand-in. Kept at 5,000 rather than tightened, and the second run is why: a runner that varies by 28 per cent between two runs of the same code is a runner a tight budget would flake on. Fourteen times still catches an order of magnitude.
 
 **Bent:** nothing. Two rules were read carefully rather than bent. AGENTS.md §6 *Stay in scope* is why the economy defect became NC-049 instead of a diff — it changes every generated world, and `Plan/README.md` has a protocol for exactly this. And `Design/README.md`'s "a decision is never edited into a different decision" is why ADR-005 and ADR-014 were *measured into* rather than superseded: both named NC-048 as the task that would supply the number, and supplying it is executing the decision rather than changing it.
 
@@ -145,3 +147,4 @@ ADR-014 said: "NC-048's one-year soak is what measures a real tick cost … The 
 - **`StateHash` writes the whole state to hash it**, including the input journal, so comparing two year-long hashes serialises two years of world twice. NC-043's report named it; at 12 KiB a state it still costs nothing.
 - **The soak has no company in it at all.** That is deliberate — it measures the world running while the player is away, which is the thing GDD §1 and §7 promise — but it means the upkeep, insolvency and floor paths added by NC-046 are exercised only through empire fleets, and the mothership's are not exercised by this test at all. A company in the soak would be a second, different test, and NC-091's scenario start is the natural home for it.
 - **`Politics::Between` is a linear scan inside a double loop over empires, run daily.** NC-047's report flagged it. At three empires and a year it is invisible; it is not on the cost curve above.
+- **The CI runner's timing spread is large enough to be worth a habit, not just a caveat.** Two runs, 28 per cent apart on the soak and 48 on NC-043's month. Any future figure taken from CI should be the slower of at least two runs, or labelled as a single sample. The workflow step prints the line on every run, so the spread is now visible rather than something a task has to go looking for.

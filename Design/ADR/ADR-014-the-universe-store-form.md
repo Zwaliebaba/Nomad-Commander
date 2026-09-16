@@ -43,12 +43,12 @@ Against the real game rather than a stub: a generated three-empire, ten-system w
 
 | | MSVC `Debug\|x64`, CI | clang `-O0 -D_DEBUG` | clang `-O2 -DNDEBUG` |
 |---|---|---|---|
-| **Replaying a simulated year** | **7.46 s** | 1.56 s | **0.098 s** |
+| **Replaying a simulated year** | **5.81–7.46 s** (two runs) | 1.56 s | **0.098 s** |
 | Threshold at which a snapshot becomes necessary | 2,000 ms | 2,000 ms | 2,000 ms |
 
 **The threshold is crossed in `Debug|x64` and not in an optimised build, and no snapshot is added.** That needs saying out loud rather than being settled by picking the convenient column, so here is the whole of the reasoning:
 
-1. **Loading is a Release load.** A player loads the shipped build, where a year replays in a tenth of a second — twenty times inside the threshold, with room for twenty simulated years. The threshold is how long a *player* waits, and no player waits 7.46 s because no player runs `Debug|x64` on a two-core CI runner. The original measurement above was a Debug one called "pessimistic", and this is what pessimistic turned out to mean.
+1. **Loading is a Release load.** A player loads the shipped build, where a year replays in a tenth of a second — twenty times inside the threshold, with room for twenty simulated years. The threshold is how long a *player* waits, and no player waits six seconds because no player runs `Debug|x64` on a two-core CI runner. The original measurement above was a Debug one called "pessimistic", and this is what pessimistic turned out to mean.
 2. **A simulated year is not a session.** Replay cost is proportional to *elapsed simulated time*, and at v0.1's compressed clock — sixty ticks a real minute (ADR-005) — one simulated year is **146 real hours at the desk**. At the full game's pacing it is a real year. So no v0.1 save reaches the row above; a save that does belongs to a universe that has been running for months.
 3. **Replay cost is tick cost times ticks, and the tick cost is not constant.** It is dominated by walking the fleet table, which only grows: at the end of one simulated year a tick costs 0.36 µs optimised against 0.005 µs on day one, at 246 fleet rows. The second simulated year is dearer than the first, so "a year fits" does not scale linearly into "five years fit". NC-048's report carries that finding and the task that owns it.
 4. **This measures a year with no journal.** A player's store also carries every input ever accepted, replayed at the tick it applied at; NC-031 measured that half at 9 ms for a thousand inputs. The two costs add, and the journal's half is the small one.

@@ -51,8 +51,9 @@ constexpr std::uint32_t STOCK_FLOOR_PERCENT_OF_START = 70;
 /// three** (`4645623721177526390`), across two compilers and three optimisation levels, which is the cheapest
 /// evidence R16 is going to get.
 ///
-///   * **MSVC `Debug|x64` on the GitHub `windows-latest` runner: 7.46 s, about 70,400 ticks a second.** This is the
-///     figure the floor is set against, because it is the slowest machine that runs this test.
+///   * **MSVC `Debug|x64` on the GitHub `windows-latest` runner: 5.81 to 7.46 s, about 90,400 down to 70,400 ticks a
+///     second, over two runs.** The floor is set against the slower, because this is the slowest machine that runs
+///     the test and a shared runner's spread is a third of its own figure.
 ///   * clang 18.1.3 `-O0 -D_DEBUG` on an Intel Xeon at 2.10 GHz, 4 vCPU, Ubuntu 24.04: 1.56 s, about 338,000 a
 ///     second, over five runs spanning 1.51 to 1.94 s.
 ///   * The same, `-O2 -DNDEBUG`: 0.098 s, about 5.3 million a second.
