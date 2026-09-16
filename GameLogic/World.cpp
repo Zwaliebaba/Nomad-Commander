@@ -5,6 +5,7 @@
 #include "ByteReader.h"
 #include "ByteWriter.h"
 
+#include <algorithm>
 #include <variant>
 
 namespace Nomad
@@ -354,6 +355,39 @@ void WriteOutpost(Neuron::ByteWriter& _writer, const Outpost& _outpost)
          _reader.ReadBool(_outOutpost.alive);
 }
 
+void WriteStarSystem(Neuron::ByteWriter& _writer, const StarSystem& _system)
+{
+  _writer.WriteString(_system.name);
+  WriteEnum(_writer, _system.role);
+  _writer.Write(_system.mapXPixels);
+  _writer.Write(_system.mapYPixels);
+  _writer.WriteId(_system.owner);
+  WriteIds(_writer, _system.lanes);
+  _writer.WriteBool(_system.hasShipyard);
+  _writer.WriteBool(_system.alive);
+}
+
+[[nodiscard]] bool ReadStarSystem(Neuron::ByteReader& _reader, StarSystem& _outSystem)
+{
+  return _reader.ReadString(_outSystem.name) && ReadEnum(_reader, _outSystem.role, SYSTEM_ROLE_COUNT) &&
+         _reader.Read(_outSystem.mapXPixels) && _reader.Read(_outSystem.mapYPixels) && _reader.ReadId(_outSystem.owner) &&
+         ReadIds(_reader, _outSystem.lanes) && _reader.ReadBool(_outSystem.hasShipyard) && _reader.ReadBool(_outSystem.alive);
+}
+
+void WriteLane(Neuron::ByteWriter& _writer, const Lane& _lane)
+{
+  _writer.WriteId(_lane.first);
+  _writer.WriteId(_lane.second);
+  _writer.WriteTick(_lane.jumpTicks);
+  _writer.Write(_lane.fuelMultiplierHundredths);
+}
+
+[[nodiscard]] bool ReadLane(Neuron::ByteReader& _reader, Lane& _outLane)
+{
+  return _reader.ReadId(_outLane.first) && _reader.ReadId(_outLane.second) && _reader.ReadTick(_outLane.jumpTicks) &&
+         _reader.Read(_outLane.fuelMultiplierHundredths);
+}
+
 /// One table: a count, then that many rows in table order, which is insertion order (Table.h).
 template <typename T, typename IdType, typename WriteRow>
 void WriteTable(Neuron::ByteWriter& _writer, const Table<T, IdType>& _table, WriteRow _writeRow)
@@ -424,6 +458,8 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_fleets, WriteFleet);
   WriteTable(_writer, m_characters, WriteCharacter);
   WriteTable(_writer, m_outposts, WriteOutpost);
+  WriteTable(_writer, m_systems, WriteStarSystem);
+  WriteTable(_writer, m_lanes, WriteLane);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -449,7 +485,8 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
 
   if (!ReadTable(_reader, loaded.m_companies, ReadCompany) || !ReadTable(_reader, loaded.m_empires, ReadEmpire) ||
       !ReadTable(_reader, loaded.m_fleets, ReadFleet) || !ReadTable(_reader, loaded.m_characters, ReadCharacter) ||
-      !ReadTable(_reader, loaded.m_outposts, ReadOutpost))
+      !ReadTable(_reader, loaded.m_outposts, ReadOutpost) || !ReadTable(_reader, loaded.m_systems, ReadStarSystem) ||
+      !ReadTable(_reader, loaded.m_lanes, ReadLane))
   {
     return false;
   }
@@ -468,6 +505,101 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
   }
 
   *this = std::move(loaded);
+  return true;
+}
+
+void World::Adjacent(SystemId _system, std::vector<SystemId>& _outNeighbors) const
+{
+  _outNeighbors.clear();
+  if (!m_systems.Holds(_system))
+  {
+    return;
+  }
+  for (const LaneId lane : m_systems.Get(_system).lanes)
+  {
+    if (m_lanes.Holds(lane))
+    {
+      _outNeighbors.push_back(m_lanes.Get(lane).Other(_system));
+    }
+  }
+}
+
+std::uint32_t World::JumpsBetween(SystemId _from, SystemId _to) const
+{
+  std::vector<SystemId> route;
+  if (!ShortestRoute(_from, _to, route))
+  {
+    return UNREACHABLE;
+  }
+  // The route holds both ends, and a jump is a lane rather than a system.
+  return static_cast<std::uint32_t>(route.size() - 1);
+}
+
+bool World::ShortestRoute(SystemId _from, SystemId _to, std::vector<SystemId>& _outRoute) const
+{
+  _outRoute.clear();
+  if (!m_systems.Holds(_from) || !m_systems.Holds(_to))
+  {
+    return false;
+  }
+  if (_from == _to)
+  {
+    _outRoute.push_back(_from);
+    return true;
+  }
+
+  // Breadth-first, neighbours in lane order, so the route found is not merely a shortest one but the same one on
+  // every run (R16). A vector of predecessors rather than a map, for the same reason and because the table is dense.
+  const std::uint32_t count = m_systems.Count();
+  std::vector<std::uint32_t> cameFrom(count, Neuron::Id<SystemTag>::INVALID_INDEX);
+  std::vector<bool> seen(count, false);
+  std::vector<SystemId> frontier;
+  std::vector<SystemId> next;
+  std::vector<SystemId> neighbors;
+
+  seen[_from.Index()] = true;
+  frontier.push_back(_from);
+  bool found = false;
+  while (!frontier.empty() && !found)
+  {
+    next.clear();
+    for (const SystemId system : frontier)
+    {
+      Adjacent(system, neighbors);
+      for (const SystemId neighbor : neighbors)
+      {
+        if (!m_systems.Holds(neighbor) || seen[neighbor.Index()])
+        {
+          continue;
+        }
+        seen[neighbor.Index()] = true;
+        cameFrom[neighbor.Index()] = system.Index();
+        if (neighbor == _to)
+        {
+          found = true;
+          break;
+        }
+        next.push_back(neighbor);
+      }
+      if (found)
+      {
+        break;
+      }
+    }
+    frontier.swap(next);
+  }
+
+  if (!found)
+  {
+    return false;
+  }
+
+  for (SystemId step = _to; step != _from; step = SystemId::FromIndex(cameFrom[step.Index()]))
+  {
+    _outRoute.push_back(step);
+  }
+  _outRoute.push_back(_from);
+  std::reverse(_outRoute.begin(), _outRoute.end());
   return true;
 }
 

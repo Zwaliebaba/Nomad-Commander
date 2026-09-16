@@ -80,6 +80,7 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="World.cpp" />
+    <ClCompile Include="UniverseGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -94,6 +95,9 @@
     <ClInclude Include="ShipClass.h" />
     <ClInclude Include="Table.h" />
     <ClInclude Include="World.h" />
+    <ClInclude Include="Lane.h" />
+    <ClInclude Include="StarSystem.h" />
+    <ClInclude Include="UniverseGenerator.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

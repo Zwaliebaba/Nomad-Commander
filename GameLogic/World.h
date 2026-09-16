@@ -5,7 +5,9 @@
 #include "Company.h"
 #include "Empire.h"
 #include "Fleet.h"
+#include "Lane.h"
 #include "Outpost.h"
+#include "StarSystem.h"
 #include "Table.h"
 
 #include "Random.h"
@@ -59,7 +61,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 1;
+  static constexpr std::uint16_t SCHEMA_VERSION = 2;
 
   explicit World(std::uint64_t _seed);
 
@@ -108,6 +110,43 @@ public:
     return m_outposts;
   }
 
+  [[nodiscard]] Table<StarSystem, SystemId>& Systems() noexcept
+  {
+    return m_systems;
+  }
+
+  [[nodiscard]] const Table<StarSystem, SystemId>& Systems() const noexcept
+  {
+    return m_systems;
+  }
+
+  [[nodiscard]] Table<Lane, LaneId>& Lanes() noexcept
+  {
+    return m_lanes;
+  }
+
+  [[nodiscard]] const Table<Lane, LaneId>& Lanes() const noexcept
+  {
+    return m_lanes;
+  }
+
+  /// What JumpsBetween answers when there is no route at all. A disconnected map is a generator bug (NC-041 asserts
+  /// connectivity), but a route to a system that does not exist is an ordinary caller error and gets an answer.
+  static constexpr std::uint32_t UNREACHABLE = 0xFFFFFFFFu;
+
+  /// The systems one jump away, in the order this system's lanes were laid down.
+  ///
+  /// That order is the whole of what makes the searches below deterministic (R16): a breadth-first search visits
+  /// neighbours in it, so two runs of one seed walk the map identically and the shortest route between two systems is
+  /// not merely as short as any other but the same one every time.
+  void Adjacent(SystemId _system, std::vector<SystemId>& _outNeighbors) const;
+
+  /// Jumps along the shortest route, counting lanes and not systems, so a system is zero jumps from itself.
+  [[nodiscard]] std::uint32_t JumpsBetween(SystemId _from, SystemId _to) const;
+
+  /// The shortest route, both ends included. False when there is none, and the route is then empty.
+  [[nodiscard]] bool ShortestRoute(SystemId _from, SystemId _to, std::vector<SystemId>& _outRoute) const;
+
   [[nodiscard]] const Table<Outpost, OutpostId>& Outposts() const noexcept
   {
     return m_outposts;
@@ -154,6 +193,8 @@ private:
   Table<Fleet, FleetId> m_fleets;
   Table<Character, CharacterId> m_characters;
   Table<Outpost, OutpostId> m_outposts;
+  Table<StarSystem, SystemId> m_systems;
+  Table<Lane, LaneId> m_lanes;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

@@ -2,6 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="World.cpp" />
+    <ClCompile Include="UniverseGenerator.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -17,5 +18,8 @@
     <ClInclude Include="ShipClass.h" />
     <ClInclude Include="Table.h" />
     <ClInclude Include="World.h" />
+    <ClInclude Include="Lane.h" />
+    <ClInclude Include="StarSystem.h" />
+    <ClInclude Include="UniverseGenerator.h" />
   </ItemGroup>
 </Project>
