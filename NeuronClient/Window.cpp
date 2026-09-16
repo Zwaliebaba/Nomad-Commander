@@ -25,6 +25,21 @@ bool g_classRegistered = false;
 constexpr DWORD WINDOW_STYLE = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
 constexpr DWORD WINDOW_EXTENDED_STYLE = 0;
 
+// The largest window this class will admit to, in pixels, and the reason it has to say so.
+//
+// CreateWindowExW sends WM_GETMINMAXINFO to any window carrying WS_CAPTION before it returns, and clamps the new
+// window to that message's ptMaxTrackSize. The default is SM_CXMAXTRACK by SM_CYMAXTRACK, which is the size of the
+// ENTIRE DESKTOP -- so on a desktop narrower than 1280 the clamp silently hands back a smaller client area than the
+// one asked for, which is exactly the promise this class exists to keep (R12). GetSystemMetrics documents the way
+// out: "A window can override this value by processing the WM_GETMINMAXINFO message." The procedure below does, and
+// this is the value it gives.
+//
+// Overriding it costs nothing, because a tracking size is a limit on DRAGGING a window's frame and this style carries
+// no WS_THICKFRAME: there is no frame to drag, so the clamp at creation is the only thing the number ever did. 32767
+// rather than something larger because WM_SIZE packs the client width and height into sixteen bits each, and a window
+// wider than a signed short is one whose own size messages cannot describe it.
+constexpr LONG MAX_TRACK_PIXELS = 32767;
+
 /// The window rectangle whose client area is exactly the requested pixels at the given scaling.
 [[nodiscard]] bool FrameForClientArea(std::uint32_t _clientWidth, std::uint32_t _clientHeight, UINT _dpi, RECT& _outFrame) noexcept
 {
@@ -239,6 +254,22 @@ LRESULT CALLBACK Window::WindowProcedure(HWND _handle, UINT _message, WPARAM _wp
       return 0;
     }
     break;
+
+  case WM_GETMINMAXINFO:
+  {
+    // Sent before WM_NCCREATE, so there is no instance to read here yet -- and none is needed: the answer is the same
+    // for every window of this class, which is that the desktop's size does not limit it. The default procedure fills
+    // the structure in first, and this raises the one member that would otherwise shrink the client area the caller
+    // asked for (see MAX_TRACK_PIXELS).
+    DefWindowProcW(_handle, _message, _wparam, _lparam);
+    MINMAXINFO* const limits = reinterpret_cast<MINMAXINFO*>(_lparam);
+    if (limits != nullptr)
+    {
+      limits->ptMaxTrackSize.x = MAX_TRACK_PIXELS;
+      limits->ptMaxTrackSize.y = MAX_TRACK_PIXELS;
+    }
+    return 0;
+  }
 
   case WM_ERASEBKGND:
     // Nothing erases the background: the swap chain writes every pixel every frame (R12), and there is no brush.

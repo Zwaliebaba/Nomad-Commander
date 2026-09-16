@@ -109,6 +109,29 @@ public:
     Assert::IsNull(window.Handle());
   }
 
+  TEST_METHOD(AClientAreaLargerThanTheDesktopIsStillTheSizeAskedFor)
+  {
+    // The regression this suite was red on for three rounds. CreateWindowExW clamps a new WS_CAPTION window to the
+    // desktop-sized default in WM_GETMINMAXINFO's ptMaxTrackSize, so on the CI runner's 1024x768 desktop a 1280-wide
+    // client area came back 1028 wide while the height, which fitted, came back right. The five tests above catch that
+    // only on a desktop too small to hold the screen; this one asks for a width the desktop cannot hold whatever the
+    // desktop is, so the override in the window procedure is exercised on a developer's machine too.
+    const int maxTrackWidth = GetSystemMetrics(SM_CXMAXTRACK);
+    Assert::IsTrue(maxTrackWidth > 0, L"SM_CXMAXTRACK is not available on this desktop");
+    const std::uint32_t overWideClientPixels = static_cast<std::uint32_t>(maxTrackWidth) + 64u;
+
+    Neuron::Window window;
+    const Neuron::Window::Desc desc{overWideClientPixels, Neuron::SCREEN_HEIGHT_PIXELS, L"NomadCommanderTest"};
+    const bool created = Neuron::Window::Create(desc, window);
+    Assert::IsTrue(created, WhyItFailed(window).c_str());
+
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    Assert::IsTrue(window.ClientSizePixels(width, height));
+    Assert::AreEqual(overWideClientPixels, width);
+    Assert::AreEqual(Neuron::SCREEN_HEIGHT_PIXELS, height);
+  }
+
   TEST_METHOD(ASecondWindowCanBeCreatedAfterTheFirstIsGone)
   {
     // The window class is registered once per process; a second creation must not fail because of it.
