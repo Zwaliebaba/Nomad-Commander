@@ -39,20 +39,21 @@ The figure that matters is not this one, though, and the ADR should say so plain
 
 ### The re-measurement (NC-048, 2026-09-16)
 
-Taken on an Intel Xeon at 2.10 GHz (4 vCPU, Ubuntu 24.04) with clang 18.1.3, `-O0 -D_DEBUG` standing in for `Debug|x64` and `-O2 -DNDEBUG` for Release, against the real game: a generated three-empire, ten-system world, one simulated year, 525,600 ticks, no player inputs.
+Against the real game rather than a stub: a generated three-empire, ten-system world, one simulated year, 525,600 ticks, no player inputs (`GameLogicTests::SoakTests`). Three configurations — **MSVC `Debug|x64` on the GitHub `windows-latest` runner**, and clang 18.1.3 at `-O0 -D_DEBUG` and `-O2 -DNDEBUG` on an Intel Xeon at 2.10 GHz.
 
-| | `-O0 -D_DEBUG` | `-O2 -DNDEBUG` |
-|---|---|---|
-| **Replaying a simulated year** | **1.56 s** | **0.098 s** |
-| Threshold at which a snapshot becomes necessary | 2,000 ms | 2,000 ms |
+| | MSVC `Debug\|x64`, CI | clang `-O0 -D_DEBUG` | clang `-O2 -DNDEBUG` |
+|---|---|---|---|
+| **Replaying a simulated year** | **7.46 s** | 1.56 s | **0.098 s** |
+| Threshold at which a snapshot becomes necessary | 2,000 ms | 2,000 ms | 2,000 ms |
 
-**The threshold is not crossed and no snapshot is added**, which is the same decision as before, now against a real tick instead of a stub's. Three things about that number deserve to be written down rather than inferred:
+**The threshold is crossed in `Debug|x64` and not in an optimised build, and no snapshot is added.** That needs saying out loud rather than being settled by picking the convenient column, so here is the whole of the reasoning:
 
-1. **Loading is a Release load.** A player loads the shipped build, where a year replays in a tenth of a second — twenty times inside the threshold — and twenty simulated years would still fit. The debug figure is here because it is the one a developer meets, and at 1.56 s it is already inside the same threshold by a hair.
-2. **Replay cost is tick cost times ticks, and the tick cost is not constant.** It is dominated by walking the fleet table, which only grows: at the end of one simulated year a tick costs 0.36 µs optimised against 0.005 µs on day one, at 246 fleet rows. A second simulated year is therefore dearer than the first, so "a year fits" does not scale linearly into "five years fit". NC-048's report carries that finding and the task that owns it.
-3. **This measures a year with no journal.** A player's store also carries every input ever accepted, replayed at the tick it applied at; NC-031 measured that half at 9 ms for a thousand inputs. The two costs add, and the journal's half is the small one.
+1. **Loading is a Release load.** A player loads the shipped build, where a year replays in a tenth of a second — twenty times inside the threshold, with room for twenty simulated years. The threshold is how long a *player* waits, and no player waits 7.46 s because no player runs `Debug|x64` on a two-core CI runner. The original measurement above was a Debug one called "pessimistic", and this is what pessimistic turned out to mean.
+2. **A simulated year is not a session.** Replay cost is proportional to *elapsed simulated time*, and at v0.1's compressed clock — sixty ticks a real minute (ADR-005) — one simulated year is **146 real hours at the desk**. At the full game's pacing it is a real year. So no v0.1 save reaches the row above; a save that does belongs to a universe that has been running for months.
+3. **Replay cost is tick cost times ticks, and the tick cost is not constant.** It is dominated by walking the fleet table, which only grows: at the end of one simulated year a tick costs 0.36 µs optimised against 0.005 µs on day one, at 246 fleet rows. The second simulated year is dearer than the first, so "a year fits" does not scale linearly into "five years fit". NC-048's report carries that finding and the task that owns it.
+4. **This measures a year with no journal.** A player's store also carries every input ever accepted, replayed at the tick it applied at; NC-031 measured that half at 9 ms for a thousand inputs. The two costs add, and the journal's half is the small one.
 
-The decision that a snapshot arrives if a load ever exceeds two seconds is unchanged, and **Milestone 2's simulated decades are where it will** — not v0.1.
+**What this leaves for the owner**, stated rather than decided here: point 7 above does not name a configuration, and NC-031 measured it in Debug. If the threshold is meant to bind `Debug|x64` — the build the developer plays in — then it is crossed now and a snapshot section is owed as a task of its own. If it is meant to bind what a player waits for, it is not crossed and will not be for v0.1. This ADR reads it the second way, on points 1 and 2, and **Milestone 2's simulated decades are where it is crossed either way.**
 
 ## What this forecloses
 

@@ -47,13 +47,19 @@ constexpr std::uint32_t STOCK_FLOOR_PERCENT_OF_START = 70;
 
 /// **The floor CI must clear, and it is deliberately an order of magnitude below the measurement.**
 ///
-/// Measured on the machine that wrote this task -- an Intel Xeon at 2.10 GHz, 4 vCPU, Ubuntu 24.04 -- with clang 18
-/// at `-O0 -D_DEBUG`, which is the nearest thing that machine has to `Debug|x64`: a year is **1.56 seconds, about
-/// 338,000 ticks a second**, over five runs spanning 1.51 to 1.94 s. The same year at `-O2 -DNDEBUG` is 0.098
-/// seconds, about 5.3 million. The MSVC figures are the CI runner's and this task's report carries them.
+/// Measured three ways, and they agree on the one thing that matters -- **the same state hash after a year in all
+/// three** (`4645623721177526390`), across two compilers and three optimisation levels, which is the cheapest
+/// evidence R16 is going to get.
 ///
-/// A year at the floor below would take 105 seconds, which still fits the job. A tight budget on a shared runner is a
-/// flaky test rather than a useful one; the number worth catching here is an order of magnitude.
+///   * **MSVC `Debug|x64` on the GitHub `windows-latest` runner: 7.46 s, about 70,400 ticks a second.** This is the
+///     figure the floor is set against, because it is the slowest machine that runs this test.
+///   * clang 18.1.3 `-O0 -D_DEBUG` on an Intel Xeon at 2.10 GHz, 4 vCPU, Ubuntu 24.04: 1.56 s, about 338,000 a
+///     second, over five runs spanning 1.51 to 1.94 s.
+///   * The same, `-O2 -DNDEBUG`: 0.098 s, about 5.3 million a second.
+///
+/// The floor below is fourteen times under the CI figure. A year at the floor would take 105 seconds, which still
+/// fits the job. A tight budget on a shared runner is a flaky test rather than a useful one; the number worth
+/// catching here is an order of magnitude.
 constexpr double MINIMUM_TICKS_PER_SECOND = 5000.0;
 
 /// A generated three-empire world with nothing of the player's in it. **No company and no inputs**, which is the

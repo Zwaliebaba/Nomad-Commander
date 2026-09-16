@@ -165,7 +165,8 @@ jobs:
         run: |
           $lines = Get-ChildItem TestResults -Filter *.trx -Recurse -ErrorAction SilentlyContinue |
             Select-String -Pattern '\[NC-\d{3}\][^<]*' -AllMatches |
-            ForEach-Object { $_.Matches } | ForEach-Object { $_.Value.Trim() } | Sort-Object -Unique
+            ForEach-Object { $_.Matches } |
+            ForEach-Object { ($_.Value -replace '&#x[0-9A-Fa-f]+;', '').Trim() } | Sort-Object -Unique
           if ($lines) { $lines | ForEach-Object { Write-Output $_ } }
           else { Write-Output "No [NC-nnn] measurement lines were found in the test results." }
 

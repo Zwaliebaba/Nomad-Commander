@@ -31,10 +31,11 @@ public:
   /// one frame would stall the client for as long as it took; the remainder arrives on the next pump instead.
   ///
   /// **512, set against a measured tick cost rather than guessed** (NC-048, ADR-005). It was 4,096 while nothing had
-  /// measured a real tick, and the one-year soak measured one: at the end of a simulated year a tick of the real game
-  /// costs about 5.7 microseconds in a debug build and 0.36 in an optimised one, so a pump of 4,096 was 23 ms -- a
-  /// dropped frame at 60 Hz, which is precisely what the cap exists to prevent. At 512 the same pump is 2.9 ms, and a
-  /// night away at the compressed rate (28,800 ticks) still drains in 57 pumps, under a second of frames.
+  /// measured a real tick, and the one-year soak measured one: a tick of the real game averages 14.2 microseconds in
+  /// `Debug|x64` on the CI runner -- the slowest machine that runs the test -- and 0.19 in an optimised build. So a
+  /// pump of 4,096 averaged 58 ms there, three and a half frames at 60 Hz, which is precisely what the cap exists to
+  /// prevent. At 512 it averages 7.3 ms, and a night away at the compressed rate (28,800 ticks) still drains in 57
+  /// pumps, under a second of frames.
   ///
   /// **The tick cost grows with the world**, because it is dominated by walking the fleet table and that table only
   /// ever gets longer; the soak's report carries the figure and the task that fixes it. A constant cannot answer that,

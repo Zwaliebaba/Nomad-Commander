@@ -28,8 +28,8 @@ Phase 2's exit criterion as a test that stays in the suite: a generated three-em
 
 ## Acceptance criteria
 
-- [ ] All five tests pass in Debug on the CI runner within the job's time; the report states the measured ticks per second there and on the developer machine. *Half met: measured here and stated below; **the CI runner's figure waits on a CI run**, which is what the new workflow step exists to make readable. There is no Windows on this agent — `Plan/README.md` step 6: "CI is the build you do not have."*
-- [x] The year replays from the journal in the time NC-031's ADR set as the snapshot threshold, or the ADR is updated with the measurement. *Not crossed: 1.56 s debug, 0.098 s optimised, against 2,000 ms. ADR-014 gains the measurement it asked for.*
+- [x] All five tests pass in Debug on the CI runner within the job's time; the report states the measured ticks per second there and on the developer machine. *Green on run [35151574903](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35151574903), both jobs, `MSVC Debug|x64`: **7.46 s a year = 70,446 ticks a second**, inside a 149 s test step for all four suites. There is no developer machine here — `Plan/README.md` step 6, "CI is the build you do not have" — so the second figure is this agent's, below, and it is labelled as such.*
+- [x] The year replays from the journal in the time NC-031's ADR set as the snapshot threshold, or the ADR is updated with the measurement. *ADR-014 gains the measurement — and it is **not** the clean pass it looked like from here: 7.46 s in `Debug|x64` is over the 2,000 ms threshold, 0.098 s optimised is twenty times inside it. ADR-014 now states both, reads the threshold as binding the build a player runs, and hands the reading itself to the owner. See below.*
 
 ## Verification
 
@@ -41,7 +41,7 @@ vstest.console.exe x64\Debug\GameLogicTests.dll /Platform:x64 /Tests:SoakTests
 
 None, unless the store threshold is crossed (then NC-031's ADR gains a superseding one).
 
-*It was not crossed — a year replays in 1.56 s debug and 0.098 s optimised against a 2,000 ms threshold — so no ADR supersedes ADR-014; it gains the measurement it asked for. **NC-049 carries one**: where the map's per-good balancing term lives.*
+*It was crossed in one configuration and not in another — **7.46 s in `Debug|x64`, 0.098 s optimised, against 2,000 ms** — and no ADR supersedes ADR-014. The reasoning is in ADR-014 and summarised below; the reading it rests on is flagged for the owner rather than settled here. **NC-049 carries a decision**: where the map's per-good balancing term lives.*
 
 ## Out of scope
 
@@ -78,15 +78,20 @@ Measured over **2,000 generated maps**: every one of them is permanently short o
 
 ### The measurements
 
-No Windows and no MSVC here, so every figure below was taken on the machine this task was written on — **an Intel Xeon at 2.10 GHz, 4 vCPU, 16 GiB, Ubuntu 24.04 — with clang 18.1.3**, `-O0 -D_DEBUG` standing in for `Debug|x64` and `-O2 -DNDEBUG` for Release. GameLogic's `pch.h` says the simulation is portable C++ over NeuronCore's pure headers, and it is: the library and the four NeuronCore translation units it needs compile and run unmodified, with a stand-in for `Debug.cpp` (the one file that wants Windows) and for the CppUnitTest framework.
+There is no Windows on this agent, so the figures come from two places. **The `MSVC Debug|x64` column is CI's** — run [35151574903](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35151574903) on `windows-latest`, which is what the new workflow step exists to make readable. The clang columns are this agent's: **an Intel Xeon at 2.10 GHz, 4 vCPU, 16 GiB, Ubuntu 24.04, clang 18.1.3**, `-O0 -D_DEBUG` standing in for `Debug|x64` and `-O2 -DNDEBUG` for Release. GameLogic's `pch.h` says the simulation is portable C++ over NeuronCore's pure headers, and it is: the library and the four NeuronCore translation units it needs compile and run unmodified, given a stand-in for `Debug.cpp` (the one file that wants Windows) and for the CppUnitTest framework.
 
-| | `-O0 -D_DEBUG` | `-O2 -DNDEBUG` |
-|---|---|---|
-| One simulated year, 525,600 ticks | **1.56 s** (median of five: 1.51, 1.52, 1.56, 1.61, 1.94) | **0.098 s** |
-| Ticks a second, averaged over the year | **338,000** | **5.3 million** |
-| A tick on day zero, 0 fleet rows | 0.032 µs | 0.005 µs |
-| **A tick at the end of the year**, 246 fleet rows | **5.7 µs** | **0.36 µs** |
-| The whole `SoakTests` class, seven year-runs | **11.5 s** (10.8–12.0 over four runs) | **0.65 s** |
+| | MSVC `Debug\|x64`, CI | clang `-O0 -D_DEBUG` | clang `-O2 -DNDEBUG` |
+|---|---|---|---|
+| One simulated year, 525,600 ticks | **7.46 s** | 1.56 s (median of five: 1.51, 1.52, 1.56, 1.61, 1.94) | 0.098 s |
+| Ticks a second, averaged over the year | **70,446** | 338,000 | 5.3 million |
+| A tick, averaged over the year | **14.2 µs** | 3.0 µs | 0.19 µs |
+| A tick on day zero, 0 fleet rows | — | 0.032 µs | 0.005 µs |
+| **A tick at the end of the year**, 246 fleet rows | — | **5.7 µs** | **0.36 µs** |
+| The whole `SoakTests` class, seven year-runs | ~52 s of a 149 s test step | 11.5 s (10.8–12.0 over four runs) | 0.65 s |
+
+**MSVC `Debug|x64` is 4.8× slower than clang `-O0`**, which is close to the middle of what I had assumed when setting the floor, and it is the number the floor should be read against: 70,446 measured against a floor of 5,000 is fourteen times of headroom, which catches an order-of-magnitude regression without being flaky on a shared runner. The test's comment now carries all three figures.
+
+**And the three configurations end the year on the same state hash — `4645623721177526390`, identical across MSVC and clang and across three optimisation levels.** That is not proof of R16, but it is the strongest evidence available without a second Windows toolchain, and it is worth more than the timing figures: a `float` in `GameLogic`, an unordered iteration or a contracted FMA would be very unlikely to survive it. The stock figures agree to the unit as well (7,200 → 6,120) and so does the fleet-row count (240).
 
 Two things the year says that the month could not:
 
@@ -99,13 +104,19 @@ The hash after a year is **identical at `-O0` and `-O2`** (`4645623721177526390`
 
 ### `MAX_TICKS_PER_PUMP`: 4,096 → 512
 
-ADR-005 §6 left the number to this task. At the measured year-end tick cost a pump of 4,096 is **23 ms in a debug build** — a dropped frame at 60 Hz, which is precisely the stall the cap exists to prevent — and 1.5 ms optimised. At 512 the same pump is 2.9 ms and 0.18 ms, and a night away at the compressed rate (eight real hours, 28,800 ticks) still drains in 57 pumps, under a second of frames. So the cap is 512, and the comment carries the measurement, the arithmetic and the caveat that the tick cost grows with the world and a constant cannot answer that.
+ADR-005 §6 left the number to this task. On the slowest machine that runs the test — CI's `Debug|x64` — a tick averages 14.2 µs, so **a pump of 4,096 averages 58 ms: three and a half frames at 60 Hz**, which is precisely the stall the cap exists to prevent. At 512 it averages 7.3 ms, and a night away at the compressed rate (eight real hours, 28,800 ticks) still drains in 57 pumps, under a second of frames. So the cap is 512.
+
+Two caveats are in the comment rather than left to be inferred: **the marginal tick is dearer than the average and gets dearer still** (measured under clang, a tick at year end costs 1.9× the year's average, because the cost is walking a fleet table that only grows), and **nobody plays on a two-core CI runner** — it is in the table because it is the conservative machine to set a cap from, not because it is representative.
 
 **That broke two assertions in `TickScheduleTests`, and both were wrong in the same way:** `ALongGapIsCappedAndTheRemainderArrivesNext` asserted `7200 - MAX_TICKS_PER_PUMP` on the second pump, which is only true while one gap fits in two pumps, and `ATestRateRunsAsFastAsTheTestNeeds` asked a 1,000-ticks-a-second rate for a whole second, which is only under the cap while the cap is above 1,000. Neither was testing the cap; both were depending on it. The first now drains the gap in a loop and asserts what ADR-005 actually decided — no pump exceeds the cap, nothing is lost, nothing runs twice, and the pump count is the ceiling division — and the second asks for a tenth of a second. `Session::Pump` and its tests are unaffected: the largest pump anywhere in `NeuronServerTests` is 60 ticks.
 
 ### ADR-014, re-measured as it asked
 
-ADR-014 said: "NC-048's one-year soak is what measures a real tick cost … The re-measurement belongs with NC-048." A year replays in **1.56 s debug and 0.098 s optimised** against the ADR's 2,000 ms threshold, so **the threshold is not crossed, no snapshot is added, and no ADR supersedes it** — it gains a *Measurements* section. Three qualifications are written into it rather than left to be inferred: a player's load is a Release load and has twenty times the headroom; replay cost is tick cost times ticks and the tick cost is not constant, so "a year fits" does not scale to "five years fit"; and this measures a year with *no* journal, whose 9 ms for a thousand inputs adds to it.
+ADR-014 said: "NC-048's one-year soak is what measures a real tick cost … The re-measurement belongs with NC-048." A year replays in **7.46 s in `Debug|x64` and 0.098 s optimised**, against the ADR's 2,000 ms threshold. **So the threshold is crossed in one configuration and not the other**, which is not the clean answer the Linux figure alone suggested, and the ADR now says so in as many words instead of quoting the convenient column.
+
+**No snapshot is added and nothing supersedes ADR-014**, on two arguments written into it: a player's load is a Release load with twenty times the headroom, and — the one that actually settles it — **a simulated year is not a session.** Replay cost is proportional to elapsed *simulated* time, and at v0.1's compressed clock of sixty ticks a real minute, one simulated year is **146 real hours at the desk**. No v0.1 save reaches that row. Two further qualifications are recorded: the tick cost is not constant, so "a year fits" does not scale to "five years fit"; and this measures a year with *no* journal, whose 9 ms for a thousand inputs adds to it.
+
+**The reading itself is flagged for the owner rather than settled here.** ADR-014 §7 does not name a configuration and NC-031 measured it in Debug. If the threshold is meant to bind `Debug|x64` — the build the developer plays in — it is crossed now and a snapshot section is a task of its own. ADR-014 reads it as binding what a player waits for, and says which reading it took.
 
 ### Refinements, and the one thing added that the task did not ask for
 
@@ -116,13 +127,15 @@ ADR-014 said: "NC-048's one-year soak is what measures a real tick cost … The 
 
 ### What was verified, and what was not
 
-**Verified here:** `python3 Build/CheckFormat.py` — 173 files, clang-format 18.1.3, clean. `python3 Build/CheckProjectFiles.py` — 9 projects, clean. **clang-tidy 22.1.8**, the version CI pins, run from pip against the repository's own `.clang-tidy` on both changed test files — clean; it is the Linux driver rather than MSVC's, so it checks naming and the `bugprone`/`performance` families and not the SDK's headers.
+**Verified on CI**, run [35151574903](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35151574903), both jobs green, triggered by `workflow_dispatch` on the branch rather than by a pull request: `CheckProjectFiles.py` clean; **`Debug|x64` builds with zero warnings under `/W4 /WX`**; **all four suites pass** in a 149 s test step; `RunClangTidy.py` — **76 translation units clean**, one more than NC-047's 75, which is `SoakTests.cpp`; `CheckFormat.py` on clang-format 18.1.3 clean. The new measurement step printed every `[NC-nnn]` line, including this task's two.
 
-**The five soak tests and all ten `TickScheduleTests` were compiled and run**, at `-O0 -D_DEBUG` and `-O2 -DNDEBUG`, with clang 18.1.3 against a stand-in for `CppUnitTest.h` — the same source file the suite compiles, with `Assert`, `Logger` and the two macros supplied locally. All fifteen pass in both configurations.
+**Verified here:** `CheckFormat.py` (173 files) and `CheckProjectFiles.py` (9 projects), both clean. **clang-tidy 22.1.8**, the version CI pins, installed from pip and run against the repository's own `.clang-tidy` on both changed test files — clean before CI saw them.
 
-**Not done, and not claimable:** no `msbuild`, no `vstest.console.exe`, no `RunClangTidy.py` in MSVC driver mode, no Release build, no executable run. There is no Windows here. **The MSVC `Debug|x64` figures on the CI runner are therefore not in this report yet**, which is half of the first acceptance criterion; the CI step above is what makes them readable, and they go in as soon as CI has run.
+**The five soak tests and all ten `TickScheduleTests` were also compiled and run here**, at `-O0 -D_DEBUG` and `-O2 -DNDEBUG`, with clang 18.1.3 against a stand-in for `CppUnitTest.h` — the same source files the suites compile, with `Assert`, `Logger` and the two macros supplied locally. All fifteen pass in both configurations, and CI then passed the same fifteen under MSVC.
 
-**Assumed:** that `-O0 -D_DEBUG` under clang is a fair stand-in for `Debug|x64` under MSVC for the purpose of *setting a floor*. It is a stand-in and not an equivalent — MSVC's debug CRT and iterator debugging are slower — which is why the floor is 68× below the measurement rather than 2× below it, and why `MAX_TICKS_PER_PUMP` was set from the *slower* of the two configurations measured.
+**Not done, and not claimable:** **no Release build** and **the executable was never run**. There is no Windows on this agent and CI builds Debug only (AGENTS.md §6). Nothing here is optimisation-sensitive in a way Debug would hide — it is a test file, a constant and four documents — but the claim is not mine to make.
+
+**Assumed, and then checked:** that `-O0 -D_DEBUG` under clang is a fair stand-in for `Debug|x64` under MSVC for the purpose of setting a floor. CI settled it: MSVC is **4.8× slower**, which is inside the 2–5× I had allowed for, and the floor is fourteen times below the real figure rather than the 68× I had planned against the stand-in. Kept at 5,000 rather than tightened: fourteen times still catches an order of magnitude, and a runner having a bad day should not turn `main` red.
 
 **Bent:** nothing. Two rules were read carefully rather than bent. AGENTS.md §6 *Stay in scope* is why the economy defect became NC-049 instead of a diff — it changes every generated world, and `Plan/README.md` has a protocol for exactly this. And `Design/README.md`'s "a decision is never edited into a different decision" is why ADR-005 and ADR-014 were *measured into* rather than superseded: both named NC-048 as the task that would supply the number, and supplying it is executing the decision rather than changing it.
 
