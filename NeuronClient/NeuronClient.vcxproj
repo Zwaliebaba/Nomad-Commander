@@ -51,17 +51,20 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <FloatingPointModel>Precise</FloatingPointModel>
-      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PreprocessorDefinitions>_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)NeuronCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <FXCompile>
-      <ShaderModel>5.1</ShaderModel>
+      <ShaderModel>6.7</ShaderModel>
       <EntryPointName>main</EntryPointName>
+      <EnableDebuggingInformation>true</EnableDebuggingInformation>
+      <AdditionalOptions>-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
       <HeaderFileOutput>$(ProjectDir)CompiledShaders\%(Filename).h</HeaderFileOutput>
       <VariableName>g_%(Filename)</VariableName>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
       <TreatWarningAsError>true</TreatWarningAsError>
     </FXCompile>
   </ItemDefinitionGroup>
@@ -87,12 +90,20 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="GraphicsDevice.cpp" />
+    <ClCompile Include="PresentPass.cpp" />
     <ClCompile Include="PrimitivePipeline.cpp" />
+    <ClCompile Include="SceneTarget.cpp" />
+    <ClCompile Include="SwapChainTarget.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="GraphicsDevice.h" />
+    <ClInclude Include="PresentPass.h" />
     <ClInclude Include="PrimitivePipeline.h" />
+    <ClInclude Include="SceneTarget.h" />
+    <ClInclude Include="SwapChainTarget.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -100,6 +111,12 @@
       <ShaderType>Vertex</ShaderType>
     </FXCompile>
     <FXCompile Include="Shaders\PrimitivePS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FXCompile>
+    <FXCompile Include="Shaders\PresentVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FXCompile>
+    <FXCompile Include="Shaders\PresentPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FXCompile>
   </ItemGroup>

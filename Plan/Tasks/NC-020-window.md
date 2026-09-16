@@ -2,45 +2,45 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient, NomadCommander | M | **yes** | **yes** | Done (PR #3), desktop run outstanding |
+| 1 | NeuronClient, NomadCommander | M | **yes** | **yes** | Done (PR #3); borderless window and desktop run in PR #4 |
 
 **Depends on:** NC-002
-**Read first:** GDD §13; AGENTS.md §2 (NeuronClient), §4 (`NeuronCore.h` owns the macros; `NOGDI` means GDI is gone), R12 (1920×1080, presented 1:1), R13
+**Read first:** GDD §13; AGENTS.md §2 (NeuronClient), §4 (`NeuronCore.h` owns the macros; `NOGDI` means GDI is gone), R12 (1920×1080, and the borderless window), R13; **ADR-009**, **ADR-010**
 
 ## Goal
 
-A Win32 window whose client area is exactly 1920×1080 physical pixels, that cannot be resized or maximized, that pumps messages without blocking the frame, and that the executable opens and closes. It is the first thing a person can see, and the one place `<windows.h>`'s window functions are called.
+A Win32 window the game presents into, that pumps messages without blocking the frame, and that the executable opens and closes. Since ADR-010 it is borderless and covers the primary monitor, so its client area is that monitor's physical pixels — exactly the screen on a 1920×1080 display. It is the first thing a person can see, and the one place `<windows.h>`'s window functions are called.
 
 ## Deliverables
 
-- `NeuronClient/Window.h` + `.cpp`: `class Window` with `struct Desc { std::uint32_t clientWidthPixels; std::uint32_t clientHeightPixels; const wchar_t* title; }`, `[[nodiscard]] static bool Create(const Desc&, Window&)`, `Handle()` (`HWND`), `PumpMessages()` returning `false` when the window has been closed, a fixed-size style (`WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX`), `AdjustWindowRectExForDpi` for the frame, centred on the primary monitor; per-monitor-v2 DPI awareness confirmed at runtime (`GetDpiForWindow`), so the client area is the pixels asked for.
-- `SCREEN_WIDTH_PIXELS` and `SCREEN_HEIGHT_PIXELS` as `inline constexpr` in `Window.h` (the shape of AGENTS.md's worked example); NC-021's swap chain and test target take the size through their `Desc` from these.
-- `NomadCommander/Main.cpp`: creates the window with those constants, pumps until closed, exits 0. Escape closes the window too, until NC-024 gives input a home.
-- `NeuronClientTests/WindowTests.cpp`: creates and destroys a window on the CI runner (a window can be created without a desktop session; showing it is optional), asserts the client rectangle.
+- `NeuronClient/Window.h` + `.cpp`: `class Window` with `struct Desc { const wchar_t* title; }`, `[[nodiscard]] static bool Create(const Desc&, Window&)`, `Handle()` (`HWND`), `PumpMessages()` returning `false` when the window has been closed, the borderless style (`WS_POPUP`, extended style zero, not topmost), and the primary monitor's rectangle from `MonitorFromPoint` + `GetMonitorInfoW` with `GetSystemMetrics` behind it; the client area is checked against that rectangle after creation, which is also what proves per-monitor-v2 DPI awareness is in force (an unaware process would be handed the virtualized size).
+- `SCREEN_WIDTH_PIXELS` and `SCREEN_HEIGHT_PIXELS` as `inline constexpr` in `Window.h` (the shape of AGENTS.md's worked example); NC-021's scene target takes its size from these. They are the size the game *draws*, never the window's — under ADR-010 the window's size comes from the monitor.
+- `NomadCommander/Main.cpp`: creates the window, pumps until closed, exits 0. Escape closes it, until NC-024 gives input a home — and since ADR-010 that path is load-bearing, because a borderless window has no close box.
+- `NeuronClientTests/WindowTests.cpp`: creates and destroys a window on the CI runner (a window can be created without a desktop session; showing it is optional), asserts the client rectangle is the monitor's and that there is no non-client area.
 
 ## Acceptance criteria
 
-- [ ] On a 100 % and a 150 % display, the window is not blurred or scaled *by the system* (the manifest's DPI awareness from NC-001 is in force; the report says which displays were tried). `GetClientRect` reports 1920×1080 where the work area can hold it, and otherwise the largest area of the screen's shape that it can — 1783×1003 on a 1080p desktop, which is the fit doing its job, not a defect.
-- [ ] The window cannot be resized by the frame or maximized; the close box and Escape both end the process with exit code 0.
+- [x] On a 125 % display, the window is not blurred or scaled *by the system* (the manifest's DPI awareness from NC-001 is in force; the report says which displays were tried). `GetClientRect` reports the primary monitor's physical pixels — 1920×1080 on a 1920×1080 monitor, which is the screen, presented 1:1 and unfiltered.
+- [x] The window is borderless and has no non-client area (the window rectangle equals the client rectangle), carries no `WS_THICKFRAME` and no `WS_MAXIMIZEBOX`, and is not `WS_EX_TOPMOST`; Escape ends the process with exit code 0.
 - [x] `PumpMessages` returns promptly with no messages pending (`PeekMessage`, not `GetMessage`).
 - [x] No GDI call anywhere (`NOGDI` makes one a compile error; the criterion is that nobody worked around it).
-- [x] `WindowTests` pass on the CI runner (run 18, 86 of 86 green; re-proved at 1920×1080 in the run this change triggers).
+- [x] `WindowTests` pass on the CI runner (run 18, 86 of 86 green at the fit policy) and on the developer's machine after ADR-010 (87 of 87 green, seven `WindowTests` where there were six); re-proved on the runner by the run this change triggers.
 
 ## Verification
 
 ```powershell
 msbuild NomadCommander.slnx /p:Configuration=Debug /p:Platform=x64 /m /v:minimal /nologo /warnaserror
-x64\Debug\NomadCommander.exe        # a 1920×1080 window, black; close it
+x64\Debug\NomadCommander.exe        # the whole monitor, borderless and unpainted until NC-021; Escape closes it
 vstest.console.exe x64\Debug\NeuronClientTests.dll /Platform:x64
 ```
 
 ## Decisions to record
 
-None by this task. The screen changed from 1280×720 to 1920×1080 by owner decision on 2026-09-16; AGENTS.md R12 carries it, which is where the screen is stated. The question R12 now leaves open — what the game does on a desktop that cannot hold its screen — belongs to whichever task first needs an answer, and that task writes the ADR.
+**ADR-010 — the borderless window** (owner decision, 2026-09-16), written by round 9 below. The screen changed from 1280×720 to 1920×1080 by owner decision on the same day; AGENTS.md R12 carries that, which is where the screen is stated. The question R12 left open — what the game does on a desktop that cannot hold its screen — is what ADR-010 answers, together with ADR-009.
 
 ## Out of scope
 
-Rendering (NC-021), input state (NC-024), fullscreen, resizing, a second window, an icon (`.rc` files wait until something needs one).
+Rendering (NC-021), input state (NC-024), **exclusive** fullscreen and any display-mode change, a resizable or movable window, choosing which monitor to open on, a second window, an icon (`.rc` files wait until something needs one).
 
 ## Notes
 
@@ -132,3 +132,27 @@ What changed is `SCREEN_WIDTH_PIXELS` and `SCREEN_HEIGHT_PIXELS`, and the docume
 So the common laptop case now shows the whole game at 93 %, and any desktop of 2560×1440 or more stays pixel-perfect. **The cost is that 1080p — the most common display — is no longer pixel-perfect**: 8-pixel text at 0.929 is exactly the resampling ADR-009 names, and it is the first thing to look at when someone finally runs this.
 
 **The first property check in this tree that drives real code rather than a transcription of it.** The technique — include the `.cpp`, stub its dependencies, assert properties over a swept input space — is worth reusing wherever arithmetic decides something a person will see.
+
+**Round 9 — the window is borderless, and the desktop run finally happened (owner decision, 2026-09-16; ADR-010).** Round 8's last line asked for someone to run this. Someone did, and the first thing it produced was the question that undoes round 8: *why is the working area not 1920×1080? All the screens are built for this resolution.*
+
+The screens are, and they still are — nothing about the 80×45 grid, `GLYPH_SCALE` 3 or the 1920×1080 scene target moved. What could not be 1920×1080 was the *client area*, and the arithmetic is worse than round 6 recorded. Measured on the owner's machine: a 1920×1080 panel at 125 %, a 60-pixel taskbar leaving a work area of 1920×1020, and 18×47 of caption and border, so the largest client area a decorated window could have was 1902×973 and the fit produced **1729×973, a scale of 0.9005**. Hiding the taskbar does not fix it (1033 available against 1080 needed) and neither does 100 % scaling (1765×993, 0.9193). **No window with a title bar can present 1920×1080 unscaled on a 1920×1080 display**, and that is the most common display there is — so *fit* had quietly guaranteed resampled 8-pixel text for the majority of players, which is precisely the cost ADR-009 says is the one worth avoiding.
+
+Round 7 put three policies to the owner: fit, resize, keep. **None of them could produce a 1:1 screen on a 1080p monitor, and nobody noticed, because the fourth was never offered.** Dropping the frame is the only thing that gives the client area the monitor's exact pixels. The owner chose it; ADR-010 records it, including the part that is a real loss.
+
+**What changed.** `WINDOW_STYLE` is `WS_POPUP` with extended style zero and deliberately not `WS_EX_TOPMOST`. `Window::Desc` is a title and nothing else — there is no size to ask for, because the monitor decides. `FitClientAreaToWorkArea`, `FramePadding`, `FrameForClientArea`, `CenterOnPrimaryMonitor` and the cross-DPI re-fit are gone, about 110 lines, replaced by `PrimaryMonitorRect` (`MonitorFromPoint` + `GetMonitorInfoW`, with `GetSystemMetrics` behind it). `WindowFault::FrameArithmetic` became `MonitorQuery`; `DesktopTooSmall` survives meaning the monitor reports no pixels. `FittedToDesktop()` became `RequiresPresentScale()`.
+
+**Measured on the desktop, not reasoned about.** `x64\Debug\NomadCommander.exe` was launched and queried from a per-monitor-v2-aware process: `GetClientRect` **1920×1080**, `GetWindowRect` **1920×1080 at (0,0)**, `GetDpiForWindow` 120, style `0x94000000` (`WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS`), extended style `0x00000000`. The client area being 1920 physical at 120 dpi is also what settles acceptance criterion 1 — an unaware process would have reported 1536×864. `PostMessage(WM_KEYDOWN, VK_ESCAPE)` ended it with **exit code 0**, which settles criterion 2. One display was tried: the owner's 1920×1080 at 125 %. **Not tried: 100 % and 150 %, and any monitor that is not 1920×1080** — on those the client area is the monitor's and the present step scales, which is ADR-010's stated cost rather than an untested claim, but nobody has looked at one.
+
+**Built and run here, on Windows, for the first time in this task's life.** `msbuild NomadCommander.slnx /p:Configuration=Debug /p:Platform=x64` clean, and `vstest.console.exe` over all four suites: **87 of 87 green**. Release was built too and is also clean, with no warnings — CI does not build it (§6), and this change is the kind that would not break under optimisation, but it cost a minute to stop guessing. The tests were run in Debug only. `CheckFormat.py` (62 files) and `RunClangTidy.py` (26 translation units) are clean; `CheckProjectFiles.py` is red for the reason below, and was equally red before this change.
+
+**The tests changed with the contract, again.** `TheClientAreaIsTheScreenOrTheLargestOfItsShapeThatFits` became `TheClientAreaIsTheWholeOfThePrimaryMonitor`. `TheWindowCannotBeResizedOrMaximized` became `TheWindowIsBorderlessAndCannotBeResizedOrMaximized` and now also asserts the window is not topmost. Two are new: `TheWindowHasNoNonClientArea` asserts the window rectangle equals the client rectangle, which is the independent half of the first test — it holds whatever the monitor turned out to be, and it is what removing the caption actually bought; and `ThePresentScaleIsNeededExactlyWhenTheMonitorIsNotTheScreen` pins `RequiresPresentScale()` to the measured client area rather than to a remembered one. Seven tests where there were six.
+
+**Deleted, and worth naming.** `AClientAreaLargerThanTheDesktopIsFittedWithItsShapeKept` is gone, because `Desc` can no longer express a client area larger than the desktop. It was the regression test for round 4's `WM_GETMINMAXINFO` clamp. **The override itself was kept anyway**, now unreachable: a window that is exactly one monitor can never be clamped by a limit that is the size of the whole desktop. Keeping it is one branch in a rarely-received message against a trap that cost four red CI runs and would return silently if the window ever regained a caption; that bet is asymmetric and ADR-010 records taking it deliberately rather than by inertia. Round 8's property-based driver over ~86,000 desktop sizes went with the arithmetic it checked — the technique is still the right one, and there is no longer any arithmetic here to apply it to.
+
+**The executable now shows nothing at all, and that is worth recording rather than discovering twice.** The owner ran it after this change and reported that the screen does not show. It does: the window is created, visible, foreground and covering 0,0–1920,1080, and `DwmGetWindowAttribute` says it is not cloaked. It is *invisible*, because nothing in this tree has ever painted a pixel — the class has no background brush (`NOGDI`, §4), `WM_ERASEBKGND` is answered without erasing and `WM_PAINT` is validated without painting, so the window's redirection surface has no content and DWM composites it as nothing. Measured: the screen's mean brightness over a 16×9 sample is 27.2 without the game and 27.5 with it up, and the sampled bytes that differ are the terminal's own text redrawing.
+
+**This is the same fact the owner saw before the change, showing differently, and the new way is worse.** A decorated, windowed, unpainted client area came up white — obviously a program. A borderless, fullscreen, unpainted one is indistinguishable from no program at all, while holding the foreground and swallowing the keyboard. Escape and Alt+F4 still work and are verified above, but nothing on screen says so. **NC-021 is the fix and there is no interim one worth having**: the swap chain clears the back buffer every frame, which is the first thing that ever writes to this window. A background brush would need a GDI call that `NOGDI` has removed for exactly the reason §4 gives — the swap chain owns every pixel — and painting one would only fight the renderer that is about to arrive. So the state between this task and NC-021 is: the game runs, and looks like nothing. Whoever runs it next should be told that before they run it.
+
+**Noticed, left alone — and it is not small.** The working tree this was built in has every `.vcxproj` rewritten by Visual Studio 2026: `EnableEnhancedInstructionSet` set to `AdvancedVectorExtensions2` on all nine projects, which is `/arch:AVX2` and a direct violation of **R16** ("no `/arch`") with determinism as the thing at stake; `ShaderModel 6.7` added under a `Debug|x64`-only condition, which breaks §3's Debug/Release alignment; the `Source Files` / `Header Files` filters dropped from every `.filters`; the explicit `Debug` and `Release` `BuildType` elements dropped from `NomadCommander.slnx`; and the final newline removed from each file. `CheckProjectFiles.py` reports all ten. **None of it is this change's doing and none of it was committed here.** It is the owner's to revert or accept, and until it is reverted the checker is red for reasons unrelated to this task.
+
+**Also noticed:** `python` on the owner's PATH is a partial install at `C:\Program Files\Python314` with no standard library, so every command in AGENTS.md §3 that starts with `python` fails with `ModuleNotFoundError: No module named 'encodings'`. `py -3` works. Nothing in the repository is wrong; the machine is.

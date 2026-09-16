@@ -21,14 +21,20 @@ enum class WindowFault : std::uint8_t
 {
   None,
   ClassRegistration,
-  FrameArithmetic,
+  MonitorQuery,
   DesktopTooSmall,
   Creation,
   ClientAreaMismatch
 };
 
-/// The one place this tree calls the Win32 window functions. It owns one top-level window, of a fixed size, that
-/// cannot be resized or maximized, and pumps messages without ever blocking the frame.
+/// The one place this tree calls the Win32 window functions. It owns one top-level window, borderless and covering the
+/// whole of the primary monitor (ADR-010), and pumps messages without ever blocking the frame.
+///
+/// There is no size to ask for: the monitor decides. A window with a caption cannot have a client area as tall as the
+/// monitor it is on -- the caption and borders are 47 pixels of the 1080 a 1080p display has -- and 1080p is the most
+/// common display there is, so a decorated window could never present the screen unscaled on one. Dropping the frame
+/// is what gives the client area the monitor's exact pixels, and on a 1920x1080 monitor those are the screen's, which
+/// is the 1:1 unfiltered path ADR-009's present step takes.
 ///
 /// A window is created into an out parameter and destroyed with the object; it is neither copied nor moved, because
 /// the window procedure holds a pointer to it.
@@ -37,11 +43,12 @@ class Window
 public:
   struct Desc
   {
-    std::uint32_t clientWidthPixels;
-    std::uint32_t clientHeightPixels;
     // A null-terminated literal, handed to CreateWindowExW as it stands. Not a std::wstring_view: Create is noexcept,
     // and copying a view into a string to null-terminate it is an allocation, which is a throw, which in a noexcept
     // function is std::terminate. R13 makes every title in this game a compile-time literal anyway.
+    //
+    // A borderless window shows its title nowhere. It is still what the taskbar, Alt+Tab and every debugger name the
+    // process by, which is reason enough to keep it.
     const wchar_t* title;
   };
 
@@ -52,13 +59,12 @@ public:
   Window& operator=(Window&&) = delete;
   ~Window();
 
-  /// Creates the window, hidden, with a client area of exactly the requested pixels **where the desktop can hold one
-  /// that big**, and otherwise the largest area of the same shape that the work area can hold (the *fit* policy,
-  /// ADR-009). The game still draws at 1920x1080 either way; the frame's last step scales that into whatever came out
-  /// here, which is what makes a display smaller than the screen usable at all.
+  /// Creates the window, hidden, borderless, at the primary monitor's origin and exactly its size (ADR-010). The game
+  /// still draws at 1920x1080 whatever that size is; the frame's last step presents the scene target into the client
+  /// area, which on a 1920x1080 monitor is 1:1 and unfiltered and on any other is scaled with the aspect preserved.
   ///
-  /// Returns false if the class cannot be registered, the frame arithmetic fails, the work area cannot hold a window
-  /// of any size, the window cannot be created, or the client area did not come out the size this function computed.
+  /// Returns false if the class cannot be registered, Windows will not say how big the primary monitor is, that
+  /// monitor has no pixels, the window cannot be created, or the client area did not come out the monitor's size.
   /// Fault() and SystemError() then say which, and what Windows called it.
   [[nodiscard]] static bool Create(const Desc& _desc, Window& _outWindow) noexcept;
 
@@ -75,7 +81,7 @@ public:
   }
 
   /// The client area Windows gave the window when Create checked it, whatever the outcome. On a ClientAreaMismatch
-  /// this is what it got instead of what Create computed, which is the one number a build agent's log needs.
+  /// this is what it got instead of the monitor's size, which is the one number a build agent's log needs.
   [[nodiscard]] std::uint32_t MeasuredWidthPixels() const noexcept
   {
     return m_measuredWidthPixels;
@@ -86,11 +92,11 @@ public:
     return m_measuredHeightPixels;
   }
 
-  /// Whether the desktop could not hold the requested client area, so Create shrank it. False means the client area is
-  /// exactly what was asked for and the present scale is 1:1; true means the renderer is scaling, and the log says so.
-  [[nodiscard]] bool FittedToDesktop() const noexcept
+  /// Whether the monitor is not 1920x1080, so the present step is scaling rather than copying. False means the client
+  /// area is exactly the screen and the frame ends unfiltered; true means the renderer is scaling, and the log says so.
+  [[nodiscard]] bool RequiresPresentScale() const noexcept
   {
-    return m_fittedToDesktop;
+    return m_requiresPresentScale;
   }
 
   /// Makes the window visible. Separate from Create so that a test can make a window without putting one on a screen.
@@ -108,7 +114,8 @@ public:
   /// The client area as Windows reports it, for a caller that wants to check rather than assume.
   [[nodiscard]] bool ClientSizePixels(std::uint32_t& _outWidth, std::uint32_t& _outHeight) const noexcept;
 
-  /// Asks the window to close, as the close box does. The next pump reports it.
+  /// Asks the window to close, as Alt+F4 does. The next pump reports it. A borderless window has no close box, so
+  /// until NC-024 gives input a home this and the Escape key in the window procedure are the whole of the way out.
   void RequestClose() noexcept;
 
   [[nodiscard]] bool Closed() const noexcept
@@ -122,7 +129,7 @@ private:
   HWND m_handle = nullptr;
   bool m_closed = false;
   WindowFault m_fault = WindowFault::None;
-  bool m_fittedToDesktop = false;
+  bool m_requiresPresentScale = false;
   unsigned long m_systemError = 0;
   std::uint32_t m_measuredWidthPixels = 0;
   std::uint32_t m_measuredHeightPixels = 0;

@@ -11,7 +11,7 @@ Exit 0 on a clean tree; 1 with one line per finding, `<path>[:<line>]: <rule>: <
 
 The ten rules, in the order they run:
 
-  Shape         Every .vcxproj: x64 only; v145; stdcpplatest; /permissive-; /W4 /WX; /fp:precise; no /arch; Unicode;
+  Shape         Every .vcxproj: x64 only; v145; stdcpplatest; /permissive-; /W4 /WX; /fp:precise; /arch:AVX2; Unicode;
                 a precompiled header; none of the Windows macro family in PreprocessorDefinitions; no project's own
                 directory on its include path; cross-project include directories spelled $(SolutionDir)<Project>;
                 OutDir anchored on $(SolutionDir).
@@ -88,6 +88,9 @@ ALLOWED_TO_DIFFER = {
   ("Link", "LinkTimeCodeGeneration"),
   ("Lib", "LinkTimeCodeGeneration"),
 }
+# AGENTS.md R16 and ADR-011: /arch:AVX2 is the baseline, in both configurations, stated rather than defaulted.
+INSTRUCTION_SET = "AdvancedVectorExtensions2"
+
 RUNTIME_LIBRARY_PAIR = {"MultiThreadedDebugDLL", "MultiThreadedDLL"}
 CONFIGURATION_DEFINES = {"_DEBUG", "NDEBUG"}
 
@@ -283,8 +286,10 @@ def check_shape(project, findings):
     if actual != expected:
       findings.add(rule, path, f"ClCompile.{name} is {actual!r}, must be {expected!r}")
   instruction_set = project.metadata("ClCompile", "EnableEnhancedInstructionSet")
-  if instruction_set not in (None, "", "NotSet"):
-    findings.add(rule, path, f"ClCompile.EnableEnhancedInstructionSet is {instruction_set!r}; no /arch (R16)")
+  if instruction_set != INSTRUCTION_SET:
+    findings.add(rule, path,
+                 f"ClCompile.EnableEnhancedInstructionSet is {instruction_set!r}, "
+                 f"must be {INSTRUCTION_SET!r} (R16, ADR-011)")
   defines = set()
   for configuration in CONFIGURATIONS:
     defines |= set(split_list(project.metadata("ClCompile", "PreprocessorDefinitions", configuration)))

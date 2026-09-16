@@ -1,89 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
+    <ClCompile Include="ByteReader.cpp" />
+    <ClCompile Include="ByteWriter.cpp" />
+    <ClCompile Include="Debug.cpp" />
+    <ClCompile Include="MemoryTransport.cpp" />
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="Protocol.cpp" />
+    <ClCompile Include="Random.cpp" />
+    <ClCompile Include="TickSchedule.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="pch.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ByteReader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ByteWriter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Debug.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MemoryTransport.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Protocol.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Random.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TickSchedule.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="pch.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="NeuronCore.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Debug.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ByteReader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ByteWriter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Hundredths.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Id.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="IntegerMath.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MemoryTransport.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Protocol.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Random.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Serializable.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Simulation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TickSchedule.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Transport.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Tick.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+    <ClInclude Include="ByteReader.h" />
+    <ClInclude Include="ByteWriter.h" />
+    <ClInclude Include="Debug.h" />
+    <ClInclude Include="Hundredths.h" />
+    <ClInclude Include="Id.h" />
+    <ClInclude Include="IntegerMath.h" />
+    <ClInclude Include="MemoryTransport.h" />
+    <ClInclude Include="NeuronCore.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="Protocol.h" />
+    <ClInclude Include="Random.h" />
+    <ClInclude Include="Serializable.h" />
+    <ClInclude Include="Simulation.h" />
+    <ClInclude Include="Tick.h" />
+    <ClInclude Include="TickSchedule.h" />
+    <ClInclude Include="Transport.h" />
   </ItemGroup>
 </Project>

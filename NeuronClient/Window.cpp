@@ -16,133 +16,72 @@ namespace
 const wchar_t* const WINDOW_CLASS_NAME = L"NomadCommanderWindow";
 bool g_classRegistered = false;
 
-// A fixed-size window: a caption, a system menu and a minimize box, and deliberately no WS_THICKFRAME and no
-// WS_MAXIMIZEBOX, because the screen is 1920x1080 and nothing scales it (R12).
+// A borderless window (ADR-010): no caption, no border, no system menu, and so no non-client area at all. The client
+// area is therefore the window rectangle, and setting that rectangle to the monitor's gives a client area of exactly
+// the monitor's pixels -- which on a 1920x1080 display is the screen, presented 1:1 and unfiltered.
 //
-// WS_OVERLAPPED is named for what the window is, and contributes nothing: it is zero. AdjustWindowRectExForDpi
-// documents that the style must not be specified, which is a statement about a style that has no bits rather than one
-// the call could detect; the frame arithmetic below is the same with it and without it.
-constexpr DWORD WINDOW_STYLE = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+// WS_POPUP is what removes the frame. It is not fullscreen in the exclusive sense: no display mode is changed and no
+// swap chain goes fullscreen, so Alt+Tab, the debugger and a second monitor all behave normally, and the window is an
+// ordinary unowned top-level one that the taskbar and Alt+Tab list. WS_EX_TOPMOST is deliberately absent, because a
+// window that insists on being above everything is one a player cannot get out from under.
+//
+// The styles that are gone were never doing anything a borderless window can use: WS_CAPTION drew the frame this
+// decision removes, WS_MINIMIZEBOX and WS_SYSMENU put buttons on that frame, and there was never a WS_THICKFRAME or a
+// WS_MAXIMIZEBOX. Alt+F4 still closes: DefWindowProcW turns it into WM_SYSCOMMAND SC_CLOSE, and the procedure below
+// forwards every message it does not handle.
+constexpr DWORD WINDOW_STYLE = WS_POPUP;
 constexpr DWORD WINDOW_EXTENDED_STYLE = 0;
 
-// The largest window this class will admit to, in pixels, and the reason it has to say so.
+// The largest window this class will admit to, in pixels, and the reason it still says so.
 //
-// CreateWindowExW sends WM_GETMINMAXINFO to any window carrying WS_CAPTION before it returns, and clamps the new
-// window to that message's ptMaxTrackSize. The default is SM_CXMAXTRACK by SM_CYMAXTRACK, which is the size of the
-// ENTIRE DESKTOP -- so on any desktop smaller than the screen the clamp silently hands back a smaller client area
-// than the one asked for, which is exactly the promise this class exists to keep (R12). At 1920x1080 that is most
-// desktops, not a corner case. GetSystemMetrics documents the way
-// out: "A window can override this value by processing the WM_GETMINMAXINFO message." The procedure below does, and
-// this is the value it gives.
+// CreateWindowExW clamps a new window to the ptMaxTrackSize its WM_GETMINMAXINFO reports, whose default is
+// SM_CXMAXTRACK by SM_CYMAXTRACK -- the size of the ENTIRE DESKTOP. That clamp cost this class four red CI runs while
+// the style carried WS_CAPTION and the client area was the screen's 1920x1080 on a 1024x768 build agent.
 //
-// Since ADR-009 the fit in Create keeps the window inside the work area, so this override normally has nothing to
-// do. It still matters on the one path where the fit cannot run: when Windows will not report a work area, Create
-// uses the requested size unchanged, and without this the clamp would silently shrink it again.
-//
-// Overriding it costs nothing, because a tracking size is a limit on DRAGGING a window's frame and this style carries
-// no WS_THICKFRAME: there is no frame to drag, so the clamp at creation is the only thing the number ever did. 32767
-// rather than something larger because WM_SIZE packs the client width and height into sixteen bits each, and a window
-// wider than a signed short is one whose own size messages cannot describe it.
+// Since ADR-010 it has nothing to clamp: the window is exactly one monitor, and the desktop is never smaller than the
+// monitor it contains. The override stays anyway, because WM_GETMINMAXINFO is also sent on every later SetWindowPos,
+// because it costs one branch in a message this class receives a handful of times, and because rediscovering the
+// clamp is expensive and keeping the answer is free. 32767 rather than something larger because WM_SIZE packs the
+// client width and height into sixteen bits each, and a window wider than a signed short is one whose own size
+// messages cannot describe it.
 constexpr LONG MAX_TRACK_PIXELS = 32767;
 
-/// The window rectangle whose client area is exactly the requested pixels at the given scaling.
-[[nodiscard]] bool FrameForClientArea(std::uint32_t _clientWidth, std::uint32_t _clientHeight, UINT _dpi, RECT& _outFrame) noexcept
+/// The primary monitor's rectangle in physical pixels -- the whole of it, not the work area, because a borderless
+/// window covers the taskbar rather than sitting beside it.
+///
+/// Physical pixels because the process is per-monitor-v2 DPI aware (the executable's manifest, NC-001). That matters
+/// more here than it did under any windowed policy: an unaware process is told a 1920x1080 monitor at 125% scaling is
+/// 1536x864, would size itself to that, and Windows would stretch the result -- the blur R12 exists to prevent, on
+/// every machine rather than only on a display that cannot hold the screen.
+[[nodiscard]] bool PrimaryMonitorRect(RECT& _outRect) noexcept
 {
-  _outFrame.left = 0;
-  _outFrame.top = 0;
-  _outFrame.right = static_cast<LONG>(_clientWidth);
-  _outFrame.bottom = static_cast<LONG>(_clientHeight);
-  return AdjustWindowRectExForDpi(&_outFrame, WINDOW_STYLE, FALSE, WINDOW_EXTENDED_STYLE, _dpi) != FALSE;
-}
+  // The primary monitor's origin is (0,0) by definition, so the point picks it out without a window to ask about.
+  const POINT origin{0, 0};
+  const HMONITOR monitor = MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY);
+  if (monitor != nullptr)
+  {
+    MONITORINFO info{};
+    info.cbSize = sizeof info;
+    if (GetMonitorInfoW(monitor, &info) != FALSE)
+    {
+      _outRect = info.rcMonitor;
+      return true;
+    }
+  }
 
-// A size to measure the non-client padding against. A fixed frame's borders and caption are the same thickness
-// whatever the client area is, so any probe does; this one is comfortably larger than the padding it measures.
-constexpr LONG FRAME_PROBE_PIXELS = 1000;
-
-/// How much wider and taller than its client area a window of this style is, at this scaling.
-[[nodiscard]] bool FramePadding(UINT _dpi, LONG& _outWidthPixels, LONG& _outHeightPixels) noexcept
-{
-  RECT probe{0, 0, FRAME_PROBE_PIXELS, FRAME_PROBE_PIXELS};
-  if (AdjustWindowRectExForDpi(&probe, WINDOW_STYLE, FALSE, WINDOW_EXTENDED_STYLE, _dpi) == FALSE)
+  // GetSystemMetrics is the primary monitor's size by definition and cannot fail in a way it can report, so it is the
+  // fallback rather than the first choice: MONITORINFO is what a second monitor would need, and this is what is left.
+  const int widthPixels = GetSystemMetrics(SM_CXSCREEN);
+  const int heightPixels = GetSystemMetrics(SM_CYSCREEN);
+  if (widthPixels <= 0 || heightPixels <= 0)
   {
     return false;
   }
-  _outWidthPixels = (probe.right - probe.left) - FRAME_PROBE_PIXELS;
-  _outHeightPixels = (probe.bottom - probe.top) - FRAME_PROBE_PIXELS;
+  _outRect.left = 0;
+  _outRect.top = 0;
+  _outRect.right = widthPixels;
+  _outRect.bottom = heightPixels;
   return true;
-}
-
-/// The client area this window will actually have: the requested one where the work area can hold a window around it,
-/// and otherwise the largest area of the same shape that it can (ADR-009's *fit* policy).
-///
-/// Bounded by the WORK area rather than the whole desktop, so the whole window is visible and none of it is under the
-/// taskbar. If Windows will not say what the work area is, the request is used unchanged -- the same behaviour this
-/// class had before ADR-009, and the case the tracking-size override in the window procedure still exists for.
-[[nodiscard]] WindowFault FitClientAreaToWorkArea(std::uint32_t _requestedWidth, std::uint32_t _requestedHeight, UINT _dpi,
-                                                  std::uint32_t& _outWidth, std::uint32_t& _outHeight) noexcept
-{
-  _outWidth = _requestedWidth;
-  _outHeight = _requestedHeight;
-
-  RECT workArea{};
-  if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE)
-  {
-    return WindowFault::None;
-  }
-  LONG paddingWidth = 0;
-  LONG paddingHeight = 0;
-  if (!FramePadding(_dpi, paddingWidth, paddingHeight))
-  {
-    return WindowFault::FrameArithmetic;
-  }
-
-  const LONG availableWidth = (workArea.right - workArea.left) - paddingWidth;
-  const LONG availableHeight = (workArea.bottom - workArea.top) - paddingHeight;
-  if (availableWidth <= 0 || availableHeight <= 0 || _requestedWidth == 0 || _requestedHeight == 0)
-  {
-    return WindowFault::DesktopTooSmall;
-  }
-  if (static_cast<LONG>(_requestedWidth) <= availableWidth && static_cast<LONG>(_requestedHeight) <= availableHeight)
-  {
-    return WindowFault::None;
-  }
-
-  // The largest rectangle of the requested shape that fits, in 64 bits because the products are of two screen extents.
-  const std::int64_t requestedWidth = _requestedWidth;
-  const std::int64_t requestedHeight = _requestedHeight;
-  const std::int64_t heightAtFullWidth = availableWidth * requestedHeight / requestedWidth;
-  std::int64_t fittedWidth = availableWidth;
-  std::int64_t fittedHeight = heightAtFullWidth;
-  if (heightAtFullWidth > availableHeight)
-  {
-    fittedHeight = availableHeight;
-    fittedWidth = availableHeight * requestedWidth / requestedHeight;
-  }
-  if (fittedWidth <= 0 || fittedHeight <= 0)
-  {
-    return WindowFault::DesktopTooSmall;
-  }
-  _outWidth = static_cast<std::uint32_t>(fittedWidth);
-  _outHeight = static_cast<std::uint32_t>(fittedHeight);
-  return WindowFault::None;
-}
-
-/// Where a frame of that size sits, centred on the primary monitor's work area.
-void CenterOnPrimaryMonitor(const RECT& _frame, int& _outLeft, int& _outTop) noexcept
-{
-  const int frameWidth = static_cast<int>(_frame.right - _frame.left);
-  const int frameHeight = static_cast<int>(_frame.bottom - _frame.top);
-  RECT workArea{};
-  if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE)
-  {
-    _outLeft = CW_USEDEFAULT;
-    _outTop = CW_USEDEFAULT;
-    return;
-  }
-  const int workWidth = static_cast<int>(workArea.right - workArea.left);
-  const int workHeight = static_cast<int>(workArea.bottom - workArea.top);
-  _outLeft = static_cast<int>(workArea.left) + (workWidth - frameWidth) / 2;
-  _outTop = static_cast<int>(workArea.top) + (workHeight - frameHeight) / 2;
 }
 
 } // namespace
@@ -164,7 +103,7 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
   _outWindow.m_systemError = 0;
   _outWindow.m_measuredWidthPixels = 0;
   _outWindow.m_measuredHeightPixels = 0;
-  _outWindow.m_fittedToDesktop = false;
+  _outWindow.m_requiresPresentScale = false;
 
   // Registered once per process, here rather than in a free helper: the window procedure is private, and only a member
   // may take its address.
@@ -189,34 +128,27 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
     g_classRegistered = true;
   }
 
-  // The system's scaling is the best guess before there is a window to ask; once there is one, its own monitor's
-  // scaling decides, and the fit and the frame are both recomputed if the two differ.
-  const UINT initialDpi = GetDpiForSystem();
-  std::uint32_t clientWidth = 0;
-  std::uint32_t clientHeight = 0;
-  const WindowFault fitFault =
-    FitClientAreaToWorkArea(_desc.clientWidthPixels, _desc.clientHeightPixels, initialDpi, clientWidth, clientHeight);
-  if (fitFault != WindowFault::None)
+  // The monitor is the whole of the geometry. There is no fit to compute, no frame to adjust and no centring to do:
+  // a borderless window at the monitor's origin, of the monitor's size, has a client area of the monitor's pixels.
+  RECT monitor{};
+  if (!PrimaryMonitorRect(monitor))
   {
     _outWindow.m_systemError = GetLastError();
-    _outWindow.m_fault = fitFault;
+    _outWindow.m_fault = WindowFault::MonitorQuery;
+    return false;
+  }
+  const LONG monitorWidth = monitor.right - monitor.left;
+  const LONG monitorHeight = monitor.bottom - monitor.top;
+  if (monitorWidth <= 0 || monitorHeight <= 0)
+  {
+    _outWindow.m_systemError = GetLastError();
+    _outWindow.m_fault = WindowFault::DesktopTooSmall;
     return false;
   }
 
-  RECT frame{};
-  if (!FrameForClientArea(clientWidth, clientHeight, initialDpi, frame))
-  {
-    _outWindow.m_systemError = GetLastError();
-    _outWindow.m_fault = WindowFault::FrameArithmetic;
-    return false;
-  }
-  int left = CW_USEDEFAULT;
-  int top = CW_USEDEFAULT;
-  CenterOnPrimaryMonitor(frame, left, top);
-
-  HWND handle = CreateWindowExW(WINDOW_EXTENDED_STYLE, WINDOW_CLASS_NAME, _desc.title, WINDOW_STYLE, left, top,
-                                static_cast<int>(frame.right - frame.left), static_cast<int>(frame.bottom - frame.top), nullptr, nullptr,
-                                GetModuleHandleW(nullptr), &_outWindow);
+  HWND handle = CreateWindowExW(WINDOW_EXTENDED_STYLE, WINDOW_CLASS_NAME, _desc.title, WINDOW_STYLE, static_cast<int>(monitor.left),
+                                static_cast<int>(monitor.top), static_cast<int>(monitorWidth), static_cast<int>(monitorHeight), nullptr,
+                                nullptr, GetModuleHandleW(nullptr), &_outWindow);
   if (handle == nullptr)
   {
     _outWindow.m_systemError = GetLastError();
@@ -224,35 +156,18 @@ bool Window::Create(const Desc& _desc, Window& _outWindow) noexcept
     return false;
   }
   _outWindow.m_handle = handle;
+  _outWindow.m_requiresPresentScale =
+    static_cast<std::uint32_t>(monitorWidth) != SCREEN_WIDTH_PIXELS || static_cast<std::uint32_t>(monitorHeight) != SCREEN_HEIGHT_PIXELS;
 
-  // If the window landed on a monitor scaled differently from the system's, the frame it was given is the wrong size
-  // for the client area computed above -- and so, since the padding changed, is the fit. Redo both and resize once.
-  const UINT windowDpi = GetDpiForWindow(handle);
-  if (windowDpi != 0 && windowDpi != initialDpi)
-  {
-    std::uint32_t refitWidth = 0;
-    std::uint32_t refitHeight = 0;
-    RECT adjusted{};
-    if (FitClientAreaToWorkArea(_desc.clientWidthPixels, _desc.clientHeightPixels, windowDpi, refitWidth, refitHeight) ==
-          WindowFault::None &&
-        FrameForClientArea(refitWidth, refitHeight, windowDpi, adjusted))
-    {
-      clientWidth = refitWidth;
-      clientHeight = refitHeight;
-      SetWindowPos(handle, nullptr, 0, 0, static_cast<int>(adjusted.right - adjusted.left),
-                   static_cast<int>(adjusted.bottom - adjusted.top), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-    }
-  }
-  _outWindow.m_fittedToDesktop = clientWidth != _desc.clientWidthPixels || clientHeight != _desc.clientHeightPixels;
-
-  // The client area is what the renderer scales the scene target into (ADR-009), so it is checked rather than assumed:
-  // the size this function computed is the promise, not the size the caller asked for.
+  // The client area is what the renderer presents the scene target into (ADR-009), so it is checked rather than
+  // assumed: the monitor's size is the promise, and a client area that is not it means something between this call and
+  // the window manager disagreed -- DPI virtualisation being the one that matters, because it is silent.
   std::uint32_t actualWidth = 0;
   std::uint32_t actualHeight = 0;
   const bool measured = _outWindow.ClientSizePixels(actualWidth, actualHeight);
   _outWindow.m_measuredWidthPixels = actualWidth;
   _outWindow.m_measuredHeightPixels = actualHeight;
-  if (!measured || actualWidth != clientWidth || actualHeight != clientHeight)
+  if (!measured || actualWidth != static_cast<std::uint32_t>(monitorWidth) || actualHeight != static_cast<std::uint32_t>(monitorHeight))
   {
     _outWindow.m_systemError = GetLastError();
     _outWindow.m_fault = WindowFault::ClientAreaMismatch;
@@ -345,7 +260,9 @@ LRESULT CALLBACK Window::WindowProcedure(HWND _handle, UINT _message, WPARAM _wp
     return 0;
 
   case WM_KEYDOWN:
-    // Escape closes, until NC-024 gives input a home of its own.
+    // Escape closes, until NC-024 gives input a home of its own. A borderless window has no close box, so this and
+    // Alt+F4 are the only ways out of it -- which makes this temporary path load-bearing rather than a convenience
+    // (ADR-010).
     if (_wparam == VK_ESCAPE && window != nullptr)
     {
       window->RequestClose();

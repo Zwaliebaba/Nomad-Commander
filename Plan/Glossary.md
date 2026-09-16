@@ -21,8 +21,8 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | The window, and the fixed screen size (R12) | `Window`, `SCREEN_WIDTH_PIXELS`, `SCREEN_HEIGHT_PIXELS` | `Window.h` | NeuronClient | NC-020 |
 | The D3D12 device and queue | `GraphicsDevice` | `GraphicsDevice.h` | NeuronClient | NC-021 |
 | The 1920×1080 target every pass draws into | `SceneTarget`, `TargetFault` | `SceneTarget.h` | NeuronClient | NC-021 |
-| The swap chain and the present scale | `SwapChainTarget` | `SwapChainTarget.h` | NeuronClient | NC-021 |
-| The test-only offscreen target with readback (A12) | `FrameTarget` | `FrameTarget.h` | NeuronClient | NC-021 |
+| The swap chain, the back buffers and the frame's fencing | `SwapChainTarget` | `SwapChainTarget.h` | NeuronClient | NC-021 |
+| The present scale: the scene target into the client area (ADR-009) | `PresentPass`, `PresentPass::Placement`, `PresentPass::Filter` | `PresentPass.h` | NeuronClient | NC-021 |
 | Shared pipeline defaults (opaque by default; MSAA is unavailable on a flip-model back buffer) | `PipelineDefaults` | `PipelineDefaults.h` | NeuronClient | NC-022 |
 | 2D primitives in pixel space | `PrimitiveBatch`, `PrimitiveVertex` | `PrimitiveBatch.h`, `PrimitivePipeline.h` | NeuronClient | NC-006, NC-022 |
 | The bitmap font, 96 glyphs, 8×8, one bit a pixel (R13) | `FONT_8X8_GLYPHS` | `BitmapFont.h` | NeuronClient | NC-023 |
