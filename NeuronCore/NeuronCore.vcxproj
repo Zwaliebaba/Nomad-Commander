@@ -85,7 +85,9 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="NeuronCore.h" />
     <ClInclude Include="Debug.h" />
+    <ClInclude Include="Hundredths.h" />
     <ClInclude Include="Id.h" />
+    <ClInclude Include="IntegerMath.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="Tick.h" />
   </ItemGroup>

@@ -31,7 +31,13 @@
     <ClInclude Include="Debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Hundredths.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Id.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IntegerMath.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Random.h">

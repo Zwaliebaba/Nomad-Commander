@@ -14,7 +14,13 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="HundredthsTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="IdTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IntegerMathTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RandomTests.cpp">
