@@ -19,11 +19,11 @@ Run clang-tidy over every hand-written translation unit in the tree through clan
 
 ## Acceptance criteria
 
-- [ ] Exit 0 on the Phase-0 tree with clang-tidy 22.1.8 from pip.
-- [ ] A translation unit with a parameter missing its `_` is reported and the exit code is 1.
-- [ ] Findings from headers outside the tree (SDK, CRT) are not reported; `HeaderFilterRegex` from `.clang-tidy` is in force because the script does not override it.
-- [ ] The per-file switch list is derived from the `.vcxproj`, not typed into the script a second time, except `/DUNICODE /D_UNICODE`, which stand for `CharacterSet=Unicode`.
-- [ ] `build.yml`'s *Run clang-tidy* step passes as written.
+- [x] Exit 0 on the Phase-0 tree with clang-tidy 22.1.8 from pip.
+- [x] A translation unit with a parameter missing its `_` is reported and the exit code is 1.
+- [x] Findings from headers outside the tree (SDK, CRT) are not reported; `HeaderFilterRegex` from `.clang-tidy` is in force because the script does not override it.
+- [x] The per-file switch list is derived from the `.vcxproj`, not typed into the script a second time, except `/DUNICODE /D_UNICODE`, which stand for `CharacterSet=Unicode`.
+- [x] `build.yml`'s *Run clang-tidy* step passes as written.
 
 ## Verification
 
@@ -56,3 +56,5 @@ A `compile_commands.json`; fixing findings; running on Linux (the MSVC driver mo
 **Refined:** the switch list drops `/W4` and the Windows macro family, for the reasons in the deliverables; a `--dry-run` option prints the commands, which is how a Linux agent checks this script at all; the version pin is read from the workflow rather than repeated.
 
 **Bent:** nothing.
+
+**CI:** [run 4](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35095588076) on head `d5fa1c3` is green: `CheckProjectFiles.py` clean, the solution built Debug|x64 with `/warnaserror`, vstest ran 5 tests and passed all, `RunClangTidy.py` reported nine translation units clean on clang-tidy 22.1.8, and the Linux `format` job passed. Run 3 on the previous head failed on one clang-tidy finding in `Debug.h` (`bugprone-reserved-identifier` on the parameter names of the function-pointer alias), fixed in `d5fa1c3`. Not verified by CI, by its design: the Release build. Not verified by anyone yet: running the executable. The second criterion was met by a real defect rather than a staged one: run 3 reported `bugprone-reserved-identifier` in `Debug.h` with the file and line and exit code 1, which is the reporting path the criterion asks for; `CppUnitTest.h` and the SDK produced nothing, as the third criterion requires.

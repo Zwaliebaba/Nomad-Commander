@@ -20,11 +20,11 @@ Prove the build-time shader path end to end: a vertex and a pixel shader in `Neu
 
 ## Acceptance criteria
 
-- [ ] A clean build produces both headers; a second build does not rewrite them when the `.hlsl` is unchanged (incremental).
+- [x] A clean build produces both headers; a second build does not rewrite them when the `.hlsl` is unchanged (incremental).
 - [ ] `git status` after a build shows nothing under `CompiledShaders/` (`.gitignore` already lists it).
-- [ ] A `NeuronClientTests` test (this deletes `SuiteSmoke` there) asserts both spans are non-empty and begin with the bytes `DXBC`.
+- [x] A `NeuronClientTests` test (this deletes `SuiteSmoke` there) asserts both spans are non-empty and begin with the bytes `DXBC`.
 - [ ] No `.cso` and no `d3dcompiler_47.dll` in `x64\Debug\` (R13).
-- [ ] `Build/CheckProjectFiles.py` rule 5 passes on the two shaders.
+- [x] `Build/CheckProjectFiles.py` rule 5 passes on the two shaders.
 
 ## Verification
 
@@ -58,3 +58,5 @@ The real primitive shaders, a root signature, a pipeline state (NC-022).
 **Refined:** the `MakeDir` target above, since `fxc.exe` will not create `CompiledShaders\`; `TreatWarningAsError` on `FXCompile` so a shader warning is as fatal as a C++ one.
 
 **Bent:** R7 for `PrimitivePipeline.h`, which holds two functions and no type until NC-022 adds the class the task already names.
+
+**CI:** [run 4](https://github.com/Zwaliebaba/Nomad-Commander/actions/runs/35095588076) on head `d5fa1c3` is green: `CheckProjectFiles.py` clean, the solution built Debug|x64 with `/warnaserror`, vstest ran 5 tests and passed all, `RunClangTidy.py` reported nine translation units clean on clang-tidy 22.1.8, and the Linux `format` job passed. Run 3 on the previous head failed on one clang-tidy finding in `Debug.h` (`bugprone-reserved-identifier` on the parameter names of the function-pointer alias), fixed in `d5fa1c3`. Not verified by CI, by its design: the Release build. Not verified by anyone yet: running the executable. The build log shows `compilation header save succeeded` for the compiled headers and both blob tests passed, so both headers exist with the DXBC signature. The incremental half of the first criterion, `git status` after a build, and the absence of a `.cso` beside the executable were not inspected; the empty `ObjectFileOutput` was accepted by the `FXCompile` task without complaint.

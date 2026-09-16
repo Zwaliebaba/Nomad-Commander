@@ -58,7 +58,7 @@ These are not rules of AGENTS.md; they are the plan's answers to questions every
 | Run the executable | a Windows desktop with a D3D12 adapter, or WARP |
 | Nothing else | there is no package manager and no vendored SDK (R14) |
 
-CI (`.github/workflows/build.yml`) runs on pull requests to `main` and is currently red by construction: it expects `NomadCommander.slnx` and `Build/*.py`, none of which exist. Phase 0 exists to make it green.
+CI (`.github/workflows/build.yml`) runs on pull requests to `main`. Before Phase 0 it was red by construction, because it expected `NomadCommander.slnx` and `Build/*.py` before they existed; Phase 0 created them, and the first green run was PR #1's run 4.
 
 ## Phases
 
