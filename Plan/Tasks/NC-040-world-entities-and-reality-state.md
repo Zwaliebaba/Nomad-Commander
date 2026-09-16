@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | L | no | no | Done (PENDING) |
+| 2 | GameLogic | L | no | no | Done (cd0c9ac) |
 
 **Depends on:** NC-010, NC-011, NC-012, NC-013
 **Read first:** GDD §5 (hulls, the mothership), §8 (empires, leaders, admirals), §9 (reality distinct from belief), §11 (the career, outposts, officers), §12 (fleets, four classes), §14 (the nomad as an entity type); AGENTS.md R9, R16, R18, R22; `Plan/Glossary.md` whole; `Plan/Roadmap.md` *Conventions* (entities never deleted; vectors indexed by id)
