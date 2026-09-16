@@ -14,9 +14,9 @@ Four MSVC CppUnitTest DLLs, one per library, each referencing the library it tes
 ## Deliverables
 
 - `Tests/NeuronCoreTests/NeuronCoreTests.vcxproj` + `.filters`, `pch.h`, `pch.cpp`, `SuiteSmoke.cpp`. References NeuronCore.
-- `Tests/NeuronClientTests/…` references NeuronClient and NeuronCore.
-- `Tests/NeuronServerTests/…` references NeuronServer and NeuronCore.
-- `Tests/GameLogicTests/…` references GameLogic and NeuronCore.
+- `Tests/NeuronClientTests/...` references NeuronClient and NeuronCore.
+- `Tests/NeuronServerTests/...` references NeuronServer and NeuronCore.
+- `Tests/GameLogicTests/...` references GameLogic and NeuronCore.
 - The four projects added to `NomadCommander.slnx` under a `Tests` solution folder.
 - Each `SuiteSmoke.cpp`: `namespace <Project>Tests`, `TEST_CLASS(SuiteSmoke)` with one `TEST_METHOD(SuiteIsDiscovered)` asserting true, and a comment saying it is deleted by the first real test (AGENTS.md §3).
 
@@ -54,7 +54,7 @@ Any real test. Test helpers (a fake `Simulation`, a WARP device) come with the t
 
 **Verified here (Linux, no MSVC):** the four `SuiteSmoke.cpp` and `pch.*` files pass `clang-format-18 --dry-run --Werror` (the `TEST_CLASS`/`TEST_METHOD` macro definitions in `.clang-format` do their job); the four projects were generated from the same spec as NC-001's, so every shared setting is identical across the nine; `NomadCommander.slnx` gains a `/Tests/` folder with the four. **Verified by CI, not here:** the build of the four DLLs, and `vstest` finding and passing four tests.
 
-**Assumed:** `CppUnitTest.h` pulls its import library in through a `#pragma comment(lib, …)`, as every wizard-generated test project relies on (none lists it under `AdditionalDependencies`).
+**Assumed:** `CppUnitTest.h` pulls its import library in through a `#pragma comment(lib, ...)`, as every wizard-generated test project relies on (none lists it under `AdditionalDependencies`).
 
 **Refined:** the framework paths are `$(VCInstallDir)Auxiliary\VS\UnitTest\include` and `\lib`, per Microsoft Learn; the task's draft named the older location. Each test `pch.h` includes `NeuronCore.h` before `CppUnitTest.h` so the Windows macro family is set before anything from Windows is pulled in.
 

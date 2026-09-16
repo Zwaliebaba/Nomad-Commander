@@ -14,7 +14,7 @@ The one way bytes are written and read in this tree: for the wire (NC-015), the 
 ## Deliverables
 
 - `NeuronCore/ByteWriter.h` + `.cpp`: appends to a `std::vector<std::byte>` it owns or is lent; `Write(std::uint8_t|16|32|64)`, `Write(std::int8_t|16|32|64)`, `WriteBool`, `WriteString(std::string_view)` (length-prefixed UTF-8), `WriteBytes(std::span<const std::byte>)`, `WriteHundredths`, `WriteTick`, `WriteId`; `Size()`, `Bytes()`.
-- `NeuronCore/ByteReader.h` + `.cpp`: over a `std::span<const std::byte>`; the mirror `Read…` functions returning `bool` with an out parameter (no exceptions, Roadmap *Conventions*); `Remaining()`, `Failed()` sticky after the first short read; `Skip(n)`.
+- `NeuronCore/ByteReader.h` + `.cpp`: over a `std::span<const std::byte>`; the mirror `Read...` functions returning `bool` with an out parameter (no exceptions, Roadmap *Conventions*); `Remaining()`, `Failed()` sticky after the first short read; `Skip(n)`.
 - A `Serializable` concept: `T::Serialize(ByteWriter&) const` and `static bool T::Deserialize(ByteReader&, T&)`, used by every record from here on.
 - `Random::WriteState`/`ReadState` (NC-011) implemented on top.
 - `NeuronCoreTests/ByteStreamTests.cpp`.

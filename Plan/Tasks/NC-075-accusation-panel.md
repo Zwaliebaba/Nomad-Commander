@@ -5,7 +5,7 @@
 | 5 | NomadCommander | M | **yes** | no | Open |
 
 **Depends on:** NC-073
-**Read first:** GDD §3 (3:00 whole), §6 (the four answers), §9 (the explanation's exact shape: "Why? They believe… For:… Against:…"; the player sees at once what they could have proved and what convicted them); AGENTS.md R19; `Design/UI/UI-Spec.md` §1, §2, §6; `Design/UI/Codebase-Constraints.md`
+**Read first:** GDD §3 (3:00 whole), §6 (the four answers), §9 (the explanation's exact shape: "Why? They believe... For:... Against:..."; the player sees at once what they could have proved and what convicted them); AGENTS.md R19; `Design/UI/UI-Spec.md` §1, §2, §6; `Design/UI/Codebase-Constraints.md`
 
 ## Goal
 

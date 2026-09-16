@@ -5,7 +5,7 @@
 | 1 | NeuronServer | M | no | no | Open |
 
 **Depends on:** NC-014, NC-015
-**Read first:** GDD §7 ("The universe runs continuously whether the player is present or not"; "timers apply identically online and offline"); AGENTS.md §2 (NeuronServer: "`Session` owns a simulation and drives it on a schedule … It never names a game type"), R13 (*It is a role and not a binary*), R21
+**Read first:** GDD §7 ("The universe runs continuously whether the player is present or not"; "timers apply identically online and offline"); AGENTS.md §2 (NeuronServer: "`Session` owns a simulation and drives it on a schedule ... It never names a game type"), R13 (*It is a role and not a binary*), R21
 
 ## Goal
 

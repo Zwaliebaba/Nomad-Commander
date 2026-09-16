@@ -19,7 +19,7 @@ The timestamped event stream from which GDD §15's outcomes are counted rather t
 
 ## Acceptance criteria
 
-- [ ] A line is exactly `<tick>\t<timestamp>\t<kind>\t<k=v>\t…\n` and the ADR says so.
+- [ ] A line is exactly `<tick>\t<timestamp>\t<kind>\t<k=v>\t...\n` and the ADR says so.
 - [ ] The file is created beside the executable when opened by the executable and in the test's directory when opened by the test.
 - [ ] Writing a thousand events costs less than the budget the report states (measured).
 

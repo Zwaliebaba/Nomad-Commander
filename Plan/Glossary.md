@@ -12,7 +12,7 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | The Windows macro family and `<windows.h>` | (header only) | `NeuronCore.h` | NeuronCore | NC-001 |
 | Pinned PRNG (R16) | `Random` | `Random.h` | NeuronCore | NC-011 |
 | Fixed-point hundredths (R16, GDD §6 weights) | `Hundredths` | `Hundredths.h` | NeuronCore | NC-012 |
-| Integer arithmetic the simulation can trust | `MulDivRound`, `SaturatingAdd`, … | `IntegerMath.h` | NeuronCore | NC-012 |
+| Integer arithmetic the simulation can trust | `MulDivRound`, `SaturatingAdd`, ... | `IntegerMath.h` | NeuronCore | NC-012 |
 | Byte writer and reader (the wire, the store) | `ByteWriter`, `ByteReader` | `ByteWriter.h`, `ByteReader.h` | NeuronCore | NC-013 |
 | The simulation seam (bytes in, ticks, bytes out) | `Simulation` (abstract) | `Simulation.h` | NeuronCore | NC-014 |
 | Wall time to ticks, with the compression rate | `TickSchedule` | `TickSchedule.h` | NeuronCore | NC-014 |
@@ -20,7 +20,8 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Transport (abstract) and the in-process one | `Transport`, `MemoryTransport` | `Transport.h`, `MemoryTransport.h` | NeuronCore | NC-015 |
 | The window, and the fixed screen size (R12) | `Window`, `SCREEN_WIDTH_PIXELS`, `SCREEN_HEIGHT_PIXELS` | `Window.h` | NeuronClient | NC-020 |
 | The D3D12 device and queue | `GraphicsDevice` | `GraphicsDevice.h` | NeuronClient | NC-021 |
-| The 1920×1080 back buffer and its frames | `SwapChainTarget`, `TargetFault` | `SwapChainTarget.h` | NeuronClient | NC-021 |
+| The 1920×1080 target every pass draws into | `SceneTarget`, `TargetFault` | `SceneTarget.h` | NeuronClient | NC-021 |
+| The swap chain and the present scale | `SwapChainTarget` | `SwapChainTarget.h` | NeuronClient | NC-021 |
 | The test-only offscreen target with readback (A12) | `FrameTarget` | `FrameTarget.h` | NeuronClient | NC-021 |
 | Shared pipeline defaults (opaque by default; MSAA is unavailable on a flip-model back buffer) | `PipelineDefaults` | `PipelineDefaults.h` | NeuronClient | NC-022 |
 | 2D primitives in pixel space | `PrimitiveBatch`, `PrimitiveVertex` | `PrimitiveBatch.h`, `PrimitivePipeline.h` | NeuronClient | NC-006, NC-022 |

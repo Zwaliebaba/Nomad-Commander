@@ -15,7 +15,7 @@ Prove the build-time shader path end to end: a vertex and a pixel shader in `Neu
 
 - `NeuronClient/Shaders/PrimitiveVS.hlsl` and `PrimitivePS.hlsl`: the smallest shaders that compile (a `float4 main(float2 _position : POSITION) : SV_Position` and a `float4 main() : SV_Target`).
 - `FXCompile` items in `NeuronClient.vcxproj` for both, identical in Debug and Release: `ShaderType` Vertex/Pixel, `ShaderModel` 5.1, `EntryPointName` main, `HeaderFileOutput` `$(ProjectDir)CompiledShaders\%(Filename).h`, `VariableName` `g_%(Filename)`, `ObjectFileOutput` empty (no `.cso`).
-- `NeuronClient/PrimitivePipeline.h` + `.cpp`: for now, two functions returning `std::span<const std::byte>` over `g_PrimitiveVS` and `g_PrimitivePS`; NC-022 grows the file into the pipeline builder. The `.cpp` is the only file that includes `CompiledShaders/…`.
+- `NeuronClient/PrimitivePipeline.h` + `.cpp`: for now, two functions returning `std::span<const std::byte>` over `g_PrimitiveVS` and `g_PrimitivePS`; NC-022 grows the file into the pipeline builder. The `.cpp` is the only file that includes `CompiledShaders/...`.
 - `.filters` entries under a `Shaders` filter.
 
 ## Acceptance criteria

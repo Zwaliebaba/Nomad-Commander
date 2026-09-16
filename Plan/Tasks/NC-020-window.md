@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient, NomadCommander | M | **yes** | no | Done (PR #3), desktop run outstanding |
+| 1 | NeuronClient, NomadCommander | M | **yes** | **yes** | Done (PR #3), desktop run outstanding, **window policy open (ADR-009)** |
 
 **Depends on:** NC-002
 **Read first:** GDD §13; AGENTS.md §2 (NeuronClient), §4 (`NeuronCore.h` owns the macros; `NOGDI` means GDI is gone), R12 (1920×1080, presented 1:1), R13
@@ -103,3 +103,13 @@ What changed is `SCREEN_WIDTH_PIXELS` and `SCREEN_HEIGHT_PIXELS`, and the docume
 **The cost, stated plainly.** A 1920×1080 client area does not fit on a 1920×1080 desktop: the caption and borders put the window near 1926×1117, taller than the screen before the taskbar takes its share. At 1280×720 the overhang case was CI runners and old hardware; at 1920×1080 it is the most common PC display. The open question in the "Noticed, not decided" note above is therefore no longer an edge case, and R12 now records it as open in its own words.
 
 **GLYPH_SCALE moves from 2 to 3,** in NC-023's deliverable and NC-025's criteria and ADR recommendation. 1080 ÷ 16 is 67½, so a 16-pixel cell no longer divides the screen. The new screen is exactly 1.5× the old one, so a 24-pixel cell gives back the identical 80×45 grid with larger glyphs, and every layout NC-025 and NC-072 assume carries over untouched. Neither task is built, so this costs a line to reverse if the owner would rather have 120×67 cells and the density.
+
+**Round 7 — the window policy is open again, and this task carries it (ADR-009, 2026-09-16).** R12 no longer says the game draws straight into the back buffer: every pass draws into a 1920×1080 scene target, and the frame ends by presenting that target into the client area, scaled with the aspect preserved. The reason was the problem round 6 recorded and could not solve — 1920×1080 does not fit a 1920×1080 desktop — and the 3D map GDD v1.7 put in v0.1, which had no way to be anti-aliased while nothing could be resolved.
+
+**That makes this task less finished, not more.** `Window::Create` still demands a client area of exactly the pixels it was asked for and fails with `ClientAreaMismatch` otherwise. Under the old rule that was the whole promise of the class and five CI rounds went into making it true. Under ADR-009 it is one of three policies, and the other two are now reachable:
+
+1. **Fit.** The client area is 1920×1080 where the desktop can hold it, and otherwise the largest 16:9 area that can. The window stays fixed and unresizable; the present scale does the rest. Smallest change to the class, and it delivers what ADR-009 was asked for.
+2. **Resize.** The style gains `WS_THICKFRAME` and `WS_MAXIMIZEBOX`, the client area is whatever the player drags it to, and the scale follows. Most flexible; the largest change, and it puts a `WM_SIZE` path and a swap-chain resize into NC-021.
+3. **Keep.** Exactly as today: fixed at 1920×1080, overhanging a desktop that cannot hold it. The scene target still buys anti-aliasing, but the scale is always 1:1 and the display problem is unsolved.
+
+**Until the owner picks one the code does (3), because that is what it already does, and none of the five tests changes.** Picking (1) or (2) rewrites this task's central acceptance criterion — the client area would no longer be exactly what was asked for — so it is not a change to make on inference. The tests as they stand would fail under (1) on the CI runner, which is the clearest possible sign that this is a contract change rather than a tweak.

@@ -21,7 +21,7 @@ Text on screen from data compiled into the executable: the 96 printable ASCII gl
 
 ## Acceptance criteria
 
-- [ ] Every printable ASCII character is legible on screen at scale 2; the report says the full set was displayed and looked at.
+- [ ] Every printable ASCII character is legible on screen at `GLYPH_SCALE` 3, the screen's scale; the report says the full set was displayed and looked at. ASCII 0x20-0x7E is the whole set the client can draw, so the whole set is the test (UI §6).
 - [ ] The glyph path uses `Texture2D<uint>::Load()` and no sampler — not because a sampler is disallowed (it is not, since 2026-09-16) but because filtering a glyph at a non-integer position is blur, which is what R12's 1:1 screen exists to prevent.
 - [ ] The readback test matches the glyph bits exactly.
 - [ ] The atlas upload happens once, through an upload heap and `CopyTextureRegion` with the 256-byte-aligned row pitch, and is released after the copy fences.
@@ -30,7 +30,7 @@ Text on screen from data compiled into the executable: the 96 printable ASCII gl
 ## Verification
 
 ```powershell
-x64\Debug\NomadCommander.exe        # the character set and a sample sentence at scale 2 and 3
+x64\Debug\NomadCommander.exe        # the character set and a sample sentence at scale 1 and 3
 vstest.console.exe x64\Debug\NeuronClientTests.dll /Platform:x64
 ```
 

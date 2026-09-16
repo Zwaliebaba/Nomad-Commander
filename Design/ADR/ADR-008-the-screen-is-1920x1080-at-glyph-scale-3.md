@@ -21,6 +21,8 @@ The client area is **1920×1080 physical pixels** and `GLYPH_SCALE` is **3**. No
 
 **Running the client on a display smaller than 1920×1080 physical pixels, which is most of them.** The frame adds a caption and borders, putting the window near 1926×1117 — taller than a 1080p screen before the taskbar takes its share — and R12 forbids scaling it down. The draft named this and it is the real cost: the overhang case went from CI runners and old hardware to the most common PC display, and to any laptop at 125–150 % scaling.
 
+**ADR-009 relieves this without withdrawing it** (same day). A scene target and a present scale mean a display too small to hold 1920×1080 can still show the whole game, smaller. 1920×1080 remains what the game *draws*, and remains what a display must have to see it unscaled.
+
 It also forecloses nothing about the *layout*, which is the point of deciding it on the cell grid: reversing to 1280×720 at `GLYPH_SCALE` 2 would touch two constants and no screen.
 
 What the game should do on a desktop that cannot hold its screen — overhang, as it does today, or refuse to start and say so — this ADR does not decide. R12 records it as open and the first task that needs an answer writes it.

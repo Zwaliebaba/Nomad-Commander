@@ -1,6 +1,6 @@
 # Nomad Commander — desk client UI package
 
-Reference designs for the v0.1 desk client (GDD §3, §13). Everything here derives from `Design/GameDesign.md` v1.6, `AGENTS.md`, and the Phase 5 tasks in `Plan/Tasks/`. It is *design context*, not a design document: the GDD stays authoritative, and where this package and the GDD disagree, the GDD wins.
+Reference designs for the v0.1 desk client (GDD §3, §13). Everything here derives from `Design/GameDesign.md` (authored against v1.6; reconciled to v1.7, see below), `AGENTS.md`, and the Phase 5 tasks in `Plan/Tasks/`. It is *design context*, not a design document: the GDD stays authoritative, and where this package and the GDD disagree, the GDD wins.
 
 ## Contents
 

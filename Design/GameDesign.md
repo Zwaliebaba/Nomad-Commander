@@ -1,4 +1,4 @@
-<!-- Converted from "Nomad Commander.docx" (v1.6, Word revision 4, last modified 2026-09-16 10:11 UTC) by a script in a Claude Code session. The Word file used no styles; headings were inferred from all-bold paragraphs. -->
+<!-- Converted from "Nomad Commander.docx" (v1.6, Word revision 4, last modified 2026-09-16 10:11 UTC) by a script in a Claude Code session. The Word file used no styles; headings were inferred from all-bold paragraphs. Edited in the repository since that conversion; the version line below is authoritative, not this comment. -->
 
 # Nomad Commander — Game Design Document
 

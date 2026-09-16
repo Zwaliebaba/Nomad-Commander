@@ -13,7 +13,7 @@ Run clang-tidy over every hand-written translation unit in the tree through clan
 
 ## Deliverables
 
-- `Build/RunClangTidy.py`: options `--clang-tidy <binary>` (default `clang-tidy` on the path), `--jobs <n>` (default: CPU count), `--files <paths…>` (default: every `.cpp` under the five projects and `Tests/*/`, skipping `pch.cpp` and anything under `CompiledShaders/` or `x64/`), `--verbose`.
+- `Build/RunClangTidy.py`: options `--clang-tidy <binary>` (default `clang-tidy` on the path), `--jobs <n>` (default: CPU count), `--files <paths...>` (default: every `.cpp` under the five projects and `Tests/*/`, skipping `pch.cpp` and anything under `CompiledShaders/` or `x64/`), `--verbose`.
 - Per file, the invocation from `.clang-tidy`'s header, with the defines and the include directories read from the project's `.vcxproj` (Debug|x64) by `CheckProjectFiles.py`'s parser, so the script and the build cannot disagree: `--driver-mode=cl /std:c++latest /EHsc /DUNICODE /D_UNICODE /D<defines> /I<dirs>`. Not `/W4`: clang's warning set differs from MSVC's and `WarningsAsErrors: '*'` would make every difference fatal; not the Windows macro family, which `NeuronCore.h` owns (a `/D` copy is a macro redefinition, which clang reports and the config makes fatal). `.clang-tidy`'s header still shows the older command with `/DWIN32_LEAN_AND_MEAN /DNOMINMAX`; that comment is the owner's to update.
 - A check at start that `INCLUDE` is set (the Windows SDK is invisible to clang without it), with a message naming the Developer PowerShell; and a print of the clang-tidy version, with a warning if it is not the pinned one.
 

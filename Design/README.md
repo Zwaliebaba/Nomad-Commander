@@ -21,7 +21,7 @@ Cite the GDD by section as *GDD §n*, an ADR by number as *ADR-nnn*, and the UI 
 **Status:** Accepted | Superseded by ADR-mmm
 **Date:** YYYY-MM-DD
 **Task:** NC-nnn
-**Cites:** GDD §…; AGENTS.md R…, §…
+**Cites:** GDD §...; AGENTS.md R..., §...
 
 ## Context
 What had to be decided and why now. What the GDD says, what it leaves open, and what the rules constrain.

@@ -52,8 +52,8 @@ Test projects (NC-002), checkers (NC-003–005), shaders (NC-006), a window (NC-
 
 ## Notes
 
-- The `.slnx` format is XML: a `<Solution>` with `<Configurations>` holding `<BuildType Name="Debug"/>`, `<BuildType Name="Release"/>` and `<Platform Name="x64"/>`, then one `<Project Path="…"/>` per project. MSBuild builds it directly. Do not generate a `.sln`.
-- Static libraries do not carry link dependencies. The executable and (later) the test DLLs get the libraries through `ProjectReference`; the Windows import libraries a library needs (`d3d12.lib`, `dxgi.lib`, `dxguid.lib`) are declared where they are used with `#pragma comment(lib, "…")` so that consumers do not repeat them. Nothing needs them in this task.
+- The `.slnx` format is XML: a `<Solution>` with `<Configurations>` holding `<BuildType Name="Debug"/>`, `<BuildType Name="Release"/>` and `<Platform Name="x64"/>`, then one `<Project Path="..."/>` per project. MSBuild builds it directly. Do not generate a `.sln`.
+- Static libraries do not carry link dependencies. The executable and (later) the test DLLs get the libraries through `ProjectReference`; the Windows import libraries a library needs (`d3d12.lib`, `dxgi.lib`, `dxguid.lib`) are declared where they are used with `#pragma comment(lib, "...")` so that consumers do not repeat them. Nothing needs them in this task.
 - `NDEBUG` form of the assert: `((void)(false && (expr)))` references the expression without evaluating it; `((void)0)` does not and trips C4189 under `/W4 /WX`.
 - `Debug.cpp` reports through `OutputDebugStringW` and `__debugbreak()`. `std::format` is available under `/std:c++latest`; keep the formatting in the `.cpp`.
 - Precompiled headers: each project's `pch.h` includes the standard-library headers it uses and, for NeuronClient, NeuronServer and NomadCommander, `NeuronCore.h`. Include order in every `.cpp` is `pch.h` first (§4).

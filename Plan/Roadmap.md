@@ -1,6 +1,6 @@
 # Roadmap — Game v0.1, from the design to a build order
 
-This is the implementation plan for *Nomad Commander* v0.1 as GDD §15 scopes it, converted from [Design/GameDesign.md](../Design/GameDesign.md) v1.6 under the rules in [AGENTS.md](../AGENTS.md). It is a build order, not a design: every task cites the GDD section it serves, and a task that needs something the GDD does not say is a task that writes an ADR. [README.md](README.md) says how a task is worked; [Glossary.md](Glossary.md) fixes the names.
+This is the implementation plan for *Nomad Commander* v0.1 as GDD §15 scopes it, converted from [Design/GameDesign.md](../Design/GameDesign.md) v1.7 under the rules in [AGENTS.md](../AGENTS.md). It is a build order, not a design: every task cites the GDD section it serves, and a task that needs something the GDD does not say is a task that writes an ADR. [README.md](README.md) says how a task is worked; [Glossary.md](Glossary.md) fixes the names.
 
 The plan covers v0.1 in tasks. GDD Milestone 2 and the full game are outlined at the end only far enough to name the seams v0.1 must leave open (R23: nothing beyond v0.1 is built).
 
