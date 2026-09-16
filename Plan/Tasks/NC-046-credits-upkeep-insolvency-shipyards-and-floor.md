@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | M | no | no | Done (PENDING) |
+| 2 | GameLogic | M | no | no | Done (825eac5) |
 
 **Depends on:** NC-045
 **Read first:** GDD §5 whole ("This section exists because without it the player never has to act"), §2 (waiting has two costs), §15 (hull upkeep, insolvency, the hull market, the fabricator and mothership-only contracts as the floor); AGENTS.md R20
