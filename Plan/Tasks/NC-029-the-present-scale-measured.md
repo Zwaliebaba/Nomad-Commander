@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 1 | NeuronClient, Tests/NeuronClientTests | M | **yes** | no | Done (ab488a9) |
+| 1 | NeuronClient, Tests/NeuronClientTests | M | **yes** | no | Done (b0aef81) |
 
 **Depends on:** NC-021, NC-028
 **Read first:** [ADR-009](../../Design/ADR/ADR-009-the-scene-target-and-the-present-scale.md) whole, and its *Measurements* section twice; [ADR-010](../../Design/ADR/ADR-010-the-borderless-window.md); [ADR-016](../../Design/ADR/ADR-016-the-desk-text-faces.md); AGENTS.md R12, §5 (*A sampler on text costs the 1:1 guarantee*), §6 (*Figures in an ADR are measured, not estimated*); the reports of NC-021, NC-027 and NC-028, each of which names this debt unpaid
