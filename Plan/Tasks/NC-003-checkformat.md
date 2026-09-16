@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 0 | Build | S | no | no | Open |
+| 0 | Build | S | no | no | Done (PR #1) |
 
 **Depends on:** NC-001
 **Read first:** AGENTS.md §3 (*Run the checkers*), §4, §6 (the CI table); `.clang-format` whole; `.github/workflows/build.yml` (the `format` job); `.editorconfig` (`[*.py]`)
@@ -48,4 +48,10 @@ Formatting anything other than C++ (`.editorconfig` covers the rest); a pre-comm
 
 ## Report
 
-_Filled in on hand-back._
+**Verified here, on clang-format 18.1.3 (the pinned version, from Ubuntu's package):** a clean tree exits 0 and prints the version; a deliberately misformatted `NeuronCore/Scratch.cpp` exits 1 and is the only file named; `--fix` rewrites it and a second run exits 0; a CRLF file stays CRLF through `--fix` (checked with `od -c`); the version warning path prints when the major is not 18. Comparison is byte for byte against `clang-format --style=file <path>` output, so line endings are part of the check rather than an assumption. **Verified by CI:** the `format` job as written.
+
+**Assumed:** nothing beyond the standard library and the binary.
+
+**Refined:** nothing in the task's scope; the implementation runs files in a thread pool, which the task did not ask for and which costs nothing.
+
+**Bent:** nothing.
