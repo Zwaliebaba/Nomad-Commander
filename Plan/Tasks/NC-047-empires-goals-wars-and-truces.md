@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | L | no | no | Done (PENDING) |
+| 2 | GameLogic | L | no | no | Done (0d99bf3) |
 
 **Depends on:** NC-045
 **Read first:** GDD §7 (*The world generates situations at a rate*: never quiet, the three guarantees; "A three-empire world at peace is a bug"), §8 (*Empires want things for years*; *Politics belong to the empires*), §15 (three empires; Milestone 2's politics wait); AGENTS.md R18 (an empire's decision routine takes belief), R23
