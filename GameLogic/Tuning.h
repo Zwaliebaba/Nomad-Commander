@@ -4,6 +4,7 @@
 #include "Credits.h"
 #include "Evidence.h"
 #include "Good.h"
+#include "Outpost.h"
 #include "ShipClass.h"
 
 #include "Hundredths.h"
@@ -357,6 +358,181 @@ inline constexpr Neuron::Hundredths LEADER_GREED_HUNDREDTHS = Neuron::Hundredths
 /// floor is that there is always another one.
 inline constexpr std::uint32_t FLOOR_WORK_DAYS = 3;
 
+// --- GDD §8: the opponents, and why two admirals in one situation fight differently ------------------------------
+//
+// "An admiral's choice is scored from the believed odds, the objective, the admiral's traits and his circumstances,
+// and the trait weights are deliberately large relative to the situation weights, so that two admirals in the same
+// situation choose differently more often than not. **That is a v0.1 test: identical situations, different choices,
+// at least half the time.**" §16 lists the opposite outcome -- "AI personalities converge" -- as a named risk, and
+// the ratio below is the whole of what guards against it.
+
+/// **The ratio GDD §8 asks for, as two numbers.** Traits outweigh the situation four to one, so an admiral fights
+/// like himself in a situation that would suggest otherwise -- which is what makes him learnable, and what makes the
+/// identical-situation test pass. Narrowing this gap converges the personalities; §16 says that is the risk.
+inline constexpr std::int32_t TRAIT_WEIGHT = 100;
+inline constexpr std::int32_t SITUATION_WEIGHT = 25;
+
+/// **What a scenario's pinned habit is worth against an admiral's traits.** Most admirals have no entry here at all:
+/// an admiral's preferred template is simply the one his traits score highest, which is how GDD §8 talks about it.
+/// The field exists so that NC-090 can write Varik from §3's sentence -- "lightly escorted convoys as bait when he
+/// had a reserve" -- and have him reliably do it whatever traits he was drawn.
+///
+/// **Measured, not guessed**: over four thousand drawn admirals the span from a trait-best template to a trait-worst
+/// one has a median of 117, so a full habit at 150 outweighs the traits of nearly any officer -- a pinned ambush
+/// held for a hundred drawn admirals out of a hundred. That is the point: a signature move a scenario pins is a
+/// signature move.
+inline constexpr std::int64_t HABIT_WEIGHT = 150;
+
+/// **What desperation takes off an admiral's preferred template** (GDD §8: "desperation, measured by recent losses
+/// and exhaustion, lowers the weight on an admiral's preferred template, so a desperate Varik **may** abandon the
+/// carriers he protects, and a player who has studied him knows what desperation does to him").
+///
+/// **A share of the preference and not a flat amount**, which is the difference between the design's sentence and a
+/// near miss of it. A flat penalty bends an officer with an ordinary preference and can never bend one who holds
+/// his strongly -- so a scenario's Varik, whose whole point is that he holds his strongly, would be the one admiral
+/// in the game desperation could not reach. §8 names him as the example. Taking a share reaches everyone in
+/// proportion to how much there is to take, which is also what "lowers the weight" says.
+///
+/// At eighty, a fully desperate admiral keeps a fifth of his preference: measured over two hundred drawn officers,
+/// most abandon it and the ones who held it most strongly do not, which is the "may" and the thing a player learns.
+inline constexpr Neuron::Hundredths DESPERATION_TAKES_OF_PREFERENCE = Neuron::Hundredths::FromRaw(80);
+
+/// The pinned spread that settles a tie, small enough that it never outvotes a trait (R16, ADR-002: drawn from the
+/// world's own stream, so two runs of a seed pick the same template).
+inline constexpr std::uint32_t TEMPLATE_TIEBREAK_SPREAD = 8;
+
+/// **What each template is made of**, as an affinity per trait in hundredths, rows indexed by `BattleTemplate` and
+/// columns by the order the traits are declared in `AdmiralTraits`: aggression, caution, deception, preservation,
+/// initiative. A negative entry is a trait that argues *against* the template.
+///
+/// This table is the personalities. Two admirals differ because their traits hit different rows hardest, so the
+/// rows are deliberately distinct from one another -- a table whose rows resembled each other would converge the
+/// roster however large `TRAIT_WEIGHT` was (GDD §16).
+///
+/// **Every row sums to the same number, and that is load-bearing rather than tidy.** Traits are drawn uniformly, so
+/// a row's expected score is its sum times the average trait: a row that added up to more than its neighbours would
+/// win for arithmetic reasons before any admiral's character was consulted. The first version of this table had
+/// sums from 0 to 240 and Ambush took seventy percent of every choice -- the identical-situation test fell to 36%
+/// in the worst case, which is §16's convergence happening in the table rather than in the weights. Equal sums
+/// make the winner a question of *which* traits an officer is high in, which is what the design means by character.
+/// `TemplateSelection.cpp` asserts the equality at compile time, because a row edited by hand is exactly the thing
+/// that would quietly break it again.
+inline constexpr std::int32_t TEMPLATE_TRAIT_AFFINITY[8][5] = {
+  // aggression, caution, deception, preservation, initiative
+  {130, -60, -30, -40, 100}, // DirectAssault: aggression, and the impatience to go now
+  {-40, 130, 50, 40, -80},   // RefusedFlank: caution, and the patience to make them come
+  {70, -40, 30, -60, 100},   // Pincer: initiative first, and the nerve to divide a force
+  {60, 20, -20, 110, -70},   // ScreenAndStrike: something cheap in front of something he means to keep
+  {-70, 40, 130, 60, -60},   // FeintAndWithdrawal: deception, and no appetite for the fight
+  {100, -50, -30, -70, 150}, // ConcentratedBreakthrough: everything at one point, right now
+  {-60, 70, -30, 140, -20},  // Escort: the objective is the cargo, not the enemy
+  {-20, 60, 120, 30, -90}};  // Ambush: deception and the patience to wait (GDD §3's Varik)
+
+/// How much each template wants the odds in its favour, in hundredths. Positive means it is a manoeuvre for an
+/// admiral who believes he is winning; negative means it is what you reach for when you are not.
+///
+/// **Believed odds, never the odds** (R18, GDD §9): the number this multiplies is built from what the empire's
+/// observers wrote down, so an admiral who has been fed a bad count attacks a force he cannot beat.
+inline constexpr std::int32_t TEMPLATE_ODDS_AFFINITY[8] = {100, -20, 40, 20, -80, 60, 0, -50};
+
+/// What each objective argues for, rows indexed by `BattleObjective` and columns by `BattleTemplate`.
+///
+/// **These rows need not sum alike**, unlike the trait table above: an objective is one number applied to every
+/// admiral in the same fight, so it shifts the whole field rather than favouring one officer over another. It is
+/// what makes the same admiral fight a convoy differently from a battle line -- §4's "the objective" doing its job
+/// -- and at `SITUATION_WEIGHT` against `TRAIT_WEIGHT` it shifts the odds without deciding them.
+inline constexpr std::int32_t TEMPLATE_OBJECTIVE_AFFINITY[4][8] = {
+  {80, 20, 70, 50, -40, 90, -60, 40},    // DestroyHaulers: get past the escort to the cargo
+  {-40, 40, -10, 70, 20, -30, 100, 10},  // ProtectConvoy: the objective is the cargo, not the enemy
+  {60, 60, 40, 40, -30, 70, -50, 20},    // DestroyFleet: a fight he means to win
+  {-80, 50, -30, 20, 100, -60, 10, 60}}; // Scout: see them without being fought
+
+// --- GDD §4: the plan, and what a trigger is actually worth ------------------------------------------------------
+//
+// "Triggers are recognised with delay and executed imperfectly." Both halves are levers, and both exist to keep
+// §16's "battle plans become programming" from being the winning strategy: a conditional that fired instantly and
+// always would make the budget a currency to hoard rather than a trade to think about.
+
+/// How many rounds pass between a trigger's condition becoming true and the fleet acting on it, per trigger kind,
+/// indexed by `Trigger`. **A thing seen from a distance in a fight is not a thing acted on**, and the delays differ
+/// because the conditions differ: an escort breaking is obvious, a commander being identified is not.
+inline constexpr std::uint32_t TRIGGER_RECOGNITION_DELAY_ROUNDS[7] = {
+  1, // HeaviesAppear: hulls on a screen, quickly
+  1, // EscortBreaks: obvious from where he is standing
+  2, // CarriersAppear: nothing fires it in v0.1 (Plan.h says why); the row is here so the table is total
+  3, // CommanderIdentified: somebody has to recognise a flag
+  1, // LossesExceed: he is counting his own
+  2, // ConvoyPassed: an absence takes longer to notice than a presence
+  2  // ReserveSpotted: something that was hidden, being hidden
+};
+
+/// The chance per trigger that it is simply not executed -- "executed imperfectly" (GDD §4), in hundredths. A plan
+/// is intent and not a program, and this is the number that says so.
+inline constexpr Neuron::Hundredths TRIGGER_FAILURE_CHANCE_HUNDREDTHS[7] = {
+  Neuron::Hundredths::FromRaw(10), // HeaviesAppear
+  Neuron::Hundredths::FromRaw(10), // EscortBreaks
+  Neuron::Hundredths::FromRaw(15), // CarriersAppear
+  Neuron::Hundredths::FromRaw(25), // CommanderIdentified: the hardest to be sure of, and the costliest to get wrong
+  Neuron::Hundredths::FromRaw(5),  // LossesExceed: his own losses, and he is already withdrawing
+  Neuron::Hundredths::FromRaw(20), // ConvoyPassed
+  Neuron::Hundredths::FromRaw(20)  // ReserveSpotted
+};
+
+/// What a fleet with no officer commanding it may plan. **Zero, and deliberately**: GDD §11 makes command capacity
+/// "the branch budget of a plan, set by the officer commanding the fleet", so a fleet nobody commands flies its base
+/// rules and nothing else -- which is what makes §11's "progression is horizontal, and its source is officers" a
+/// progression rather than a label.
+inline constexpr std::uint32_t COMMAND_CAPACITY_WITH_NO_OFFICER = 0;
+
+/// What GDD §3's officer supports: "this fleet's commander supports two". A starting officer, and the number the
+/// §3 session's third dilemma is measured against.
+inline constexpr std::uint32_t COMMAND_CAPACITY_DEFAULT = 2;
+
+/// GDD §3's own plan, at 19:00: "withdraw at twenty-five percent losses".
+inline constexpr Neuron::Hundredths PLAN_DEFAULT_WITHDRAW_AT_LOSSES = Neuron::Hundredths::FromRaw(25);
+
+// --- GDD §4 and §3: the hypothesis, and what evidence has to say before a reading is offered ---------------------
+//
+// "The interface derives the readings the current evidence supports; the player picks one, and it binds the plan's
+// default assumptions." The numbers below are the conditions -- what makes a habit a habit, how long a sighting of
+// an admiral stays worth reasoning from, and how close a convoy has to be to on time for the reading to have held.
+
+/// How many engagements a company must have watched before it may read an admiral's habit into a convoy. GDD §8
+/// promises readability "in three to four engagements, not ten"; below that the player is guessing, and a reading
+/// offered on a guess is a reading the evidence does not support.
+inline constexpr std::uint32_t DOSSIER_ENGAGEMENTS_FOR_A_HABIT = 2;
+
+/// How long a sighting of an admiral keeps a bait reading available. A habit the player learned about somebody on
+/// the other side of the map is a habit, not a reason to read *this* convoy as bait.
+inline constexpr Neuron::Tick DOSSIER_SIGHTING_STAYS_RELEVANT_TICKS = 3 * Neuron::TICKS_PER_DAY;
+
+/// What a bait reading expects over and above what was seen, because the point of bait is that what you saw is not
+/// what is there (GDD §3's "lightly escorted convoys as bait when he had a reserve").
+inline constexpr std::uint32_t BAIT_READING_EXTRA_WARSHIPS = 3;
+
+/// How far off the expected hour a convoy may be met and the timing assumption still count as having held. A
+/// hypothesis is a reading and not a stopwatch.
+inline constexpr Neuron::Tick HYPOTHESIS_TIMING_TOLERANCE_TICKS = 4 * Neuron::TICKS_PER_HOUR;
+
+/// **The roster refreshes** (GDD §8: "Admirals are promoted, dismissed for deviation, killed in battle, or retire
+/// ... An admiral is never permanent"). How long a command lasts before retirement becomes possible, and the daily
+/// chance of it once it is.
+inline constexpr Neuron::Tick ADMIRAL_TENURE_TICKS = 180 * Neuron::TICKS_PER_DAY;
+inline constexpr std::uint32_t ADMIRAL_RETIREMENT_CHANCE_PER_DAY = 3;
+
+/// **Dismissed for deviation**: how many of his last engagements an admiral may fight without once reaching for his
+/// empire's doctrine before the empire replaces him. An empire tolerates a maverick for a while and then does not.
+inline constexpr std::uint32_t ADMIRAL_DOCTRINE_WINDOW = 6;
+
+/// How much of a predecessor's habit a successor who served under him keeps (GDD §8: "a replacement who served
+/// under the old admiral inherits some of his habits and his opinion of the player"). The opinion half is
+/// `INHERITANCE_HUNDREDTHS` and NC-051 spends it; this is the habits.
+inline constexpr Neuron::Hundredths ADMIRAL_HABIT_INHERITANCE = Neuron::Hundredths::FromRaw(50);
+
+/// How many hulls lost, against what he commands, counts as fully desperate, and how far back "recent" reaches.
+inline constexpr Neuron::Tick DESPERATION_WINDOW_TICKS = 14 * Neuron::TICKS_PER_DAY;
+inline constexpr std::uint32_t DESPERATION_LOSSES_FOR_FULL = 12;
+
 // --- GDD §9 and §11: memory, and what an empire makes of a company -----------------------------------------------
 
 /// **The steps an empire's threat assessment moves through**, as the consequence each one carries. A step and not a
@@ -450,6 +626,77 @@ inline constexpr std::int64_t GLUT_RATIO_HUNDREDTHS = 50;
 /// without being repeatable; the impact is what makes a large transaction cost more per unit than a small one.
 inline constexpr std::uint32_t MARKET_LIQUIDITY_PER_DAY = 40;
 inline constexpr std::int64_t PRICE_IMPACT_HUNDREDTHS_PER_UNIT = 2;
+
+// --- GDD §7 and §11: outposts, governors, claims and timers -------------------------------------------------------
+//
+// **A foothold's whole life is four numbers and two clocks.** What it costs to put up, what it costs a day to be
+// tolerated, how long an attack takes to come to a head, and how long a revoked claim gives you to get out. GDD §5
+// names outpost construction and tolerance fees among the credit sinks, and §7 defines the two clocks against the
+// player's own active window; every one of them is open and answered by play (the appendix), so they live here.
+
+/// What an outpost costs to put up (GDD §5's sink list). Priced against the floor's standing income rather than
+/// against a hull: a foothold should be several weeks of a working fleet's margin, not an afternoon's.
+inline constexpr Credits OUTPOST_BUILD_COST_CREDITS = 4000;
+
+/// What an empire charges a day to keep tolerating one (GDD §5: "the fees an empire charges for tolerance"). Paid
+/// with the rest of the daily burn, and raised by the empire's threat surcharge like any other price it asks
+/// (`THREAT_SURCHARGE_HUNDREDTHS`, GDD §11's "tolerance fees rise").
+inline constexpr Credits OUTPOST_TOLERANCE_FEE_CREDITS_PER_DAY = 60;
+
+/// How warmly the granting empire's leader has to regard a company before it will grant a claim at all, and the
+/// threat step at which it stops granting them whatever the leader thinks. GDD §11 has an outpost surviving "on
+/// tolerance inside an empire", so the permission is the empire's to withhold before it is the empire's to revoke.
+inline constexpr Neuron::Hundredths OUTPOST_CLAIM_MINIMUM_WARMTH = Neuron::Hundredths::FromRaw(40);
+
+/// **How long after the window opens the attack comes to a head** (GDD §7: timers "expire inside the player's chosen
+/// daily active window", and the player is "notified with time to respond"). The expiry is the next window's start
+/// plus this, so it lands inside the window rather than at its edge -- which is what "with time to respond" asks
+/// for. It is clamped into the window by `Outposts`, so a grace longer than a short window still expires inside it.
+inline constexpr Neuron::Tick REINFORCEMENT_GRACE_TICKS = 2 * Neuron::TICKS_PER_HOUR;
+
+/// The floor under an attack, for the case the window has only just opened: an attack never comes to a head sooner
+/// than this after it starts, whatever the window says, because a timer that expired on the tick it started would be
+/// an attack the player could not answer even while sitting at the desk.
+inline constexpr Neuron::Tick REINFORCEMENT_MINIMUM_TICKS = 4 * Neuron::TICKS_PER_HOUR;
+
+/// GDD §7's "one-day cooldown" on moving the active window.
+inline constexpr Neuron::Tick ACTIVE_WINDOW_COOLDOWN_TICKS = Neuron::TICKS_PER_DAY;
+
+/// The grace a revoked claim gives an outpost to evacuate before it is seized (GDD §7's "grace period to evacuate").
+/// Long enough to fly a hauler in from a neighbouring system and out again on the §7 clock.
+inline constexpr Neuron::Tick CLAIM_EVACUATION_TICKS = 3 * Neuron::TICKS_PER_DAY;
+
+/// **"A seized outpost is a situation, with an offer from the rival empire attached more often than not"** (GDD §7).
+/// More often than not is what this number has to be, and the test says so rather than trusting the comment.
+inline constexpr Neuron::Hundredths SEIZED_OFFER_CHANCE_HUNDREDTHS = Neuron::Hundredths::FromRaw(65);
+
+/// What a governor starts with when the player has said nothing: hold a week of a fleet's jumps in fuel, sell at or
+/// above the going rate, and get the cargo out rather than sit on it. Defaults and not rules -- `SetGovernorPolicy`
+/// overwrites all three (GDD §11: "Those three are what a check-in adjusts").
+///
+/// **The sell rule defaults to the base price rather than to zero**, and the difference matters: a governor told to
+/// sell at any price empties the warehouse into whatever the market happens to be paying, which for a warehouse of
+/// loot also means raising the GDD §5 trail on the player's behalf. "At or above the going rate" is a standing order
+/// a player would actually give -- sell into a shortage, sit out a glut -- and it is `PRICE_BASE` because that is
+/// what the going rate means (GDD §10's formula).
+inline constexpr std::uint32_t GOVERNOR_DEFAULT_FUEL_RESERVE_UNITS = 20;
+inline constexpr ThreatResponse GOVERNOR_DEFAULT_THREAT_RESPONSE = ThreatResponse::Evacuate;
+
+/// A price no market reaches, which is how a player says "never sell this". Named because a magic large number in a
+/// policy is a number nobody can tell from a typo.
+inline constexpr Credits GOVERNOR_NEVER_SELL_CREDITS = 1000000;
+
+/// How much a warehouse holds, per good. A foothold and not an industry (GDD §11, R23).
+inline constexpr std::uint32_t OUTPOST_STOCK_CAPACITY_PER_GOOD = 200;
+
+/// How much of its stock a governor will move into the market in one day. The market's own liquidity caps what it
+/// can absorb; this is the governor's own restraint, so a warehouse does not empty itself into one day's prices.
+inline constexpr std::uint32_t GOVERNOR_SELL_UNITS_PER_DAY = 10;
+
+/// How far a hostile contact has to be, in jumps, before the governor stops calling it a threat (GDD §11's third
+/// policy: "evacuate cargo when hostile contacts appear"). Zero would mean the enemy is already in the system, which
+/// is too late to load a hauler.
+inline constexpr std::uint32_t GOVERNOR_THREAT_RANGE_JUMPS = 1;
 
 // --- GDD §10: the playstyle levers -------------------------------------------------------------------------------
 //

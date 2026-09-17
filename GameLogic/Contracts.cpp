@@ -164,9 +164,10 @@ void MoveOpinion(World& _world, Knowledge& _knowledge, CharacterId _leader, Comp
   return base + Neuron::MulDivRound(base, Tuning::CONTRACT_MARKED_PREMIUM_HUNDREDTHS.Raw(), Neuron::Hundredths::PER_UNIT);
 }
 
-/// Puts one offer on the board.
+/// Puts one offer on the board. `_reason` is why it is there, because an offer out of a goal and an offer out of
+/// somebody else's misfortune are different sentences in a receipt (R19).
 ContractId Offer(World& _world, ContractKind _kind, EmpireId _employer, std::uint32_t _goalIndex, FleetId _target, SystemId _at,
-                 bool _requiresMarked, std::vector<Event>& _outEvents, LogSink* _log)
+                 bool _requiresMarked, ReasonCode _reason, std::vector<Event>& _outEvents, LogSink* _log)
 {
   const Neuron::Tick now = _world.CurrentTick();
 
@@ -185,7 +186,7 @@ ContractId Offer(World& _world, ContractKind _kind, EmpireId _employer, std::uin
   contract.state = ContractState::Open;
 
   const ContractId contractId = _world.Contracts().Add(contract);
-  Emit(_outEvents, now, EventKind::ContractOffered, _world.Contracts().Get(contractId), contractId, ReasonCode::AGoalWantedSomethingDone);
+  Emit(_outEvents, now, EventKind::ContractOffered, _world.Contracts().Get(contractId), contractId, _reason);
   Log(_log, now, LogEvent::CONTRACT_OFFERED, _world.Contracts().Get(contractId), contract.offer.pay);
   return contractId;
 }
@@ -564,7 +565,7 @@ void Contracts::ResolveDaily(World& _world, Knowledge& _knowledge, std::vector<E
       // pays the premium for it; one breaking a siege quietly does not.
       const bool wantsMarks = wantsAnEscort || goal.kind == GoalKind::PunishRaider;
       (void)Offer(_world, wantsAnEscort ? ContractKind::Escort : ContractKind::Raid, empireId, goalIndex, target,
-                  Mobility::LocationOf(_world.Fleets().Get(target)), wantsMarks, _outEvents, _log);
+                  Mobility::LocationOf(_world.Fleets().Get(target)), wantsMarks, ReasonCode::AGoalWantedSomethingDone, _outEvents, _log);
       (void)leader;
     }
   }
@@ -624,7 +625,8 @@ void Contracts::ResolveDaily(World& _world, Knowledge& _knowledge, std::vector<E
     // player has to remember to accept is a floor that fails exactly the player who has stopped checking in. §7 says
     // the same thing from the other side: "Absence is designed, not punished." So the crew takes the work, and the
     // row is a record of it rather than an offer anybody had to weigh.
-    const ContractId work = Offer(_world, ContractKind::MothershipWork, employer, 0, FleetId{}, at, false, _outEvents, _log);
+    const ContractId work = Offer(_world, ContractKind::MothershipWork, employer, 0, FleetId{}, at, false,
+                                  ReasonCode::AGoalWantedSomethingDone, _outEvents, _log);
     _world.Contracts().Get(work).company = companyId;
     _world.Contracts().Get(work).acceptedAtTick = now;
     Emit(_outEvents, now, EventKind::ContractAccepted, _world.Contracts().Get(work), work, ReasonCode::TheCrewFoundWork);
@@ -783,6 +785,19 @@ void Contracts::ResolveDaily(World& _world, Knowledge& _knowledge, std::vector<E
       _log->Write(now, LogEvent::EMPLOYERS_WILLING, fields);
     }
   }
+}
+
+ContractId Contracts::OfferAgainst(World& _world, EmpireId _employer, SystemId _at, std::vector<Event>& _outEvents)
+{
+  if (!_world.Empires().Holds(_employer) || !_world.Systems().Holds(_at))
+  {
+    return ContractId{};
+  }
+  // The goal index is past the end of the employer's list on purpose (`Contracts.h`): nothing satisfies it, so the
+  // offer lives and dies on its own clock instead of drying up when an unrelated ambition is met.
+  const auto goalIndex = static_cast<std::uint32_t>(_world.Empires().Get(_employer).goals.size());
+  return Offer(_world, ContractKind::Raid, _employer, goalIndex, FleetId{}, _at, false, ReasonCode::ARivalSawAnOpening, _outEvents,
+               nullptr);
 }
 
 } // namespace Nomad

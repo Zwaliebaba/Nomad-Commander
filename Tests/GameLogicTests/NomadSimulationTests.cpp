@@ -30,7 +30,7 @@ namespace
                                          Nomad::Tuning::MOTHERSHIP_RESERVE_FUEL, Nomad::ShipClass::Scout, 0};
   company.treasury = 1000;
   company.activeWindow =
-    Nomad::ActiveWindow{Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_START_TICK_OF_DAY, Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_LENGTH_TICKS};
+    Nomad::ActiveWindow{Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_START_TICK_OF_DAY, Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_LENGTH_TICKS, 0};
   company.alive = true;
   return _world.Companies().Add(company);
 }
@@ -186,17 +186,22 @@ public:
     // has to end where the uninterrupted one did. The pending inputs are the half of this that is easy to forget --
     // a state without them continues into a different future and nothing fails until much later.
     constexpr Neuron::Tick INTERRUPT_AT = 6;
-    constexpr Neuron::Tick RUN_TO = 40;
+
+    // **The second window is a day and a tick after the first**, because GDD §7 puts a one-day cooldown on moving it
+    // and NC-066 made that a rule of the simulation rather than a note. What this test is about is the store, so the
+    // input it schedules has to be one that would actually apply -- a refused input proves nothing about a replay.
+    constexpr Neuron::Tick SECOND_INPUT_AT = 3 + Neuron::TICKS_PER_DAY + 1;
+    constexpr Neuron::Tick RUN_TO = SECOND_INPUT_AT + 10;
 
     Nomad::NomadSimulation straightThrough{11};
     const Nomad::CompanyId company = Populate(straightThrough);
     Assert::IsTrue(straightThrough.ApplyInput(WireBytes(3, company.Index(), 60, 120)));
-    Assert::IsTrue(straightThrough.ApplyInput(WireBytes(20, company.Index(), 600, 180)));
+    Assert::IsTrue(straightThrough.ApplyInput(WireBytes(SECOND_INPUT_AT, company.Index(), 600, 180)));
 
     Nomad::NomadSimulation interrupted{11};
     Assert::IsTrue(Populate(interrupted) == company);
     Assert::IsTrue(interrupted.ApplyInput(WireBytes(3, company.Index(), 60, 120)));
-    Assert::IsTrue(interrupted.ApplyInput(WireBytes(20, company.Index(), 600, 180)));
+    Assert::IsTrue(interrupted.ApplyInput(WireBytes(SECOND_INPUT_AT, company.Index(), 600, 180)));
 
     for (Neuron::Tick tick = 0; tick < INTERRUPT_AT; ++tick)
     {
@@ -223,6 +228,45 @@ public:
     Assert::AreEqual(straightThrough.StateHash(), restored.StateHash(), L"a run continued from a restored state ended somewhere else");
     // And the input scheduled after the interruption really did fire on the restored run.
     Assert::AreEqual(Neuron::Tick{600}, restored.CurrentWorld().Companies().Get(company).activeWindow.startTickOfDay);
+  }
+
+  TEST_METHOD(TheSeamCarriesEveryFieldItValidated)
+  {
+    // **The regression NC-066 found.** `Accept` validates a whole wire record and then fills an `Input` from it, and
+    // for seven fields it stopped doing the second half: the accusation, the incident, the answer, the settlement,
+    // the evidence offered, the contract and `flyMarked` were checked and then dropped, so every answered accusation
+    // and every accepted offer that arrived over the seam reached the resolver naming nothing. Nothing caught it,
+    // because no test sent one of those kinds through `ApplyInput` at all. This one does.
+    Nomad::NomadSimulation simulation{31};
+    const Nomad::CompanyId company = Populate(simulation);
+
+    Nomad::WireInput wire{};
+    wire.applyAtTick = 5;
+    wire.kind = Nomad::InputKind::AnswerAccusation;
+    wire.companyIndex = company.Index();
+    wire.fleetIndex = Nomad::WIRE_INDEX_NONE;
+    wire.secondFleetIndex = Nomad::WIRE_INDEX_NONE;
+    wire.accusationIndex = 2;
+    wire.incidentIndex = 3;
+    wire.answerKind = static_cast<std::uint8_t>(Nomad::AccusationAnswer::Pay);
+    wire.settlement = 4200;
+    wire.evidenceOffers = {static_cast<std::uint8_t>(Nomad::EvidenceOffer::WreckAnalysis)};
+    wire.contractIndex = Nomad::WIRE_INDEX_NONE;
+    wire.flyMarked = true;
+
+    Neuron::ByteWriter writer;
+    Serialize(writer, wire);
+    const std::span<const std::byte> bytes = writer.Bytes();
+    Assert::IsTrue(simulation.ApplyInput(std::vector<std::byte>{bytes.begin(), bytes.end()}), L"a valid answer was refused");
+
+    Assert::AreEqual(std::size_t{1}, simulation.PendingInputs().size());
+    const Nomad::Input& accepted = simulation.PendingInputs()[0];
+    Assert::AreEqual(2u, accepted.accusation.Index(), L"the accusation the seam checked did not reach the resolver");
+    Assert::AreEqual(3u, accepted.incident.Index(), L"the incident did not reach the resolver");
+    Assert::IsTrue(accepted.answer == Nomad::AccusationAnswer::Pay, L"the answer did not reach the resolver");
+    Assert::AreEqual(Nomad::Credits{4200}, accepted.settlement, L"the settlement did not reach the resolver");
+    Assert::AreEqual(std::size_t{1}, accepted.offered.size(), L"the evidence offered did not reach the resolver");
+    Assert::IsTrue(accepted.flyMarked, L"the company's choice to fly marked did not reach the resolver");
   }
 
   TEST_METHOD(ATruncatedStateIsRefusedAndLeavesTheSimulationAlone)

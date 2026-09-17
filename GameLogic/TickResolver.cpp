@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "TickResolver.h"
 
+#include "Admirals.h"
 #include "Answers.h"
 #include "Contracts.h"
 #include "Couriers.h"
@@ -12,6 +13,7 @@
 #include "LogEvent.h"
 #include "Memory.h"
 #include "Mobility.h"
+#include "Outposts.h"
 #include "Politics.h"
 #include "Sensor.h"
 #include "Upkeep.h"
@@ -120,20 +122,19 @@ void ResolveInputs(World& _world, Knowledge& _knowledge, std::span<const Input> 
       break;
 
     case InputKind::SetActiveWindow:
-    {
-      if (!_world.Companies().Holds(input.company))
-      {
-        continue;
-      }
-      Company& company = _world.Companies().Get(input.company);
-      company.activeWindow.startTickOfDay = input.activeWindowStartTickOfDay;
-      company.activeWindow.lengthTicks = input.activeWindowLengthTicks;
-
-      EventSubjects subjects{};
-      subjects.company = input.company;
-      _outEvents.emplace_back(tick, EventKind::ActiveWindowChanged, subjects, Because(ReasonCode::ActiveWindowChanged));
+      // **The cooldown moved here with NC-066** (GDD §7: "with a one-day cooldown"). It used to be three lines in
+      // this switch with no cooldown at all, which was fine while nothing was defined against the window; the
+      // moment reinforcement timers were, the rule had to be somewhere it could be tested.
+      (void)Outposts::SetActiveWindow(_world, input, _outEvents);
       break;
-    }
+
+    case InputKind::BuildOutpost:
+      (void)Outposts::Build(_world, _knowledge, input, _outEvents);
+      break;
+
+    case InputKind::SetGovernorPolicy:
+      (void)Outposts::SetPolicy(_world, input, _outEvents);
+      break;
     }
 
     // GDD §15 counts "decisions per hour and the share of them reversed", so every applied input is a line. It is
@@ -183,6 +184,17 @@ void ResolveEncounters([[maybe_unused]] World& _world, [[maybe_unused]] std::vec
   // NC-062.
 }
 
+/// Phase 5b -- the outpost clocks (GDD §7, §11; NC-066).
+///
+/// **After the encounters and not in the daily block**, for two reasons that pull the same way. A reinforcement
+/// timer expires inside a window measured in hours, and a daily pass could only ever fire it at midnight. And it
+/// runs after the encounters because whether an outpost was *defended* is a question about who was standing in the
+/// system when the clock ran out -- so the fight, which does not wait for anybody's window, resolves first.
+void ResolveOutpostTimers(World& _world, Knowledge& _knowledge, std::vector<Event>& _outEvents)
+{
+  Outposts::ResolveTimers(_world, _knowledge, _outEvents);
+}
+
 /// Phase 6 -- the daily systems, on tick multiples of a day so that a store saved at any tick replays identically.
 void ResolveDaily(World& _world, Knowledge& _knowledge, [[maybe_unused]] std::vector<Event>& _outEvents, LogSink* _log)
 {
@@ -190,17 +202,24 @@ void ResolveDaily(World& _world, Knowledge& _knowledge, [[maybe_unused]] std::ve
   // NC-066, in that order, because inference reads what the economy and the empires did today, and memory runs
   // before it so that a month's forgetting is applied before today's evidence is weighed rather than after it.
   Economy::ResolveDaily(_world, _outEvents);
-  Upkeep::ResolveDaily(_world, _outEvents);
+  Upkeep::ResolveDaily(_world, _knowledge, _outEvents);
   Politics::ResolveDaily(_world, _knowledge, _outEvents);
   // **Before inference and after the empires**, because a raid is a thing the empires did today and the rule that
   // blames somebody for it reads what happened today (GDD §6).
   CovertRaid::ResolveDailyCovertRaids(_world, _knowledge, _outEvents, _log);
+  // **Before memory**, because a command that ended today hands its record over today: `Admirals::Replace` calls
+  // `Memory::Inherit`, and a successor who inherited after the overwrite rule had run would carry a threat
+  // assessment one day staler than his predecessor's (GDD §8, §9; NC-060).
+  Admirals::ResolveDailyRoster(_world, _knowledge, _outEvents);
   Memory::ResolveDailyMemory(_world, _knowledge, _outEvents);
   Inference::ResolveDailyInference(_world, _knowledge, _outEvents, _log);
   // **After inference**, because GDD §4's second payment waits on the employer having worked out who did it, and
   // the pass above is what works it out. A contract evaluated first would pay a day late every time (NC-056).
   Contracts::ResolveDaily(_world, _knowledge, _outEvents, _log);
   Fabricator::ResolveDaily(_world, _outEvents);
+  // **Last of the daily block**, because a governor sells into the prices the economy set this morning and a claim
+  // is revoked by the inference pass above before the grace it starts is read (GDD §7, §11; NC-066).
+  Outposts::ResolveDailyOutposts(_world, _knowledge, _outEvents);
 
   // GDD §15's "at least two willing employers after two months" used to be counted here, from
   // `Memory::IsWillingToEmploy` alone. **NC-056 moved it into `Contracts::ResolveDaily` and made the answer
@@ -246,6 +265,7 @@ void TickResolver::Advance(World& _world, Knowledge& _knowledge, std::span<const
   // beside the couriers rather than in the daily block.
   Answers::ResolveWreckAnalyses(_world, _outEvents);
   ResolveEncounters(_world, _outEvents);
+  ResolveOutpostTimers(_world, _knowledge, _outEvents);
   if (IsDailyTick(_world.CurrentTick()))
   {
     ResolveDaily(_world, _knowledge, _outEvents, _log);

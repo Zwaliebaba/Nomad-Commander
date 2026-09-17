@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "Mobility.h"
 
+#include "Outposts.h"
 #include "Tuning.h"
 
 #include "IntegerMath.h"
@@ -221,6 +222,8 @@ void Mobility::ApplyOrder(World& _world, const Input& _input, std::vector<Event>
   case InputKind::AnalyzeWreck:
   case InputKind::AcceptOffer:
   case InputKind::DeclineOffer:
+  case InputKind::BuildOutpost:
+  case InputKind::SetGovernorPolicy:
     return;
 
   case InputKind::MoveFleet:
@@ -382,8 +385,7 @@ void Mobility::ApplyOrder(World& _world, const Input& _input, std::vector<Event>
   case InputKind::Refuel:
   {
     // "Refuelling at outposts, harbours and tankers" (GDD §12). A tanker is a fleet of the same owner in the same
-    // system with fuel to give; an outpost and a harbour's market are NC-066's and NC-045's, and until they exist a
-    // system with a shipyard fuels a fleet, because a yard that sells hulls sells fuel.
+    // system with fuel to give; a system with a shipyard fuels a fleet, because a yard that sells hulls sells fuel.
     Fleet& fleet = _world.Fleets().Get(_input.fleet);
     if (!fleet.alive || std::holds_alternative<InLane>(fleet.position))
     {
@@ -392,6 +394,17 @@ void Mobility::ApplyOrder(World& _world, const Input& _input, std::vector<Event>
     const SystemId at = LocationOf(fleet);
     const std::uint32_t capacity = FuelCapacity(fleet);
     if (fleet.fuel >= capacity)
+    {
+      return;
+    }
+
+    // **Your own foothold first** (GDD §11: an outpost "refuels the player's fleets at the local price"). It is
+    // tried ahead of the shipyard because it is the one that has a warehouse and a price, and because a nomad
+    // standing at its own depot should be drawing on its own fuel rather than on the empire's. `Outposts::Refuel`
+    // emits the event and says how much went in, so this path stops here when it worked.
+    const auto* fleetOwner = std::get_if<CompanyId>(&fleet.owner);
+    const OutpostId depot = fleetOwner != nullptr ? Outposts::At(_world, at, *fleetOwner) : OutpostId{};
+    if (depot.IsValid() && Outposts::Refuel(_world, depot, _input.fleet, _outEvents) > 0)
     {
       return;
     }

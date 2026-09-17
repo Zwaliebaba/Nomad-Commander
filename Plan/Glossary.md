@@ -94,13 +94,18 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Contract, offer, payout by attribution | §4, §8 | `Contract`, `ContractId`, `ContractKind`, `ContractState`, `ContractOffer`, `Contracts`, `WireContractOffer` | `Contract.h`, `Contracts.h`, `WireContract.h` | NC-056 |
 | The floor's work, as a contract | §5 | `ContractKind::MothershipWork` | `Contract.h` | NC-056 |
 | A covert raider, drawn from the pool for one raid | §5, §6 | `FleetRole::Raider` | `Fleet.h` | NC-055 |
-| Admiral traits and desperation | §8 | `AdmiralTraits`, `Desperation` | `Admiral.h` | NC-060 |
-| The eight templates | §8 | `BattleTemplate` | `BattleTemplate.h` | NC-060 |
+| Admiral traits and desperation | §8 | `AdmiralTraits`, `Desperation`, `Engagement`, `AdmiralRecord`, `AdmiralId` | `Admiral.h` | NC-060 |
+| The eight templates, and what a fleet was sent to do | §8, §3 | `BattleTemplate`, `BattleObjective`, `TemplateName` | `BattleTemplate.h` | NC-060 |
 | Template selection from belief | §8 | `TemplateSelection`, `BelievedSituation` | `TemplateSelection.h` | NC-060 |
-| Plan: base rules, overrides, branch budget | §4 | `Plan`, `BaseRules`, `Override`, `Trigger` | `Plan.h` | NC-061 |
+| The roster refreshes | §8 | `Admirals` | `Admirals.h` | NC-060 |
+| An empire's doctrine, and deviation from it | §8 | `Empire::doctrine` | `Empire.h` | NC-060 |
+| Plan: base rules, overrides, branch budget — and the offline doctrine, which is the same document | §4 | `Plan`, `BaseRules`, `Override`, `Trigger`, `Action`, `Priority`, `Pursuit`, `Reserve`, `Assumptions`, `WirePlan` | `Plan.h`, `WirePlan.h` | NC-061 |
+| What a plan is refused or warned for | §4, §7 | `PlanValidation`, `PlanFault`, `PlanReason` | `PlanValidation.h` | NC-061 |
 | Command capacity (an officer's) | §11 | `Character::commandCapacity` | `Character.h` | NC-061 |
 | Battle and its record (the replay) | §4, §8 | `Battle`, `BattleRecord`, `BattleRound` | `Battle.h`, `BattleRecord.h` | NC-062 |
-| Hypothesis as selection; a reading | §4 | `Hypothesis`, `Reading` | `Hypothesis.h` | NC-063 |
+| Hypothesis as selection; a reading, and whether it held | §4, §3 | `Hypothesis`, `Hypotheses`, `Reading`, `ReadingKind`, `AssumptionKind`, `Outcome`, `ObservedOutcome`, `WireReading`, `WireHypothesis` | `Hypothesis.h`, `WireHypothesis.h` | NC-063 |
+| The dossier: what a company watched an admiral do (belief; ADR-021) | §8 | `DossierEntry`, `DossierId` | `Dossier.h` | NC-063 |
+| One thing the player set in motion, from the plan to the receipt | §4, §3 | `OperationId` | `EntityIds.h` | NC-063, NC-064 |
 | Operation and its projection | §3, §4 | `Operation`, `Projection` | `Operation.h` | NC-064 |
 | The receipt | §4 | `Receipt` | `Receipt.h`, `ReceiptText.h` | NC-064 |
 | Officer market, recruitment, leaving | §11 | `OfficerMarket` | `OfficerMarket.h` | NC-065 |

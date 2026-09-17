@@ -84,6 +84,7 @@
     <ClCompile Include="Explanation.cpp" />
     <ClCompile Include="NomadSimulation.cpp" />
     <ClCompile Include="Mobility.cpp" />
+    <ClCompile Include="Outposts.cpp" />
     <ClCompile Include="Politics.cpp" />
     <ClCompile Include="Sensor.cpp" />
     <ClCompile Include="Knowledge.cpp" />
@@ -94,6 +95,10 @@
     <ClCompile Include="Answers.cpp" />
     <ClCompile Include="CovertRaid.cpp" />
     <ClCompile Include="Contracts.cpp" />
+    <ClCompile Include="TemplateSelection.cpp" />
+    <ClCompile Include="Admirals.cpp" />
+    <ClCompile Include="PlanValidation.cpp" />
+    <ClCompile Include="Hypothesis.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -110,6 +115,8 @@
     <ClInclude Include="Fleet.h" />
     <ClInclude Include="Mothership.h" />
     <ClInclude Include="Outpost.h" />
+    <ClInclude Include="Outposts.h" />
+    <ClInclude Include="WireOutpost.h" />
     <ClInclude Include="ShipClass.h" />
     <ClInclude Include="Table.h" />
     <ClInclude Include="World.h" />
@@ -140,6 +147,16 @@
     <ClInclude Include="Cargo.h" />
     <ClInclude Include="CovertRaid.h" />
     <ClInclude Include="Contracts.h" />
+    <ClInclude Include="TemplateSelection.h" />
+    <ClInclude Include="Admirals.h" />
+    <ClInclude Include="PlanValidation.h" />
+    <ClInclude Include="Hypothesis.h" />
+    <ClInclude Include="WireHypothesis.h" />
+    <ClInclude Include="Dossier.h" />
+    <ClInclude Include="WirePlan.h" />
+    <ClInclude Include="Plan.h" />
+    <ClInclude Include="Admiral.h" />
+    <ClInclude Include="BattleTemplate.h" />
     <ClInclude Include="WireContract.h" />
     <ClInclude Include="Contract.h" />
     <ClInclude Include="WreckAnalysis.h" />

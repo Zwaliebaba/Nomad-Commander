@@ -19,9 +19,35 @@ namespace
   Nomad::Company company{};
   company.name = "Sedu Compact";
   company.activeWindow =
-    Nomad::ActiveWindow{Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_START_TICK_OF_DAY, Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_LENGTH_TICKS};
+    Nomad::ActiveWindow{Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_START_TICK_OF_DAY, Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_LENGTH_TICKS, 0};
   company.alive = true;
   return _world.Companies().Add(company);
+}
+
+/// A foothold to aim a governor's orders at. The resolver property two tests below needs an input with **no rule of
+/// its own**: two decisions on one tick have to both apply, and GDD §7 will not let the active window move twice in a
+/// day (NC-066). A governor's policy has no such clock, so it is the honest thing to test ordering with.
+[[nodiscard]] Nomad::OutpostId AddOutpost(Nomad::World& _world, Nomad::CompanyId _company)
+{
+  Nomad::Outpost outpost{};
+  outpost.name = "Harrow Depot";
+  outpost.owningCompany = _company;
+  outpost.stockByGood.assign(Nomad::GOOD_COUNT, 0);
+  outpost.alive = true;
+  const Nomad::OutpostId id = _world.Outposts().Add(outpost);
+  _world.Companies().Get(_company).outposts.push_back(id);
+  return id;
+}
+
+[[nodiscard]] Nomad::Input Reserve(Neuron::Tick _applyAtTick, Nomad::CompanyId _company, Nomad::OutpostId _outpost, std::uint32_t _units)
+{
+  Nomad::Input input{};
+  input.applyAtTick = _applyAtTick;
+  input.kind = Nomad::InputKind::SetGovernorPolicy;
+  input.company = _company;
+  input.outpost = _outpost;
+  input.policy.fuelReserveUnits = _units;
+  return input;
 }
 
 [[nodiscard]] Nomad::Input Window(Neuron::Tick _applyAtTick, Nomad::CompanyId _company, Neuron::Tick _start)
@@ -58,19 +84,24 @@ public:
   {
     Nomad::World world{2};
     const Nomad::CompanyId company = AddCompany(world);
-    const Nomad::Input inputs[] = {Window(3, company, 100), Window(7, company, 200)};
+    // **A day and a tick apart.** GDD §7 puts a one-day cooldown on moving the active window, and NC-066 made that a
+    // rule of the simulation rather than a note; two changes in an afternoon is exactly what it refuses. What this
+    // test is about is *when* an input applies, so the two it schedules have to be two the simulation would accept.
+    constexpr Neuron::Tick FIRST_AT = 3;
+    constexpr Neuron::Tick SECOND_AT = FIRST_AT + Neuron::TICKS_PER_DAY + 1;
+    const Nomad::Input inputs[] = {Window(FIRST_AT, company, 100), Window(SECOND_AT, company, 200)};
 
     std::vector<Nomad::Event> events;
     Nomad::Knowledge knowledge;
-    for (Neuron::Tick tick = 1; tick <= 10; ++tick)
+    for (Neuron::Tick tick = 1; tick <= SECOND_AT + 3; ++tick)
     {
       Nomad::TickResolver::Advance(world, knowledge, inputs, events);
       const Neuron::Tick start = world.Companies().Get(company).activeWindow.startTickOfDay;
-      if (tick < 3)
+      if (tick < FIRST_AT)
       {
         Assert::AreEqual(Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_START_TICK_OF_DAY, start, L"an input applied before its tick");
       }
-      else if (tick < 7)
+      else if (tick < SECOND_AT)
       {
         Assert::AreEqual(Neuron::Tick{100}, start, L"the first input did not hold until the second");
       }
@@ -88,7 +119,8 @@ public:
     // merely be capable of carrying one.
     Nomad::World world{3};
     const Nomad::CompanyId company = AddCompany(world);
-    const Nomad::Input inputs[] = {Window(2, company, 60), Window(4, company, 120), Window(4, company, 180)};
+    const Nomad::OutpostId outpost = AddOutpost(world, company);
+    const Nomad::Input inputs[] = {Reserve(2, company, outpost, 10), Reserve(4, company, outpost, 20), Reserve(4, company, outpost, 30)};
 
     std::vector<Nomad::Event> events;
     Nomad::Knowledge knowledge;
@@ -109,7 +141,7 @@ public:
 
     // Two inputs on one tick apply in the order they were given, which is the order the receipt will explain them in
     // (GDD §4). The last one wins, and the events record both.
-    Assert::AreEqual(Neuron::Tick{180}, world.Companies().Get(company).activeWindow.startTickOfDay);
+    Assert::AreEqual(30u, world.Outposts().Get(outpost).policy.fuelReserveUnits);
   }
 
   TEST_METHOD(AnInputNamingNothingIsSteppedOverRatherThanCrashing)
@@ -136,14 +168,17 @@ public:
     const Nomad::CompanyId rightCompany = AddCompany(right);
     Assert::IsTrue(leftCompany == rightCompany);
 
-    const Nomad::Input inputs[] = {Window(2, leftCompany, 60), Window(30, leftCompany, 900),
-                                   Window(Neuron::TICKS_PER_DAY + 5, leftCompany, 300)};
+    // **One change a day, which is GDD §7's cooldown** (NC-066). Three decisions therefore need three days, and the
+    // extra day is a day more of the daily systems drawing from the PRNG in both runs -- which is what this test is
+    // for.
+    const Nomad::Input inputs[] = {Window(2, leftCompany, 60), Window(Neuron::TICKS_PER_DAY + 3, leftCompany, 900),
+                                   Window(2 * Neuron::TICKS_PER_DAY + 4, leftCompany, 300)};
 
     std::vector<Nomad::Event> leftEvents;
     std::vector<Nomad::Event> rightEvents;
     Nomad::Knowledge leftKnowledge;
     Nomad::Knowledge rightKnowledge;
-    for (Neuron::Tick tick = 1; tick <= 2 * Neuron::TICKS_PER_DAY; ++tick)
+    for (Neuron::Tick tick = 1; tick <= 3 * Neuron::TICKS_PER_DAY; ++tick)
     {
       Nomad::TickResolver::Advance(left, leftKnowledge, inputs, leftEvents);
       Nomad::TickResolver::Advance(right, rightKnowledge, inputs, rightEvents);
@@ -155,7 +190,7 @@ public:
                        (L"the two knowledge halves diverged at tick " + std::to_wstring(tick)).c_str());
     }
     Assert::AreEqual(leftEvents.size(), rightEvents.size());
-    Assert::AreEqual(std::size_t{3}, leftEvents.size(), L"the three decisions did not all fire across two days");
+    Assert::AreEqual(std::size_t{3}, leftEvents.size(), L"the three decisions did not all fire across three days");
   }
 };
 

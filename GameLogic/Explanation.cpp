@@ -139,6 +139,40 @@ namespace
     return "you sold the cargo you were hired to escort";
   case ReasonCode::TheCrewFoundWork:
     return "the crew found work that needs no fleet";
+  case ReasonCode::TheAdmiralFoughtLikeHimself:
+    return "the admiral fought the way he fights";
+  case ReasonCode::TheAdmiralRetired:
+    return "the admiral's command ended and somebody else has it";
+  case ReasonCode::TheAdmiralDeviatedFromDoctrine:
+    return "the admiral fought his own way once too often and was replaced";
+  case ReasonCode::TheAdmiralWasPromoted:
+    return "the admiral was promoted out of the field";
+  case ReasonCode::RefuelledAtAnOutpost:
+    return "your outpost fuelled the fleet";
+  case ReasonCode::StoredAtAnOutpost:
+    return "cargo was put into your outpost's hold";
+  case ReasonCode::TakenOutOfStorage:
+    return "cargo was taken back out of your outpost";
+  case ReasonCode::TheGovernorsSellRule:
+    return "your governor sold at the price you set";
+  case ReasonCode::AFootholdWasEstablished:
+    return "you built an outpost on their tolerance";
+  case ReasonCode::TheGovernorWasGivenNewOrders:
+    return "you changed your governor's standing orders";
+  case ReasonCode::HostileContactsAppeared:
+    return "hostile contacts appeared near your outpost";
+  case ReasonCode::AnEmpireBroughtForceToBear:
+    return "they brought force to bear on your outpost";
+  case ReasonCode::TheFleetStoodInTheWay:
+    return "your fleet was standing in the system when it came to a head";
+  case ReasonCode::NobodyAnsweredInTime:
+    return "nobody answered before the clock ran out";
+  case ReasonCode::ARaiderBurnedIt:
+    return "raiders burned it rather than take it";
+  case ReasonCode::TheGraceRanOut:
+    return "the grace on a revoked claim ran out";
+  case ReasonCode::ARivalSawAnOpening:
+    return "a rival saw an opening in what you lost";
   }
   return "something happened that nobody recorded a reason for";
 }

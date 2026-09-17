@@ -26,6 +26,7 @@ namespace Nomad
 ///   3. detection         who saw what                          (NC-050)
 ///   4. couriers          orders, denials and rumours in flight  (NC-053)
 ///   5. encounters        interception and battle                (NC-062)
+///                        then the outpost clocks                 (NC-066)
 ///   6. daily             on tick % TICKS_PER_DAY == 0:
 ///                          economy   (NC-045)  upkeep    (NC-046)
 ///                          empires   (NC-047)  memory    (NC-051)

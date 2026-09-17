@@ -6,6 +6,7 @@
 #include "EntityIds.h"
 #include "Explanation.h"
 #include "Good.h"
+#include "Outpost.h"
 #include "ShipClass.h"
 #include "WireInput.h"
 
@@ -52,6 +53,11 @@ struct Input
   /// unmarked two different payout paths, and which one a raid ends up on is decided when the job is taken.
   ContractId contract;
   bool flyMarked;
+
+  /// GDD §11's foothold and its governor (NC-066). `system` says where a `BuildOutpost` goes; `outpost` says which
+  /// one a `SetGovernorPolicy` is aimed at. The three policies travel together because a check-in sets all three.
+  OutpostId outpost;
+  GovernorPolicy policy;
 };
 
 [[nodiscard]] inline WireInput ToWire(const Input& _input)
@@ -88,6 +94,13 @@ struct Input
   }
   wire.contractIndex = WireIndexOf(_input.contract);
   wire.flyMarked = _input.flyMarked;
+  wire.outpostIndex = WireIndexOf(_input.outpost);
+  for (std::uint32_t index = 0; index < GOOD_COUNT; ++index)
+  {
+    wire.sellAbovePriceByGood[index] = _input.policy.sellAbovePriceByGood[index];
+  }
+  wire.fuelReserveUnits = _input.policy.fuelReserveUnits;
+  wire.threatResponse = static_cast<std::uint8_t>(_input.policy.threatResponse);
   return wire;
 }
 
