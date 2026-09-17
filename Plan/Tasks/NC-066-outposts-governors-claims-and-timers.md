@@ -158,3 +158,35 @@ in `NomadSimulationTests.cpp`. clang-tidy-18 is clean over every file this task 
 **Not done, and not claimable:** no `msbuild` and no `vstest.console.exe` **run by me** — there is no Windows toolchain
 in this environment, so the MSVC build, the four DLLs and the real CppUnitTest framework are CI's word and not mine.
 The task needs no desktop run.
+
+**Confirmed on MSVC after the fact**, from this task's own CI run on `66c8016`: **408 tests across the four suites
+pass**, `RunClangTidy` reports **103 translation units clean** on clang-tidy 22.1.8 over the whole tree — which also
+retires the local `bugprone-exception-escape` note on `Mobility.cpp:76`, since CI's newer tidy does not raise it — and
+**every measured figure is byte-identical to clang's**, the soak year included: hash `10502893794700263772`, 291 fleet
+rows, the 6516-unit floor, `[NC-066] 22 of 40 seizures came with a rival's offer`, and all of NC-045's, NC-047's,
+NC-055's and NC-060's numbers unchanged. The determinism the replay depends on holds across both compilers (R16).
+
+**Two corrections made after the first push**, both mine and both recorded rather than quietly amended:
+
+1. `FourFunctionsAndThreePoliciesAndNoMore` asserted `sizeof(GovernorPolicy)` with a message claiming a fourth policy
+   "cannot be added without changing this number". **That was false** — a one- or two-byte field drops into the
+   record's existing tail padding and `sizeof` does not move — and it baked a padding assumption into the suite for
+   no benefit. It now names all three policies, so removing or renaming one is a compile error, and says plainly that
+   a *fourth* is review-enforced because C++ cannot count a struct's members.
+2. The wall-clock regression this report first measured at 15–17 percent was **not real**, and the instruction count
+   is what settled it. The figure to quote is 0.16 percent.
+
+**The owner answered this task's open design question (2026-09-17): hulls get a condition.** GDD §11's "docks and
+repairs hulls" is to become true, with the damage model landing in NC-062 and the outpost repairing it for a fee.
+Three things that decision needs, none of which this task can supply:
+
+- **It enlarges v0.1's scope, so it needs a GDD edit rather than a task-file one.** §15's scope list does not include
+  hull condition and §5's sink list does not name repair; AGENTS.md §6 puts an enlargement in the owner's document,
+  not in `Plan/`. Until §5 or §15 says so, the next agent reads R23 and deletes it.
+- **It has to be counts per class, not a per-hull state.** GDD §12: ships within a fleet "are counts per class and
+  never individual hulls", and that is load-bearing for the store and the replay. The shape is a second `ShipCounts`
+  beside `ships` — how many of each class are damaged.
+- **§5's floor constrains the model.** "A player who has lost everything can always afford to exist" and the deadlock
+  state is "not reachable", so a damaged hull has to still fly and still fight, just worse: repair buys back
+  capability, never access to it. And a damaged hull still burns full upkeep, or damage becomes the upkeep dodge a
+  free dock would have been.

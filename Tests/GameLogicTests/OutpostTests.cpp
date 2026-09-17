@@ -201,12 +201,20 @@ public:
     Assert::AreEqual(std::uint8_t{2}, Nomad::THREAT_RESPONSE_COUNT, L"a third threat response appeared; GDD §11 names two");
     Assert::AreEqual(std::uint8_t{2}, Nomad::CLAIM_STATE_COUNT, L"a claim grew a third state");
 
-    // Three policies: a sell rule per good, a fuel reserve, a threat response. Nothing else is settable, which is
-    // what this size check says -- a fourth policy cannot be added without changing this number.
-    static_assert(sizeof(Nomad::GovernorPolicy) == sizeof(Nomad::Credits[Nomad::GOOD_COUNT]) + sizeof(std::uint32_t) +
-                                                     sizeof(Nomad::ThreatResponse) +
-                                                     /* padding to the alignment of Credits */ 3,
-                  "GovernorPolicy gained or lost a field; GDD §11 names exactly three policies and calls a fourth Tier 3");
+    // Three policies: a sell rule per good, a fuel reserve, a threat response. Naming all three is what this asserts
+    // -- removing or renaming one is a compile error here.
+    //
+    // **A *fourth* policy is review-enforced and not compiler-enforced, and it is worth being honest about why.**
+    // This used to be a `sizeof` check whose message claimed a fourth field could not be added without changing the
+    // number. That was false: a one- or two-byte field drops into the record's existing tail padding and `sizeof`
+    // does not move. It also baked a padding assumption into the suite for no benefit. C++ cannot count a struct's
+    // members, so GDD §11's "anything more is Tier 3" is a thing a reviewer enforces (R23).
+    const Nomad::GovernorPolicy policy = Nomad::Outposts::DefaultPolicy();
+    Assert::AreEqual(Nomad::Tuning::PRICE_BASE[0], policy.sellAbovePriceByGood[0], L"the sell rule is not the first policy");
+    Assert::AreEqual(Nomad::Tuning::GOVERNOR_DEFAULT_FUEL_RESERVE_UNITS, policy.fuelReserveUnits,
+                     L"the fuel reserve is not the second policy");
+    Assert::IsTrue(policy.threatResponse == Nomad::Tuning::GOVERNOR_DEFAULT_THREAT_RESPONSE,
+                   L"the threat response is not the third policy");
   }
 
   TEST_METHOD(ItRefuelsFromItsOwnStockAndThenFromTheLocalMarket)
