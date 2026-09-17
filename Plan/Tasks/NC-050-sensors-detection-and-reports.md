@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 3 | GameLogic | M | no | no | Done (PENDING) |
+| 3 | GameLogic | M | no | no | Done (4dfe324) |
 
 **Depends on:** NC-044
 **Read first:** GDD §4 (*Intelligence*: source, age, reliability; "the AI sees the player through the same fog"), §9 (*Reality, belief and evidence*), §12 (sensor range per class; scouting), §3 (the nine-hour-old sighting); AGENTS.md R18 whole
