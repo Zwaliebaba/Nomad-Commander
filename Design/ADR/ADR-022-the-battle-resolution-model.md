@@ -1,9 +1,11 @@
 # ADR-022 — The battle resolution model
 
-**Status:** accepted, 2026-09-17 · **Task:** NC-062 · **Owner-visible**
+**Status:** Accepted
+**Date:** 2026-09-17
+**Task:** NC-062 (*owner-visible*)
+**Cites:** GDD §4 (*Execution*: resolved against the admiral's plan; uncertainty mainly from what intelligence got wrong; a small spread), §3 (the 19:00 plan and its thresholds), §7 (combat does not wait for the window), §8 (eight readable templates; readability in three to four engagements; every receipt names the template), §11 (*falling is a chapter*), §12 (ships are counts per class, never individual hulls), §5 (captured hulls salvaged at a fraction; the floor), §15 (measured outcomes), §16 (*battle plans become programming*); AGENTS.md R16, R18, R19, R20, R23, R24; ADR-002 (the pinned PRNG), ADR-004 (byte encoding and versioning), ADR-018 (the wire schema), ADR-021 (reality and knowledge)
 
 ## Context
-
 GDD §4 says what a battle *is* — "Execution is resolved against the enemy admiral's own plan, chosen by the rule in section 8 from his repertoire, his traits and his circumstances. Uncertainty comes mainly from what the player's intelligence got wrong; a small random spread remains" — and §8 says what it has to *read like*: eight named templates, readable "within three to four engagements, not ten", with every receipt naming the one the admiral used.
 
 What neither says is what a round costs. §12 lists the mobility verbs and stops at interception. So the feel of combat was undecided, and GDD §8 calls the admirals "the equivalent of a conventional game's enemy classes" — which makes this the most consequential undecided thing in v0.1. It is recorded here because it is the owner's to judge, not the implementer's to default.
@@ -11,7 +13,6 @@ What neither says is what a round costs. §12 lists the mobility verbs and stops
 `Plan/Roadmap.md` recommended twelve rounds, template postures, integer losses with the pinned spread, and delayed, imperfect triggers. That recommendation is taken. The numbers under it are not in the Roadmap and are decided here.
 
 ## Decision
-
 ### The shape
 
 Twelve rounds in three phases of four — opening, middle, closing. Both sides act simultaneously each round, so neither gets a first-strike advantage the model never chose to give it. A battle resolves **at the encounter's own tick** (GDD §7: combat "does not wait for the window"); only outpost timers wait, and those are NC-066's.
@@ -54,9 +55,24 @@ That split is the whole answer to §16's "battle plans become programming": the 
 
 **The break threshold is calibrated so that pursuit is what breaks a fleet.** A side that withdraws and is not chased escapes at around half its hulls; chased, it takes two more rounds at full exposure and goes over. That is `Plan.h`'s note made arithmetic — pursuit "turns a won fight into a lost fleet" — and it gives GDD §3's "never pursue" a cost on both sides. At the first value tried, 70%, *nothing broke in a hundred hopeless fights* and captures were unreachable code (R23); it is 55%.
 
-## Measured
+## What this forecloses
+Real-time tactics, which GDD §1 rules out by design. Positional simulation — there is no space inside a battle, only rounds and postures. Any per-ship state: GDD §12 makes ships counts per class, and the damage model when it arrives must respect that or reopen this decision and §12 with it.
 
-Every figure below is from `GameLogicTests::BattleTests` at the values in `Tuning.h`, over a hundred seeded battles each, on clang 18.1.3. They are what the property tests assert against, and they are measurements rather than estimates.
+It also forecloses a battle the player watches happen. A fight resolves inside one tick, so the light panel's "take a branch point in a live battle" (GDD §3) is not reachable against this model; that is consistent with A4, which puts the light panel outside v0.1, but a later task that wants it is reopening this ADR rather than extending it.
+
+## Consequences
+**For the code.** `Battle` is the only thing besides the resolver that mutates a `World`, and it does so in one place — applying losses. `Fleet` gained two fields: a `Plan`, because a battle cannot go looking for an operation record that does not exist yet and the fleet is what is standing in the system when the shooting starts, and `reorganisingUntilTick`. Phase 5 of the tick reads this tick's `EncounterBegan` events rather than walking the fleet table, which is the pattern NC-055 established after measuring what a per-tick walk costs over a simulated year.
+
+**For the store.** `World::SCHEMA_VERSION` is 15. The fleet's plan and its cooldown are on the wire, so an older store cannot be read — which is the rule ADR-004 sets and not an exception to it.
+
+**For the wire.** `WireBattleRecord` carries the replay to a participant and a news item to everybody else: GDD §6 grants identity "in the same system", and a fight is the same system by definition, so a company that owned one of the fleets is told both sides' complements and losses. A company that was not in it gets when, where, who won and the template — with every count zero and no rounds at all. The template crosses either way, because §8 makes readability the point of an admiral.
+
+**For the tests.** Five existing tests had staged worlds that quietly implied combat and did not get it; each was corrected rather than the phase weakened. That is the expected cost of adding a phase to a resolver that other systems had been assuming was empty, and it is worth expecting again for NC-064 and NC-067.
+
+**If this is reversed.** The posture tables and the thresholds are data in `Tuning.h` (R20) and can be retuned without touching the loop. What cannot be retuned away is the shape: rounds rather than a single roll, both sides deciding from belief, and the record being the replay. Reversing those means rewriting `Battle` and everything that reads a `BattleRecord` — which at the time of writing is NC-064's receipt and NC-065's officer recruitment.
+
+## Measurements
+Every figure below is from `GameLogicTests::BattleTests` at the values in `Tuning.h`, over a hundred seeded battles each. **Machine and configuration:** clang 18.1.3 at `-O1 -D_DEBUG` on Linux x86-64, through the local harness that compiles `NeuronCore` and `GameLogic` against a stand-in CppUnitTest; **input:** seeds 1 to 100, one battle per seed, fleets as each test names them; **command:** the suite binary, whose `[NC-062]` lines are quoted verbatim. They are what the property tests assert against, and they are measurements rather than estimates. None has yet been reproduced on MSVC — CI is the build this agent does not have, and the report says so.
 
 | What | Measured |
 |---|---|
@@ -68,9 +84,3 @@ Every figure below is from `GameLogicTests::BattleTests` at the values in `Tunin
 | A pursued lopsided fight | **broke the loser 14 of 100**, and every break gave the winner hulls |
 
 **The outcome *class* of an even fight is deterministic and only the cost varies.** A hundred even battles produced a hundred withdrawals: the ±15% spread moves who wins and how much it hurt, never whether somebody was annihilated. That is the design's own ordering — "uncertainty comes mainly from what the intelligence got wrong" — working as stated, and it is worth knowing before anybody reads variety into the spread.
-
-## What this forecloses
-
-Real-time tactics, which GDD §1 rules out by design. Positional simulation — there is no space inside a battle, only rounds and postures. Any per-ship state: GDD §12 makes ships counts per class, and the damage model when it arrives must respect that or reopen this decision and §12 with it.
-
-It also forecloses a battle the player watches happen. A fight resolves inside one tick, so the light panel's "take a branch point in a live battle" (GDD §3) is not reachable against this model; that is consistent with A4, which puts the light panel outside v0.1, but a later task that wants it is reopening this ADR rather than extending it.
