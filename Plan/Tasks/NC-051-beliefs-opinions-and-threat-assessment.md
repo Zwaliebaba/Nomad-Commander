@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 3 | GameLogic | M | no | no | Done |
+| 3 | GameLogic | M | no | no | Done (PR #6) |
 
 **Depends on:** NC-050
 **Read first:** GDD §9 whole (one belief per empire, one opinion per character; the overwrite rule as a v0.1 release valve; successors inherit), §8 (*What an admiral knows in v0.1*; the employer's opinion: reliable, discreet, who they worked for last), §11 (the institutional threat assessment and its stages; ambitions change behaviour); AGENTS.md R18, R22

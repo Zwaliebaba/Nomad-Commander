@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 3 | GameLogic | L | no | no | Done |
+| 3 | GameLogic | L | no | no | Done (PR #6) |
 
 **Depends on:** NC-051
 **Read first:** GDD §6 whole (the table, the thresholds, the window between accusation and action), §3 (0:00 and 3:00: what the panel shows), §9 (the example explanation), §1 (*Persistence is the structure; belief is the game*); AGENTS.md R16 (weights in integer hundredths), R19, R20; `Plan/Roadmap.md` finding 1
