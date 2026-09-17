@@ -409,6 +409,25 @@ void SettleEngagement(SideState& _side, const SideState& _other)
   return _side.engaged && !_side.withdrawing ? Neuron::HUNDREDTHS_UNITY : Tuning::BATTLE_WITHDRAWING_STRIKE;
 }
 
+/// A strength after a posture and a commitment have been applied to it.
+///
+/// **The conversion is here and explicit**, because `Hundredths::Of` carries ADR-003's 64-bit intermediate and a
+/// strength is a 32-bit quantity: narrowing it silently is exactly the C4244 that MSVC makes fatal under `/WX`, and
+/// clang only sees behind `-Wshorten-64-to-32`. Clamped at zero rather than wrapped, because a negative strength
+/// would become four billion.
+[[nodiscard]] std::uint32_t StrikeOf(const SideState& _side, const Posture& _posture)
+{
+  const std::int64_t after = CommitmentOf(_side).Of(_posture.strike.Of(Battle::StrengthOf(_side.ships, _side.veterancy)));
+  return after <= 0 ? 0u : static_cast<std::uint32_t>(after);
+}
+
+/// The same, for what a posture keeps back.
+[[nodiscard]] std::uint32_t DefenceOf(const SideState& _side, const Posture& _posture)
+{
+  const std::int64_t after = _posture.defence.Of(Battle::StrengthOf(_side.ships, _side.veterancy));
+  return after <= 0 ? 0u : static_cast<std::uint32_t>(after);
+}
+
 void Emit(std::vector<Event>& _outEvents, Neuron::Tick _now, EventKind _kind, const SideState& _side, SystemId _system, ReasonCode _reason)
 {
   EventSubjects subjects{};
@@ -711,12 +730,10 @@ bool Battle::Resolve(World& _world, Knowledge& _knowledge, FleetId _leftId, Flee
       BeginWithdrawal(right);
     }
 
-    const std::uint32_t leftStrike =
-      Neuron::MulDivRound(CommitmentOf(left).Of(leftPosture.strike.Of(StrengthOf(left.ships, left.veterancy))), 1, 1);
-    const std::uint32_t rightStrike =
-      Neuron::MulDivRound(CommitmentOf(right).Of(rightPosture.strike.Of(StrengthOf(right.ships, right.veterancy))), 1, 1);
-    const auto leftDefence = static_cast<std::uint32_t>(leftPosture.defence.Of(StrengthOf(left.ships, left.veterancy)));
-    const auto rightDefence = static_cast<std::uint32_t>(rightPosture.defence.Of(StrengthOf(right.ships, right.veterancy)));
+    const std::uint32_t leftStrike = StrikeOf(left, leftPosture);
+    const std::uint32_t rightStrike = StrikeOf(right, rightPosture);
+    const std::uint32_t leftDefence = DefenceOf(left, leftPosture);
+    const std::uint32_t rightDefence = DefenceOf(right, rightPosture);
     row.leftStrength = leftStrike;
     row.rightStrength = rightStrike;
 
