@@ -283,6 +283,40 @@ void WriteAccusation(Neuron::ByteWriter& _writer, const Accusation& _accusation)
          _reader.ReadTick(_outAccusation.actedAtTick);
 }
 
+void WriteDossier(Neuron::ByteWriter& _writer, const DossierEntry& _entry)
+{
+  _writer.WriteId(_entry.observer);
+  _writer.WriteId(_entry.admiral);
+  _writer.Write(static_cast<std::uint32_t>(_entry.timesUsed.size()));
+  for (const std::uint32_t used : _entry.timesUsed)
+  {
+    _writer.Write(used);
+  }
+  _writer.WriteTick(_entry.lastSeenAtTick);
+  _writer.WriteId(_entry.lastSeenAtSystem);
+  _writer.Write(_entry.engagementsSeen);
+}
+
+[[nodiscard]] bool ReadDossier(Neuron::ByteReader& _reader, DossierEntry& _outEntry)
+{
+  std::uint32_t usedCount = 0;
+  if (!_reader.ReadId(_outEntry.observer) || !_reader.ReadId(_outEntry.admiral) || !_reader.Read(usedCount) ||
+      usedCount > _reader.Remaining())
+  {
+    return false;
+  }
+  _outEntry.timesUsed.resize(usedCount);
+  for (std::uint32_t& used : _outEntry.timesUsed)
+  {
+    if (!_reader.Read(used))
+    {
+      return false;
+    }
+  }
+  return _reader.ReadTick(_outEntry.lastSeenAtTick) && _reader.ReadId(_outEntry.lastSeenAtSystem) &&
+         _reader.Read(_outEntry.engagementsSeen);
+}
+
 void WriteObserverRecord(Neuron::ByteWriter& _writer, const ObserverRecord& _record)
 {
   WriteObserver(_writer, _record.observer);
@@ -367,6 +401,23 @@ const Belief* Knowledge::BeliefOf(EmpireId _empire) const noexcept
   return m_beliefs.Holds(_empire) ? &m_beliefs.Get(_empire) : nullptr;
 }
 
+DossierEntry& Knowledge::DossierOf(CompanyId _company, CharacterId _admiral)
+{
+  for (std::uint32_t index = 0; index < m_dossiers.Count(); ++index)
+  {
+    const auto dossierId = DossierId::FromIndex(index);
+    if (m_dossiers.Get(dossierId).observer == _company && m_dossiers.Get(dossierId).admiral == _admiral)
+    {
+      return m_dossiers.Get(dossierId);
+    }
+  }
+  DossierEntry entry{};
+  entry.observer = _company;
+  entry.admiral = _admiral;
+  entry.timesUsed.assign(TEMPLATE_COUNT, 0);
+  return m_dossiers.Get(m_dossiers.Add(entry));
+}
+
 Opinion& Knowledge::OpinionOf(CharacterId _character, CompanyId _company, Neuron::Tick _now)
 {
   for (std::uint32_t index = 0; index < m_opinions.Count(); ++index)
@@ -446,6 +497,7 @@ void Knowledge::Serialize(Neuron::ByteWriter& _writer) const
   WriteTableOf(_writer, m_evidence, WriteEvidence);
   WriteTableOf(_writer, m_accusations, WriteAccusation);
   WriteTableOf(_writer, m_observerRecords, WriteObserverRecord);
+  WriteTableOf(_writer, m_dossiers, WriteDossier);
 }
 
 std::uint64_t Knowledge::Hash() const
@@ -467,7 +519,7 @@ bool Knowledge::Deserialize(Neuron::ByteReader& _reader)
   if (!ReadTableOf(_reader, loaded.m_reports, ReadReport) || !ReadTableOf(_reader, loaded.m_beliefs, ReadBelief) ||
       !ReadTableOf(_reader, loaded.m_opinions, ReadOpinion) || !ReadTableOf(_reader, loaded.m_threats, ReadThreat) ||
       !ReadTableOf(_reader, loaded.m_evidence, ReadEvidence) || !ReadTableOf(_reader, loaded.m_accusations, ReadAccusation) ||
-      !ReadTableOf(_reader, loaded.m_observerRecords, ReadObserverRecord))
+      !ReadTableOf(_reader, loaded.m_observerRecords, ReadObserverRecord) || !ReadTableOf(_reader, loaded.m_dossiers, ReadDossier))
   {
     return false;
   }

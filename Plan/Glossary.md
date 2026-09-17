@@ -103,7 +103,9 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | What a plan is refused or warned for | §4, §7 | `PlanValidation`, `PlanFault`, `PlanReason` | `PlanValidation.h` | NC-061 |
 | Command capacity (an officer's) | §11 | `Character::commandCapacity` | `Character.h` | NC-061 |
 | Battle and its record (the replay) | §4, §8 | `Battle`, `BattleRecord`, `BattleRound` | `Battle.h`, `BattleRecord.h` | NC-062 |
-| Hypothesis as selection; a reading | §4 | `Hypothesis`, `Reading` | `Hypothesis.h` | NC-063 |
+| Hypothesis as selection; a reading, and whether it held | §4, §3 | `Hypothesis`, `Hypotheses`, `Reading`, `ReadingKind`, `AssumptionKind`, `Outcome`, `ObservedOutcome`, `WireReading`, `WireHypothesis` | `Hypothesis.h`, `WireHypothesis.h` | NC-063 |
+| The dossier: what a company watched an admiral do (belief; ADR-021) | §8 | `DossierEntry`, `DossierId` | `Dossier.h` | NC-063 |
+| One thing the player set in motion, from the plan to the receipt | §4, §3 | `OperationId` | `EntityIds.h` | NC-063, NC-064 |
 | Operation and its projection | §3, §4 | `Operation`, `Projection` | `Operation.h` | NC-064 |
 | The receipt | §4 | `Receipt` | `Receipt.h`, `ReceiptText.h` | NC-064 |
 | Officer market, recruitment, leaving | §11 | `OfficerMarket` | `OfficerMarket.h` | NC-065 |

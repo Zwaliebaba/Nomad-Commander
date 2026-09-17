@@ -36,6 +36,8 @@ struct CourierTag;
 struct WreckAnalysisTag;
 struct ContractTag;
 struct AdmiralTag;
+struct DossierTag;
+struct OperationTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -96,5 +98,14 @@ using ContractId = Neuron::Id<ContractTag>;
 /// a character is a person and this is a command -- and GDD §8 refreshes the roster, so the two do not live or end
 /// together.
 using AdmiralId = Neuron::Id<AdmiralTag>;
+
+/// What one company has watched one admiral do (GDD §8, NC-063). The belief counterpart of `AdmiralId`'s record:
+/// they differ exactly where nobody was looking (ADR-021, R18).
+using DossierId = Neuron::Id<DossierTag>;
+
+/// One thing the player set in motion, from the plan to the receipt (GDD §4, §3's 25:00). **Declared here before
+/// NC-064 builds the table**, because NC-063's hypothesis is about an operation and §15 pairs its two log lines by
+/// this id -- a metric that could not name what it was about would answer nothing (R24).
+using OperationId = Neuron::Id<OperationTag>;
 
 } // namespace Nomad

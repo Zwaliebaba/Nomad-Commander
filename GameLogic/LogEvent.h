@@ -91,6 +91,14 @@ inline constexpr std::string_view CONFIDENCE = "confidence";
 inline constexpr std::string_view CHARACTER = "character";
 inline constexpr std::string_view SITUATION = "situation";
 inline constexpr std::string_view TEMPLATE = "template";
+
+/// GDD §15's "whether players can state their hypothesis **and whether it held**" is two lines an operation apart,
+/// so both carry the operation and NC-101 pairs them by it. The assumption key is what lets the pairing be per
+/// assumption, which is what §4's receipt needs: one reading can hold and another fail in the same fight (NC-063).
+inline constexpr std::string_view OPERATION = "operation";
+inline constexpr std::string_view READING = "reading";
+inline constexpr std::string_view ASSUMPTION = "assumption";
+inline constexpr std::string_view OUTCOME = "outcome";
 } // namespace Field
 
 } // namespace LogEvent

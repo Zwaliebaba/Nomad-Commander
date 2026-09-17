@@ -110,6 +110,7 @@
     <ClCompile Include="ContractTests.cpp" />
     <ClCompile Include="TemplateSelectionTests.cpp" />
     <ClCompile Include="PlanTests.cpp" />
+    <ClCompile Include="HypothesisTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

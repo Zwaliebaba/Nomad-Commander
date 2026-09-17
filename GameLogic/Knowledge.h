@@ -3,6 +3,7 @@
 
 #include "Accusation.h"
 #include "Belief.h"
+#include "Dossier.h"
 #include "Evidence.h"
 #include "Opinion.h"
 #include "Report.h"
@@ -123,6 +124,24 @@ public:
     return m_observerRecords;
   }
 
+  /// What each company has watched each admiral do (GDD §8's dossier; NC-063). **Belief**: it differs from
+  /// `World::Admirals()` exactly where nobody was looking, which is what makes an opponent take three or four
+  /// engagements to read rather than one (ADR-021, R18).
+  [[nodiscard]] Table<DossierEntry, DossierId>& Dossiers() noexcept
+  {
+    return m_dossiers;
+  }
+
+  [[nodiscard]] const Table<DossierEntry, DossierId>& Dossiers() const noexcept
+  {
+    return m_dossiers;
+  }
+
+  /// What this company has watched this admiral do, creating an empty entry the first time it is asked for -- the
+  /// same shape `OpinionOf` uses, and for the same reason: "nobody has watched him" and "he has never done it" are
+  /// different claims and only the second is evidence.
+  [[nodiscard]] DossierEntry& DossierOf(CompanyId _company, CharacterId _admiral);
+
   /// Gives every empire a belief to hold. Called once when a universe is built, beside `Economy::Seed` and
   /// `Politics::Seed` -- an empire with nowhere to put a suspicion is a bug nobody sees until an incident.
   static void Seed(const World& _world, Knowledge& _outKnowledge);
@@ -155,7 +174,7 @@ public:
 
   /// Bumped when the layout changes in a way an older store could not be read as. Separate from `World`'s, because
   /// the two halves change for different reasons.
-  static constexpr std::uint16_t SCHEMA_VERSION = 3;
+  static constexpr std::uint16_t SCHEMA_VERSION = 4;
 
 private:
   Table<Report, ReportId> m_reports;
@@ -165,6 +184,7 @@ private:
   Table<Evidence, EvidenceId> m_evidence;
   Table<Accusation, AccusationId> m_accusations;
   Table<ObserverRecord, ObserverRecordId> m_observerRecords;
+  Table<DossierEntry, DossierId> m_dossiers;
 };
 
 } // namespace Nomad

@@ -18,6 +18,7 @@
     <ClCompile Include="Contracts.cpp" />
     <ClCompile Include="Admirals.cpp" />
     <ClCompile Include="PlanValidation.cpp" />
+    <ClCompile Include="Hypothesis.cpp" />
     <ClCompile Include="TemplateSelection.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
@@ -72,6 +73,9 @@
     <ClInclude Include="Plan.h" />
     <ClInclude Include="WirePlan.h" />
     <ClInclude Include="PlanValidation.h" />
+    <ClInclude Include="Dossier.h" />
+    <ClInclude Include="Hypothesis.h" />
+    <ClInclude Include="WireHypothesis.h" />
     <ClInclude Include="TemplateSelection.h" />
     <ClInclude Include="Contract.h" />
     <ClInclude Include="WireContract.h" />

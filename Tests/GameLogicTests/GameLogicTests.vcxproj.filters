@@ -25,6 +25,7 @@
     <ClCompile Include="ContractTests.cpp" />
     <ClCompile Include="TemplateSelectionTests.cpp" />
     <ClCompile Include="PlanTests.cpp" />
+    <ClCompile Include="HypothesisTests.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>

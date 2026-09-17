@@ -490,6 +490,29 @@ inline constexpr std::uint32_t COMMAND_CAPACITY_DEFAULT = 2;
 /// GDD §3's own plan, at 19:00: "withdraw at twenty-five percent losses".
 inline constexpr Neuron::Hundredths PLAN_DEFAULT_WITHDRAW_AT_LOSSES = Neuron::Hundredths::FromRaw(25);
 
+// --- GDD §4 and §3: the hypothesis, and what evidence has to say before a reading is offered ---------------------
+//
+// "The interface derives the readings the current evidence supports; the player picks one, and it binds the plan's
+// default assumptions." The numbers below are the conditions -- what makes a habit a habit, how long a sighting of
+// an admiral stays worth reasoning from, and how close a convoy has to be to on time for the reading to have held.
+
+/// How many engagements a company must have watched before it may read an admiral's habit into a convoy. GDD §8
+/// promises readability "in three to four engagements, not ten"; below that the player is guessing, and a reading
+/// offered on a guess is a reading the evidence does not support.
+inline constexpr std::uint32_t DOSSIER_ENGAGEMENTS_FOR_A_HABIT = 2;
+
+/// How long a sighting of an admiral keeps a bait reading available. A habit the player learned about somebody on
+/// the other side of the map is a habit, not a reason to read *this* convoy as bait.
+inline constexpr Neuron::Tick DOSSIER_SIGHTING_STAYS_RELEVANT_TICKS = 3 * Neuron::TICKS_PER_DAY;
+
+/// What a bait reading expects over and above what was seen, because the point of bait is that what you saw is not
+/// what is there (GDD §3's "lightly escorted convoys as bait when he had a reserve").
+inline constexpr std::uint32_t BAIT_READING_EXTRA_WARSHIPS = 3;
+
+/// How far off the expected hour a convoy may be met and the timing assumption still count as having held. A
+/// hypothesis is a reading and not a stopwatch.
+inline constexpr Neuron::Tick HYPOTHESIS_TIMING_TOLERANCE_TICKS = 4 * Neuron::TICKS_PER_HOUR;
+
 /// **The roster refreshes** (GDD §8: "Admirals are promoted, dismissed for deviation, killed in battle, or retire
 /// ... An admiral is never permanent"). How long a command lasts before retirement becomes possible, and the daily
 /// chance of it once it is.
