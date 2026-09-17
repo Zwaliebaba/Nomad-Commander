@@ -90,7 +90,7 @@ With the real defect fixed, I measured both against neither, five runs interleav
 
 **Measured:** the event census by kind over a simulated year, before and after (8,075,573 → 13 encounters); the year's wall time at 90/180/270/365 days, before and after; the rate table over two hundred days at each relation state; and the exit criterion over a year. `callgrind` for the phase attribution.
 
-**Not done, and not claimable:** no `msbuild`, no `vstest.console.exe`, no `RunClangTidy.py` in MSVC driver mode, no Release build, no executable run. There is no Windows on this agent. The soak hash from clang is `6789249530304863318`; CI prints its own and the two must agree.
+**Not done, and not claimable:** no `msbuild`, no `vstest.console.exe`, no `RunClangTidy.py` in MSVC driver mode, no Release build, no executable run. There is no Windows on this agent. The soak hash from clang is `6789249530304863318`, and **CI printed the same number** on MSVC for this commit (run 56), so R16's replay survives the compiler as well as the seed.
 
 **Assumed:** that a covert raider withdraws to its empire's capital rather than to the nearest holding — the design does not say, and the capital is where `Sensor` already assumes an empire reads its post. That `COVERT_RAID_HULLS` and `COVERT_RAID_HAULERS_DESTROYED` are the right shape for a scripted outcome NC-062 will replace.
 
