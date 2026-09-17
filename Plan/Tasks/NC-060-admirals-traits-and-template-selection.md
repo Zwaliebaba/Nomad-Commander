@@ -89,7 +89,9 @@ Every constant in the §8 block has a measurement behind it, taken over four tho
 
 **Measured:** the identical-situation share across 4 objectives × 3 odds positions × 5 seeds, before and after the table was balanced; the trait-score gap distribution over 4,000 drawn admirals; the desperation bend at four pressure levels; the pinned-habit hold rate over 300.
 
-**Not done, and not claimable:** no `msbuild`, no `vstest.console.exe`, no `RunClangTidy.py` in MSVC driver mode, no Release build, no executable run. There is no Windows on this agent.
+**Confirmed on MSVC after the fact**, from this task's own CI run: all **372** tests across the four suites pass, the NC-048 soak year ends on hash `13601029590216329562` — **the same number clang produced**, so R16's replay survives the compiler here as it did through Phase 3 — and every one of the four measured figures above reproduces exactly: 81% across 8 of 8 templates, Varik calm ambush and desperate feint-and-withdrawal, 75%/24%, and a pinned ambush leading 89%. The `consteval` row-balance check and the `std::size` table asserts compiled under MSVC unchanged.
+
+**Not done, and not claimable:** no `msbuild` or `vstest.console.exe` **run by me**, no `RunClangTidy.py` in MSVC driver mode, no Release build, no executable run. There is no Windows on this agent; the line above is CI's result, not mine.
 
 **Assumed:** that the eight affinity rows are a plausible first shape for the eight manoeuvres — they are R20 levers citing §8 and play answers them; what is *not* a lever is that they sum alike, which is a property the rule depends on. That an admiral commands for his empire rather than for a fleet, which NC-062 will need to refine when a battle has two named sides.
 
