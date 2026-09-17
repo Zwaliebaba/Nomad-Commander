@@ -58,11 +58,15 @@ Beliefs about incidents (NC-051), purchasable tips as board items (NC-067), rumo
 
 **A report is checked on counts, never on position.** A fleet that moved is not a source that lied. When an observer later sights the same subject in its own system — where the count is exact — the most recent unchecked report is confirmed or contradicted against it, once. That is GDD §4's "a battle contact reveals counts" doing the work that position cannot.
 
-### Two defects found while building, both mine
+### Three defects found while building, all mine
 
 **A quadratic scan that looked like "detection is expensive".** The first implementation handed `ResolveDetection` the caller's whole event vector and filtered by tick. A simulated year went from 0.112 s to **0.287 s** — a factor of 2.7 — and the obvious reading was that detection costs that much. It does not: `NomadSimulation` clears its events only when something drains them, so a headless year hands it a vector that grows all year and the per-tick scan is quadratic in the length of the run. The resolver now remembers where each tick's events begin and passes a span. **Back to back afterwards: 0.112 s without detection, 0.104 s with it** — the two differ by less than the run-to-run spread. The cost is nothing; the first measurement was measuring an accumulating buffer.
 
 **A POD array that broke determinism, which is the more instructive one.** `Company` and `Empire` each gained a `SourceRecord[REPORT_SOURCE_COUNT]`, the first raw POD array either has held. Four tests build a company as `Company c;` rather than `Company c{}` — harmless while every plain member was assigned explicitly, and *not* harmless the moment one was not. The first symptom was `DeterminismTests::TwoRunsOfOneScriptEndInTheSameState` failing: two runs read different stack garbage into a reliability and hashed differently. Both halves are fixed — `SourceRecord`'s fields carry initializers so the type is safe wherever it is built, and the four sites value-initialize — and the comment on the type says why it breaks the tree's usual aggregate style. **R16 caught it in one run**, which is the whole argument for having written that harness in NC-043.
+
+**A local named `far`, which CI found and nothing here could have.** `minwindef.h` defines `far` as an object-like macro expanding to nothing — a 16-bit memory-model leftover, with `near`, `pascal` and `cdecl` — and `NeuronCore.h` includes `<windows.h>`, so it is live in most of the tree. `SensorTests.cpp` had `Nomad::SystemId far{}`, which did not fail to compile so much as **vanish**: `far = candidate;` became ` = candidate;`, and MSVC reported a syntax error on the `=` two lines from anything that looked wrong. **Clang on Linux has no `windef.h` at all**, so the whole local harness — 114 tests, clang-tidy, both checkers — was structurally incapable of seeing it. One red CI round.
+
+`Build/CheckProjectFiles.py` now refuses an identifier in that family, which is **an addition beyond this task's deliverables and is named here rather than slipped in**. The justification is that the defect class is invisible to a Linux agent by construction and the checker already scans identifiers with comments and strings stripped, so it cost ten lines and no new machinery. It was verified both ways: clean over the whole tree, and it reports the original `far` when it is put back.
 
 ### Refined against the code as it is
 
@@ -74,7 +78,7 @@ Beliefs about incidents (NC-051), purchasable tips as board items (NC-067), rumo
 
 ### What was verified, and what was not
 
-**Verified here:** `python3 Build/CheckFormat.py` (178 files, clang-format 18.1.3) and `python3 Build/CheckProjectFiles.py` (9 projects) clean — the latter having first *failed* on the wire edge, which is the check doing its job. **clang-tidy 22.1.8**, CI's pinned version, on every changed `.cpp` — clean. **All 114 `GameLogicTests` methods compiled and run** at `-O1 -D_DEBUG` with clang 18.1.3 against a local stand-in for `CppUnitTest.h`, from the same sources MSVC compiles: 105 that existed before and 9 new.
+**Verified here:** `python3 Build/CheckFormat.py` (178 files, clang-format 18.1.3) and `python3 Build/CheckProjectFiles.py` (9 projects) clean — the latter having first *failed* on the wire edge, which is the check doing its job, and now carrying the Windows-macro rule as well. **clang-tidy 22.1.8**, CI's pinned version, on every changed `.cpp` — clean. **All 114 `GameLogicTests` methods compiled and run** at `-O1 -D_DEBUG` with clang 18.1.3 against a local stand-in for `CppUnitTest.h`, from the same sources MSVC compiles: 105 that existed before and 9 new.
 
 **Not done, and not claimable:** no `msbuild`, no `vstest.console.exe`, no `RunClangTidy.py` in MSVC driver mode, no Release build, no executable run. There is no Windows on this agent.
 

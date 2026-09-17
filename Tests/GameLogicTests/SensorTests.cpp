@@ -12,6 +12,7 @@
 #include "ByteWriter.h"
 
 #include <string>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -187,7 +188,7 @@ public:
     const Nomad::CompanyId blind = AddCompany(world, home);
 
     // Something well outside anything: the furthest system the map has from home.
-    Nomad::SystemId far{};
+    Nomad::SystemId furthestSystem{};
     std::uint32_t furthest = 0;
     for (std::uint32_t index = 0; index < world.Systems().Count(); ++index)
     {
@@ -196,13 +197,13 @@ public:
       if (jumps != Nomad::World::UNREACHABLE && jumps > furthest)
       {
         furthest = jumps;
-        far = candidate;
+        furthestSystem = candidate;
       }
     }
-    Assert::IsTrue(far.IsValid() && furthest > 3, L"the generated map is too small for anything to be out of range");
+    Assert::IsTrue(furthestSystem.IsValid() && furthest > 3, L"the generated map is too small for anything to be out of range");
 
     const auto empire = Nomad::EmpireId::FromIndex(0);
-    const Nomad::FleetId subject = AddFleet(world, Nomad::FleetOwner{empire}, Nomad::ShipClass::Raider, 2, far);
+    const Nomad::FleetId subject = AddFleet(world, Nomad::FleetOwner{empire}, Nomad::ShipClass::Raider, 2, furthestSystem);
     SendOneLane(world, subject);
 
     std::vector<Nomad::Event> events;
