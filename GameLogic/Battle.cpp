@@ -758,13 +758,21 @@ bool Battle::Resolve(World& _world, Knowledge& _knowledge, FleetId _leftId, Flee
       break;
     }
 
-    if (left.withdrawing && left.withdrawRoundsLeft > 0 && --left.withdrawRoundsLeft == 0)
+    if (left.withdrawing && left.withdrawRoundsLeft > 0)
     {
-      break;
+      --left.withdrawRoundsLeft;
+      if (left.withdrawRoundsLeft == 0)
+      {
+        break;
+      }
     }
-    if (right.withdrawing && right.withdrawRoundsLeft > 0 && --right.withdrawRoundsLeft == 0)
+    if (right.withdrawing && right.withdrawRoundsLeft > 0)
     {
-      break;
+      --right.withdrawRoundsLeft;
+      if (right.withdrawRoundsLeft == 0)
+      {
+        break;
+      }
     }
   }
 
