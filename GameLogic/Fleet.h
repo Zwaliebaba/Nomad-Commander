@@ -3,6 +3,7 @@
 
 #include "Cargo.h"
 #include "EntityIds.h"
+#include "Plan.h"
 #include "ShipClass.h"
 
 #include "Hundredths.h"
@@ -88,6 +89,16 @@ struct Fleet
   /// fleets can be interdicted and cannot interdict.
   Neuron::Tick interdictedUntilTick;
 
+  /// **Just fought, and not available to be fought again until this tick** (NC-062). GDD §7 has a fight "fought by
+  /// doctrine when it happens" -- once -- and without this two fleets sharing a system would be re-intercepted every
+  /// tick and ground to annihilation in minutes of game time, which would make ADR-022's withdrawal unreachable by
+  /// arithmetic rather than by decision.
+  ///
+  /// **It is a cooldown and not a loss of intent**, which is the distinction that matters: a raider that has just
+  /// fought still *wants* to fight, so it still intercepts couriers crossing its system (`Couriers.cpp`) and still
+  /// attacks an outpost's timer (NC-066). What it cannot do is immediately re-enter the same battle.
+  Neuron::Tick reorganisingUntilTick;
+
   /// Cargo by good, indexed by `Good` (NC-045). Empty until something is loaded.
   std::vector<std::uint32_t> cargoByGood;
 
@@ -101,6 +112,15 @@ struct Fleet
 
   /// GDD §12's veterancy, as a fraction of a full unit in hundredths (R16: no float in GameLogic).
   Neuron::Hundredths veterancy;
+
+  /// **The orders it is flying** (GDD §4: "The offline doctrine is the same plan read as standing orders. Every
+  /// operation has one"). A fleet without a plan flies its base rules, which default to nothing, so an empire's
+  /// fleet leaves this empty and fights by its admiral's template instead (NC-062).
+  ///
+  /// It is on the fleet rather than on an operation because the fleet is what is standing in the system when the
+  /// shooting starts, and a battle may not go looking for a record that might not exist. NC-064's operation points
+  /// at this rather than holding a second copy: two plans for one fleet would be two things to keep in step.
+  Plan plan;
 
   /// What happened to this fleet, for the record and the dossiers (GDD §8, §11). NC-042 brings Event.
   std::vector<EventId> history;

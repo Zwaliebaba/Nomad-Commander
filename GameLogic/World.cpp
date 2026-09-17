@@ -654,6 +654,70 @@ void WriteCourier(Neuron::ByteWriter& _writer, const Courier& _courier)
          _reader.ReadId(_outCourier.capturedBy);
 }
 
+/// A fleet's standing orders (GDD §4, NC-062). The counts the wire carries are the ones checked here: a plan read
+/// back with a trigger this build does not know is a plan it cannot fly, and refusing the store is louder than
+/// flying something else.
+void WritePlan(Neuron::ByteWriter& _writer, const Plan& _plan)
+{
+  WriteEnum(_writer, _plan.base.objective);
+  WriteEnum(_writer, _plan.base.priority);
+  WriteShipCounts(_writer, _plan.base.engageIfEscortAtOrBelow);
+  _writer.WriteHundredths(_plan.base.withdrawAtLossesPercent);
+  WriteEnum(_writer, _plan.base.pursuit);
+  WriteEnum(_writer, _plan.base.reserve.shipClass);
+  _writer.Write(_plan.base.reserve.count);
+
+  _writer.Write(static_cast<std::uint32_t>(_plan.overrides.size()));
+  for (const Override& rule : _plan.overrides)
+  {
+    WriteEnum(_writer, rule.trigger);
+    WriteEnum(_writer, rule.action);
+    _writer.WriteHundredths(rule.threshold);
+    _writer.WriteId(rule.commander);
+    _writer.WriteTick(rule.addedAtTick);
+  }
+
+  WriteShipCounts(_writer, _plan.assumptions.assumedEscort);
+  _writer.WriteId(_plan.assumptions.assumedCommander);
+  _writer.WriteTick(_plan.assumptions.assumedTiming);
+  _writer.WriteBool(_plan.assumptions.bound);
+  _writer.WriteBool(_plan.reserveCommitted);
+}
+
+[[nodiscard]] bool ReadPlan(Neuron::ByteReader& _reader, Plan& _outPlan)
+{
+  if (!ReadEnum(_reader, _outPlan.base.objective, OBJECTIVE_COUNT) || !ReadEnum(_reader, _outPlan.base.priority, WIRE_PRIORITY_COUNT) ||
+      !ReadShipCounts(_reader, _outPlan.base.engageIfEscortAtOrBelow) || !_reader.ReadHundredths(_outPlan.base.withdrawAtLossesPercent) ||
+      !ReadEnum(_reader, _outPlan.base.pursuit, WIRE_PURSUIT_COUNT) ||
+      !ReadEnum(_reader, _outPlan.base.reserve.shipClass, static_cast<std::uint8_t>(SHIP_CLASS_COUNT)) ||
+      !_reader.Read(_outPlan.base.reserve.count))
+  {
+    return false;
+  }
+
+  // A record is at least its two enumerators, a Hundredths, an id and a tick, so a corrupt length may not ask for a
+  // gigabyte of them.
+  constexpr std::uint64_t SMALLEST_OVERRIDE_BYTES = 1 + 1 + 4 + 4 + 8;
+  std::uint32_t overrides = 0;
+  if (!_reader.Read(overrides) || static_cast<std::uint64_t>(overrides) * SMALLEST_OVERRIDE_BYTES > _reader.Remaining())
+  {
+    return false;
+  }
+  _outPlan.overrides.resize(overrides);
+  for (Override& rule : _outPlan.overrides)
+  {
+    if (!ReadEnum(_reader, rule.trigger, WIRE_TRIGGER_COUNT) || !ReadEnum(_reader, rule.action, WIRE_ACTION_COUNT) ||
+        !_reader.ReadHundredths(rule.threshold) || !_reader.ReadId(rule.commander) || !_reader.ReadTick(rule.addedAtTick))
+    {
+      return false;
+    }
+  }
+
+  return ReadShipCounts(_reader, _outPlan.assumptions.assumedEscort) && _reader.ReadId(_outPlan.assumptions.assumedCommander) &&
+         _reader.ReadTick(_outPlan.assumptions.assumedTiming) && _reader.ReadBool(_outPlan.assumptions.bound) &&
+         _reader.ReadBool(_outPlan.reserveCommitted);
+}
+
 void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
 {
   _writer.WriteString(_fleet.name);
@@ -664,12 +728,14 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
   WriteFleetPosition(_writer, _fleet.position);
   _writer.Write(_fleet.fuel);
   WriteCounts(_writer, _fleet.cargoByGood);
+  WritePlan(_writer, _fleet.plan);
   _writer.WriteId(_fleet.cargoMark.origin);
   _writer.WriteId(_fleet.cargoMark.takenAtSystem);
   _writer.WriteTick(_fleet.cargoMark.takenAtTick);
   WriteIds(_writer, _fleet.route);
   _writer.WriteBool(_fleet.engageIntent);
   _writer.WriteTick(_fleet.interdictedUntilTick);
+  _writer.WriteTick(_fleet.reorganisingUntilTick);
   _writer.WriteBool(_fleet.marked);
   _writer.WriteHundredths(_fleet.veterancy);
   WriteIds(_writer, _fleet.history);
@@ -682,11 +748,12 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
   return _reader.ReadString(_outFleet.name) && ReadFleetOwner(_reader, _outFleet.owner) &&
          ReadEnum(_reader, _outFleet.role, FLEET_ROLE_COUNT) && _reader.ReadId(_outFleet.commander) &&
          ReadShipCounts(_reader, _outFleet.ships) && ReadFleetPosition(_reader, _outFleet.position) && _reader.Read(_outFleet.fuel) &&
-         ReadCounts(_reader, _outFleet.cargoByGood) && _reader.ReadId(_outFleet.cargoMark.origin) &&
+         ReadCounts(_reader, _outFleet.cargoByGood) && ReadPlan(_reader, _outFleet.plan) && _reader.ReadId(_outFleet.cargoMark.origin) &&
          _reader.ReadId(_outFleet.cargoMark.takenAtSystem) && _reader.ReadTick(_outFleet.cargoMark.takenAtTick) &&
          ReadIds(_reader, _outFleet.route) && _reader.ReadBool(_outFleet.engageIntent) &&
-         _reader.ReadTick(_outFleet.interdictedUntilTick) && _reader.ReadBool(_outFleet.marked) &&
-         _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) && _reader.ReadBool(_outFleet.alive);
+         _reader.ReadTick(_outFleet.interdictedUntilTick) && _reader.ReadTick(_outFleet.reorganisingUntilTick) &&
+         _reader.ReadBool(_outFleet.marked) && _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) &&
+         _reader.ReadBool(_outFleet.alive);
 }
 
 void WriteCharacter(Neuron::ByteWriter& _writer, const Character& _character)

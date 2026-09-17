@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 4 | GameLogic | L | no | **yes** | Open |
+| 4 | GameLogic | L | no | **yes** | Done (PR #8) |
 
 **Depends on:** NC-060, NC-061, NC-044
 **Read first:** GDD §4 (*Execution*: resolved against the admiral's plan; uncertainty mainly from what intelligence got wrong; a small spread), §8 (readability; every receipt names the template), §12 (interception; four classes' combat roles), §3 (19:00–25:00), §7 (fleet-against-fleet combat does not wait for the window); AGENTS.md R16, R18, R19, R24
@@ -20,10 +20,10 @@ An encounter resolves into a battle fought between two plans: the player's (or a
 
 ## Acceptance criteria
 
-- [ ] The ADR states the model with the tables, and the report states the measured outcome distributions the property tests rely on.
-- [ ] Neither side's plan evaluation reads the other side's true counts; the round loop reads `World` only to apply losses (R18; the reviewer checks the two code paths are distinct).
-- [ ] Every battle emits its record with the template name and its events with explanations (R19; GDD §8: "every receipt names the template").
-- [ ] A battle in open space resolves at the tick of the encounter, never deferred to a window (GDD §7).
+- [x] The ADR states the model with the tables, and the report states the measured outcome distributions the property tests rely on.
+- [x] Neither side's plan evaluation reads the other side's true counts; the round loop reads `World` only to apply losses (R18; the reviewer checks the two code paths are distinct).
+- [x] Every battle emits its record with the template name and its events with explanations (R19; GDD §8: "every receipt names the template").
+- [x] A battle in open space resolves at the tick of the encounter, never deferred to a window (GDD §7).
 
 ## Verification
 
@@ -88,4 +88,78 @@ Three constraints it must respect whenever it lands:
 
 ## Report
 
-_Filled in on hand-back._
+**What is built.** `Battle.h`/`.cpp` resolves an encounter at its own tick; `BattleRecord.h` is the replay and
+`WireBattleRecord.h` is what crosses to a client. `Tuning.h` gained the model's numbers — twelve rounds in three
+phases, the per-template posture table, the per-template withdrawal thresholds, lethality, spread, break threshold,
+capture fraction, the reorganising cooldown and the admiral death chance. `ADR-022` states the model and its tables.
+Phase 5 of the resolver reads this tick's `EncounterBegan` events, which is the NC-055 pattern rather than a new
+per-tick walk of the fleet table.
+
+**Measured, and the figures the property tests assert against** — all from `BattleTests` on clang 18.1.3, a hundred
+seeded battles each:
+
+| What | Measured |
+|---|---|
+| A doubled force wins | **86 of 100** |
+| An even fight, 25% threshold | **100 withdrawals, 0 broken, 0 stalemates**; 31% of hulls lost on average |
+| A hopeless matchup, no withdrawal | **broke the weaker side 79 of 100** |
+| A heavies-appear override | **fired 93, fluffed 7**, first firing on round 1 |
+| A pursued lopsided fight | **broke the loser 14 of 100**; every break gave the winner hulls |
+
+The owner's "bloody nose" decision is therefore built and measured rather than asserted. **Worth knowing: the outcome
+*class* of an even fight is deterministic** — a hundred even battles gave a hundred withdrawals, and the ±15% spread
+moves who wins and what it cost, never whether somebody was annihilated. That is GDD §4's own ordering working as
+written, and it means nobody should read variety into the spread.
+
+**Three things the model needed that no task had asked for, each recorded in ADR-022 rather than slipped in.**
+
+1. **A battle happens once: both fleets go on a six-hour cooldown** (`Fleet::reorganisingUntilTick`). Without it two
+   fleets sharing a system with intent are re-intercepted every tick and ground to annihilation in minutes of game
+   time, which would make the withdrawal decision unreachable by arithmetic rather than by decision. It is a cooldown
+   and **not** a loss of intent, which is the distinction that matters: a raider that has just fought still takes
+   couriers crossing its system and still runs an outpost's clock.
+2. **A side that withdrew leaves**, down the first lane out it can fuel. `ResolveMovement` departs fleets before it
+   scans for encounters, so by the next scan it is gone. A fleet that cannot leave is caught again, which is GDD §7's
+   "a fleet the player failed to plan for".
+3. **`Fleet` gained a `Plan`.** GDD §4: "The offline doctrine is the same plan read as standing orders. Every
+   operation has one." A battle cannot go looking for an operation record that does not exist yet, and the fleet is
+   what is standing in the system when the shooting starts. NC-064's operation points at this rather than holding a
+   second copy.
+
+**One calibration found by measuring rather than reasoning.** `BATTLE_BREAK_LOSSES` started at 70% and **nothing
+broke in a hundred hopeless fights** — a withdrawing side escapes at around half its hulls, so captures were
+unreachable code (R23) and pursuit bought nothing. At 55% a chased fleet takes two more rounds at full exposure and
+goes over, which makes pursuit exactly what turns a won fight into a lost fleet (`Plan.h`'s own note) and gives GDD
+§3's "never pursue" a cost on both sides.
+
+**Hull condition is not built, and that is the owner's sequencing rather than an omission.** The owner decided hulls
+gain a condition and that this task owns the damage model, and chose to edit GDD §5 and §15 themselves. At the time of
+writing `Design/GameDesign.md` has not moved: §5's sink list still omits repair and §15's scope list has no hull
+condition, so R23 says a later reader deletes it. Everything else here is independent of it, and it folds into the
+loss computation when the GDD carries it — as counts per class (§12), with a damaged hull that still flies (§5's
+floor) and still burns full upkeep.
+
+**Five existing tests staged worlds that now imply combat**, and each was corrected rather than the phase weakened.
+NC-066's evacuation test had a hostile fleet standing *in* the outpost's system; the governor's rule is about contacts
+in its **reports**, so the contact moved one jump away and the test now exercises the policy rather than a battle. Its
+defence test relied on four haulers holding off three warships, which they no longer do, so it has warships. Its siege
+test asserted the clock restarts — which is still true, because the cooldown does not remove intent. `CourierTests`'
+twenty engaging raiders were being disengaged one per tick by a lone scout that survived to a stalemate every time;
+the cooldown fixed that by keeping intent. `WorldTests`' round-trip fixture default-initialised its `Fleet`, which
+left the new plan's scalars indeterminate — braced now, and carrying a real plan so every branch of `ReadPlan` is
+reached.
+
+**Verified.** `python Build\CheckFormat.py` (239 files) and `python Build\CheckProjectFiles.py` (9 projects) pass.
+**245 test methods across the four suites pass on clang-18 locally**, 11 of them new in `BattleTests.cpp`.
+clang-tidy-18 is clean over every file this task touched. `World` schema 14 → 15 (the fleet's plan and its cooldown);
+the NC-048 soak hash moved with it and every other measured figure — NC-045's, NC-047's, NC-055's, NC-060's,
+NC-066's — is unchanged.
+
+**Noticed and left alone.** The year-long soak produces no battles: its empire fleets are convoys without engage
+intent, and a covert raid is resolved by `CovertRaid` rather than by an encounter. So this model is exercised by
+`BattleTests` and not by the soak, which is worth knowing before anybody reads the soak's stability as evidence about
+combat. Giving the soak a fighting player is NC-090's scenario work, not this task's.
+
+**Not done, and not claimable:** no `msbuild` and no `vstest.console.exe` **run by me** — there is no Windows
+toolchain here, so the MSVC build and the real CppUnitTest framework are CI's word and not mine. The task needs no
+desktop run.

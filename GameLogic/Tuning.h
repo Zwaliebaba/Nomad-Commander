@@ -4,6 +4,7 @@
 #include "Credits.h"
 #include "Evidence.h"
 #include "Good.h"
+#include "BattleTemplate.h"
 #include "Outpost.h"
 #include "ShipClass.h"
 
@@ -626,6 +627,133 @@ inline constexpr std::int64_t GLUT_RATIO_HUNDREDTHS = 50;
 /// without being repeatable; the impact is what makes a large transaction cost more per unit than a small one.
 inline constexpr std::uint32_t MARKET_LIQUIDITY_PER_DAY = 40;
 inline constexpr std::int64_t PRICE_IMPACT_HUNDREDTHS_PER_UNIT = 2;
+
+// --- GDD §4 and §8: how a battle resolves (ADR-022) ---------------------------------------------------------------
+//
+// **The whole model is these numbers and the loop that reads them.** GDD §4 fixes where the uncertainty comes from
+// -- "mainly what the player's intelligence got wrong; a small random spread" -- and nothing else about what a round
+// costs, so the owner settled the feel and ADR-022 records it: a lost battle is **a bloody nose the loser withdraws
+// from**, and annihilation takes a failed withdrawal or a hopeless matchup. Every number below is calibrated to that
+// sentence, and the report measures the distribution rather than asserting it.
+
+/// Twelve rounds, in three phases of four (`BATTLE_PHASE_COUNT`). Long enough that a trigger recognised late still
+/// has somewhere to fire, short enough that a replay is readable in one sitting.
+inline constexpr std::uint32_t BATTLE_ROUNDS = 12;
+static_assert(BATTLE_ROUNDS % BATTLE_PHASE_COUNT == 0, "the phases must divide the rounds evenly, or one phase is longer by accident");
+
+/// **What a round costs, and the number the whole feel hangs off.** A side inflicts this share of the other's hulls
+/// when the two are evenly matched, in hundredths -- so an even fight costs each side about four and a half percent a
+/// round, crosses GDD §3's twenty-five percent withdrawal threshold around round six, and is out by round nine with
+/// three to spare. Raise it and battles become decisive; lower it and nothing is ever settled.
+inline constexpr std::int64_t BATTLE_ROUND_LETHALITY_HUNDREDTHS = 9;
+
+/// "A small random spread remains" (GDD §4). Each round's losses are scaled by this much either way, drawn from the
+/// world's pinned Battle stream so a replay reproduces (R16). **Small on purpose**: §4 says the uncertainty is
+/// mainly what the intelligence got wrong, and a spread large enough to overturn a plan would make it luck instead.
+inline constexpr std::int32_t BATTLE_SPREAD_HUNDREDTHS = 15;
+
+/// What share of its hulls a side loses before it stops being a fighting force. Past this it is **broken**: it
+/// cannot withdraw in order, and what is left of it is captured or salvaged (GDD §5).
+///
+/// **Calibrated so that pursuit is what breaks a fleet, and measured to be so.** A side that withdraws at its own
+/// threshold and is *not* chased escapes at around half its hulls, which is under this; chased, it takes two more
+/// rounds at full exposure and goes over. That is `Plan.h`'s note made arithmetic -- pursuit is "the one that turns a
+/// won fight into a lost fleet" -- and it is what makes GDD §3's "never pursue" a decision with a cost on both
+/// sides. At 70 nothing ever broke in a hundred hopeless fights and captures were unreachable code (R23).
+inline constexpr Neuron::Hundredths BATTLE_BREAK_LOSSES = Neuron::Hundredths::FromRaw(55);
+
+/// How long disengaging takes once a side has decided to go. Withdrawal is not a teleport: these are rounds the
+/// leaving side is still being shot at, which is what makes the pursuit rule matter.
+inline constexpr std::uint32_t BATTLE_WITHDRAWAL_ROUNDS = 2;
+
+/// What a withdrawing side still deals out while it leaves, and what it takes on the way. **Being pursued is the
+/// expensive half**: a fleet nobody chases gets away with a fraction of what a pursued one pays, which is GDD §3's
+/// "never pursue" read from the other side and `Plan.h`'s note that pursuit "turns a won fight into a lost fleet".
+inline constexpr Neuron::Hundredths BATTLE_WITHDRAWING_STRIKE = Neuron::Hundredths::FromRaw(25);
+inline constexpr Neuron::Hundredths BATTLE_PURSUED_DAMAGE = Neuron::Hundredths::FromRaw(100);
+inline constexpr Neuron::Hundredths BATTLE_UNPURSUED_DAMAGE = Neuron::Hundredths::FromRaw(30);
+
+/// How much a fleet's veterancy is worth in a fight, as a share of the veterancy itself added to strike (GDD §12
+/// names veterancy and this is the one place it is spent).
+inline constexpr Neuron::Hundredths BATTLE_VETERANCY_WEIGHT = Neuron::Hundredths::FromRaw(50);
+
+/// **Of what is left on a broken fleet, how much changes hands as hulls** (GDD §5: "captured hulls from broken enemy
+/// fleets can be salvaged at a fraction of their value" -- so something is captured, and `SALVAGE_FRACTION` is what
+/// happens to the rest). Owner decision, 2026-09-17.
+///
+/// **It should be rare by construction rather than by being small**: captures come only from a fleet that was
+/// broken, and at the lethality above most fleets withdraw first. Milestone 2 tests that "raiding stays viable
+/// without dominating"; if this proves too generous the lever to reach for is which fleets it applies to, not this
+/// number.
+inline constexpr Neuron::Hundredths BATTLE_CAPTURE_FRACTION = Neuron::Hundredths::FromRaw(40);
+
+/// **How long two fleets that have just fought are unavailable to fight each other again.** GDD §7 fights an
+/// encounter "by doctrine when it happens", once; without a cooldown the same pair would be re-intercepted on every
+/// tick and ground down in minutes of game time, which would make the withdrawal above unreachable by arithmetic.
+///
+/// A cooldown and **not** a loss of intent: a raider that has just fought still wants to, so it still takes couriers
+/// crossing its system and still runs an outpost's clock. What it cannot do is re-enter the same battle at once.
+inline constexpr Neuron::Tick BATTLE_REORGANISING_TICKS = 6 * Neuron::TICKS_PER_HOUR;
+
+/// The chance an admiral on a broken side does not come back (GDD §8's four ways a command ends). **Low, because
+/// §8 also promises readability "within three to four engagements"** -- an admiral who dies often is an admiral
+/// nobody gets to learn, which would defeat the thing he exists for.
+inline constexpr Neuron::Hundredths ADMIRAL_DEATH_CHANCE = Neuron::Hundredths::FromRaw(8);
+
+/// **How each template spends a fleet**, per phase: opening, middle, closing (`Posture` in `BattleTemplate.h` says
+/// what the three numbers mean). This is the table that makes eight names into eight ways to fight, and it is the
+/// half of ADR-022 a tuner edits.
+///
+/// Read the rows against GDD §8's own words. An ambush spends itself early and fades. A feint and withdrawal never
+/// commits at all. An escort trades almost nothing and refuses to be drawn off the convoy. A concentrated
+/// breakthrough puts everything past the screen at the objective. A pincer is weak until it closes.
+inline constexpr Posture TEMPLATE_POSTURE[TEMPLATE_COUNT][BATTLE_PHASE_COUNT] = {
+  // DirectAssault: forward from the first round, and it stays there.
+  {{Neuron::Hundredths::FromRaw(120), Neuron::Hundredths::FromRaw(85), Neuron::Hundredths::FromRaw(30)},
+   {Neuron::Hundredths::FromRaw(125), Neuron::Hundredths::FromRaw(80), Neuron::Hundredths::FromRaw(40)},
+   {Neuron::Hundredths::FromRaw(120), Neuron::Hundredths::FromRaw(80), Neuron::Hundredths::FromRaw(40)}},
+  // RefusedFlank: gives ground on one side to hold on the other.
+  {{Neuron::Hundredths::FromRaw(90), Neuron::Hundredths::FromRaw(120), Neuron::Hundredths::FromRaw(40)},
+   {Neuron::Hundredths::FromRaw(95), Neuron::Hundredths::FromRaw(120), Neuron::Hundredths::FromRaw(50)},
+   {Neuron::Hundredths::FromRaw(100), Neuron::Hundredths::FromRaw(115), Neuron::Hundredths::FromRaw(50)}},
+  // Pincer: nothing much until it closes, and then a great deal.
+  {{Neuron::Hundredths::FromRaw(85), Neuron::Hundredths::FromRaw(100), Neuron::Hundredths::FromRaw(50)},
+   {Neuron::Hundredths::FromRaw(120), Neuron::Hundredths::FromRaw(95), Neuron::Hundredths::FromRaw(70)},
+   {Neuron::Hundredths::FromRaw(125), Neuron::Hundredths::FromRaw(95), Neuron::Hundredths::FromRaw(70)}},
+  // ScreenAndStrike: covers, then hits what the cover drew out.
+  {{Neuron::Hundredths::FromRaw(80), Neuron::Hundredths::FromRaw(125), Neuron::Hundredths::FromRaw(30)},
+   {Neuron::Hundredths::FromRaw(110), Neuron::Hundredths::FromRaw(105), Neuron::Hundredths::FromRaw(60)},
+   {Neuron::Hundredths::FromRaw(115), Neuron::Hundredths::FromRaw(100), Neuron::Hundredths::FromRaw(70)}},
+  // FeintAndWithdrawal: never commits, and leaves early (see the thresholds below).
+  {{Neuron::Hundredths::FromRaw(75), Neuron::Hundredths::FromRaw(125), Neuron::Hundredths::FromRaw(20)},
+   {Neuron::Hundredths::FromRaw(85), Neuron::Hundredths::FromRaw(125), Neuron::Hundredths::FromRaw(30)},
+   {Neuron::Hundredths::FromRaw(80), Neuron::Hundredths::FromRaw(130), Neuron::Hundredths::FromRaw(20)}},
+  // ConcentratedBreakthrough: everything at the objective, and very little kept back.
+  {{Neuron::Hundredths::FromRaw(110), Neuron::Hundredths::FromRaw(80), Neuron::Hundredths::FromRaw(90)},
+   {Neuron::Hundredths::FromRaw(130), Neuron::Hundredths::FromRaw(75), Neuron::Hundredths::FromRaw(100)},
+   {Neuron::Hundredths::FromRaw(115), Neuron::Hundredths::FromRaw(80), Neuron::Hundredths::FromRaw(90)}},
+  // Escort: the objective is the cargo, not the enemy, and it will not be drawn off.
+  {{Neuron::Hundredths::FromRaw(70), Neuron::Hundredths::FromRaw(135), Neuron::Hundredths::FromRaw(10)},
+   {Neuron::Hundredths::FromRaw(75), Neuron::Hundredths::FromRaw(135), Neuron::Hundredths::FromRaw(10)},
+   {Neuron::Hundredths::FromRaw(80), Neuron::Hundredths::FromRaw(130), Neuron::Hundredths::FromRaw(15)}},
+  // Ambush: the opening is the whole plan.
+  {{Neuron::Hundredths::FromRaw(140), Neuron::Hundredths::FromRaw(95), Neuron::Hundredths::FromRaw(60)},
+   {Neuron::Hundredths::FromRaw(100), Neuron::Hundredths::FromRaw(100), Neuron::Hundredths::FromRaw(50)},
+   {Neuron::Hundredths::FromRaw(85), Neuron::Hundredths::FromRaw(105), Neuron::Hundredths::FromRaw(40)}}};
+
+/// **When each template gives up**, as a share of its own hulls lost. The player's side uses the plan's threshold
+/// instead (GDD §3's twenty-five percent); this is the doctrine an admiral leaves by, and it is a large part of what
+/// makes one opponent feel different from another. A feint and withdrawal that fought to the death would not be one.
+inline constexpr Neuron::Hundredths TEMPLATE_WITHDRAW_AT_LOSSES[TEMPLATE_COUNT] = {
+  Neuron::Hundredths::FromRaw(45), // DirectAssault: presses well past the point others leave
+  Neuron::Hundredths::FromRaw(30), // RefusedFlank
+  Neuron::Hundredths::FromRaw(35), // Pincer
+  Neuron::Hundredths::FromRaw(30), // ScreenAndStrike
+  Neuron::Hundredths::FromRaw(15), // FeintAndWithdrawal: it is in the name
+  Neuron::Hundredths::FromRaw(50), // ConcentratedBreakthrough: committed by the time it matters
+  Neuron::Hundredths::FromRaw(60), // Escort: dies protecting the convoy, which is the job
+  Neuron::Hundredths::FromRaw(25)  // Ambush: hit, and go
+};
 
 // --- GDD §7 and §11: outposts, governors, claims and timers -------------------------------------------------------
 //
