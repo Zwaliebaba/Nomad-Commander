@@ -31,6 +31,7 @@ struct OpinionTag;
 struct ThreatTag;
 struct EvidenceTag;
 struct ObserverRecordTag;
+struct AccusationTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -71,5 +72,8 @@ using EvidenceId = Neuron::Id<EvidenceTag>;
 
 /// What one observer has found out about its sources (GDD §4's track record, NC-050).
 using ObserverRecordId = Neuron::Id<ObserverRecordTag>;
+
+/// An empire saying out loud that it thinks somebody did something (GDD §6's forty, NC-052). NC-054 answers one.
+using AccusationId = Neuron::Id<AccusationTag>;
 
 } // namespace Nomad

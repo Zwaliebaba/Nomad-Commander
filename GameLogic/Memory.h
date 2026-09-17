@@ -32,6 +32,15 @@ public:
   /// steps an assessment down once, and every contract completed today steps it down once more.
   static void ResolveDailyMemory(World& _world, Knowledge& _knowledge, std::vector<Event>& _outEvents);
 
+  /// Puts the assessment at a named step and says why, when one move covers what would otherwise be several: GDD
+  /// §6's action revokes a claim outright rather than walking a company up the ladder one incident at a time, and
+  /// three events for one decision would be three lines in a receipt that describe one thing (NC-052).
+  ///
+  /// Clamped to the floor and to `Tuning::THREAT_STEP_MAX_IN_V0_1` like every other move, and silent when the step
+  /// it is given is the one the assessment is already on.
+  static void StepTo(World& _world, Knowledge& _knowledge, EmpireId _empire, CompanyId _company, std::uint32_t _step, ReasonCode _reason,
+                     std::vector<Event>& _outEvents);
+
   /// Moves this empire's assessment of this company one step towards the hunt, and says why.
   ///
   /// Never past `Tuning::THREAT_STEP_MAX_IN_V0_1`: `Hunted` is declared so the ladder has a top and is unreachable

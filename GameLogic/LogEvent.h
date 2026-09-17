@@ -71,6 +71,13 @@ inline constexpr std::string_view COMPANY = "company";
 inline constexpr std::string_view EMPIRE = "empire";
 inline constexpr std::string_view FLEET = "fleet";
 inline constexpr std::string_view COUNT = "count";
+
+/// GDD §6's own record: which incident, who was blamed, and -- for the misattribution line and nowhere else -- who
+/// actually did it (R24, `Incident.h`).
+inline constexpr std::string_view INCIDENT = "incident";
+inline constexpr std::string_view SUSPECT = "suspect";
+inline constexpr std::string_view CULPRIT = "culprit";
+inline constexpr std::string_view CONFIDENCE = "confidence";
 } // namespace Field
 
 } // namespace LogEvent

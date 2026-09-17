@@ -43,6 +43,12 @@ struct WireReport
   std::uint32_t observerCompanyIndex;
 
   std::uint32_t subjectFleetIndex;
+
+  /// Whose fleet the observer thought it was, or `WIRE_INDEX_NONE` for both when `identityKnown` is false. This is
+  /// the pair the comment above promised: an owner index travels only when the observer was entitled to name one.
+  std::uint32_t subjectOwnerEmpireIndex;
+  std::uint32_t subjectOwnerCompanyIndex;
+
   std::uint32_t systemIndex;
 
   /// What the observer thought it saw, per `ShipClass`.
@@ -71,6 +77,8 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireReport& _report)
   _writer.Write(_report.observerEmpireIndex);
   _writer.Write(_report.observerCompanyIndex);
   _writer.Write(_report.subjectFleetIndex);
+  _writer.Write(_report.subjectOwnerEmpireIndex);
+  _writer.Write(_report.subjectOwnerCompanyIndex);
   _writer.Write(_report.systemIndex);
   for (const std::uint32_t count : _report.countsSeen)
   {
@@ -87,6 +95,7 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireReport& _report)
   if (!_reader.ReadTick(_outReport.observedAtTick) || !_reader.ReadTick(_outReport.deliveredAtTick) || !_reader.Read(_outReport.source) ||
       _outReport.source >= WIRE_REPORT_SOURCE_COUNT || !_reader.Read(_outReport.observerEmpireIndex) ||
       !_reader.Read(_outReport.observerCompanyIndex) || !_reader.Read(_outReport.subjectFleetIndex) ||
+      !_reader.Read(_outReport.subjectOwnerEmpireIndex) || !_reader.Read(_outReport.subjectOwnerCompanyIndex) ||
       !_reader.Read(_outReport.systemIndex))
   {
     return false;

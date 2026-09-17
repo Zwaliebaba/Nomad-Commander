@@ -313,6 +313,19 @@ void Sensor::ResolveDetection(World& _world, Knowledge& _knowledge, std::span<co
       report.sighting.atSystem = seenAt;
       // GDD §6: identity only when the fleet is marked or shares the observer's system.
       report.sighting.identityKnown = subject.marked || bestJumps == 0;
+      // And whose it was travels with the sighting, so that what anybody later reasons from is what the observer
+      // wrote down rather than a handle into reality (NC-052, `Report.h`). Both stay invalid otherwise.
+      if (report.sighting.identityKnown)
+      {
+        if (const auto* ownerCompany = std::get_if<CompanyId>(&subject.owner); ownerCompany != nullptr)
+        {
+          report.sighting.ownerCompany = *ownerCompany;
+        }
+        else if (const auto* ownerEmpire = std::get_if<EmpireId>(&subject.owner); ownerEmpire != nullptr)
+        {
+          report.sighting.ownerEmpire = *ownerEmpire;
+        }
+      }
       report.sighting.marked = subject.marked;
       report.sighting.inTransit = std::holds_alternative<InLane>(subject.position);
       report.reliabilityWhenWritten = _knowledge.ReliabilityOf(observer, report.source);

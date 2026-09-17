@@ -84,9 +84,9 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Institutional threat assessment and the overwrite rule | §9, §11 | `ThreatAssessment`, `Tuning::ThreatStep` | `ThreatAssessment.h` | NC-051 |
 | **Everything anybody knows, held beside reality** (R18, ADR-021) | §4, §9 | `Knowledge`, `ObserverRecord` | `Knowledge.h` | NC-051 |
 | The overwrite rule and successor inheritance | §8, §9 | `Memory` | `Memory.h` | NC-051 |
-| Evidence and its weight | §6 | `Evidence`, `EvidenceKind` | `Evidence.h` | NC-052 |
+| Evidence and its weight | §6 | `Evidence`, `EvidenceKind`, `Tuning::EVIDENCE_WEIGHT` | `Evidence.h` | NC-052 |
 | The inference rule and its thresholds | §6 | `Inference` | `Inference.h` | NC-052 |
-| Accusation and the answers to it | §6 | `Accusation`, `AccusationAnswer` | `Accusation.h` | NC-052, NC-054 |
+| Accusation and the answers to it | §6 | `Accusation`, `AccusationId`, `WireAccusation`, `AccusationAnswer` | `Accusation.h`, `WireAccusation.h` | NC-052, NC-054 |
 | Courier | §4, §9 | `Courier`, `CourierId`, `CourierPayload` | `Courier.h` | NC-053 |
 | Covert raid by an empire | §6 | `CovertRaid` | `CovertRaid.h` | NC-055 |
 | Marked goods, the loot trail, fencing | §5 | `CargoMark` | `Cargo.h` | NC-055 |

@@ -62,6 +62,13 @@ void Memory::StepUp(World& _world, Knowledge& _knowledge, EmpireId _empire, Comp
   Move(_world, threat, next > Tuning::THREAT_STEP_MAX_IN_V0_1 ? threat.step : next, _reason, _outEvents);
 }
 
+void Memory::StepTo(World& _world, Knowledge& _knowledge, EmpireId _empire, CompanyId _company, std::uint32_t _step, ReasonCode _reason,
+                    std::vector<Event>& _outEvents)
+{
+  ThreatAssessment& threat = _knowledge.ThreatOf(_empire, _company, _world.CurrentTick());
+  Move(_world, threat, _step > Tuning::THREAT_STEP_MAX_IN_V0_1 ? Tuning::THREAT_STEP_MAX_IN_V0_1 : _step, _reason, _outEvents);
+}
+
 void Memory::StepDown(World& _world, Knowledge& _knowledge, EmpireId _empire, CompanyId _company, ReasonCode _reason,
                       std::vector<Event>& _outEvents)
 {

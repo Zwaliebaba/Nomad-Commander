@@ -77,6 +77,17 @@ struct SightedFleet
   /// jump away can tell (GDD §12: a lane is crossed, not occupied).
   SystemId atSystem;
 
+  /// **Whose fleet the observer thought it was**, set only when `identityKnown`; otherwise both are invalid. Exactly
+  /// one of them can be valid at a time, the way a `FleetOwner` is one of two.
+  ///
+  /// This is what a report is *for*, and NC-052 is what needed it: GDD §6's inference rule asks whether the suspect
+  /// was detected near an incident, and the only honest way to answer is from what the observer wrote down. A rule
+  /// that took the `subject` id and looked the owner up in `World` would be reading the truth through a handle, and
+  /// a flag would be all that stood between it and the fog leaking (R18). `WireReport` anticipated these two indices
+  /// from NC-050; this is the pair they flatten.
+  CompanyId ownerCompany;
+  EmpireId ownerEmpire;
+
   /// True when the observer could tell whose fleet it was: it was flying an empire's marks, or it was close enough to
   /// read (GDD §6, "identity only when marked or in the same system").
   bool identityKnown;
@@ -155,6 +166,8 @@ struct Report
   wire.observerEmpireIndex = empire != nullptr ? WireIndexOf(*empire) : WIRE_INDEX_NONE;
   wire.observerCompanyIndex = company != nullptr ? WireIndexOf(*company) : WIRE_INDEX_NONE;
   wire.subjectFleetIndex = WireIndexOf(_report.sighting.subject);
+  wire.subjectOwnerEmpireIndex = WireIndexOf(_report.sighting.ownerEmpire);
+  wire.subjectOwnerCompanyIndex = WireIndexOf(_report.sighting.ownerCompany);
   wire.systemIndex = WireIndexOf(_report.sighting.atSystem);
   for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
   {

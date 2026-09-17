@@ -11,6 +11,7 @@
 
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace Nomad
 {
@@ -102,6 +103,8 @@ void WriteReport(Neuron::ByteWriter& _writer, const Report& _report)
   WriteEnum(_writer, _report.source);
   WriteObserver(_writer, _report.observer);
   _writer.WriteId(_report.sighting.subject);
+  _writer.WriteId(_report.sighting.ownerCompany);
+  _writer.WriteId(_report.sighting.ownerEmpire);
   WriteShipCounts(_writer, _report.sighting.countsSeen);
   _writer.WriteId(_report.sighting.atSystem);
   _writer.WriteBool(_report.sighting.identityKnown);
@@ -116,6 +119,7 @@ void WriteReport(Neuron::ByteWriter& _writer, const Report& _report)
   return _reader.ReadTick(_outReport.observedAtTick) && _reader.ReadTick(_outReport.deliveredAtTick) &&
          ReadEnum(_reader, _outReport.source, static_cast<std::uint8_t>(REPORT_SOURCE_COUNT)) &&
          ReadObserver(_reader, _outReport.observer) && _reader.ReadId(_outReport.sighting.subject) &&
+         _reader.ReadId(_outReport.sighting.ownerCompany) && _reader.ReadId(_outReport.sighting.ownerEmpire) &&
          ReadShipCounts(_reader, _outReport.sighting.countsSeen) && _reader.ReadId(_outReport.sighting.atSystem) &&
          _reader.ReadBool(_outReport.sighting.identityKnown) && _reader.ReadBool(_outReport.sighting.marked) &&
          _reader.ReadBool(_outReport.sighting.inTransit) && _reader.ReadHundredths(_outReport.reliabilityWhenWritten) &&
@@ -209,6 +213,73 @@ void WriteThreat(Neuron::ByteWriter& _writer, const ThreatAssessment& _threat)
   return _reader.ReadId(_outThreat.empire) && _reader.ReadId(_outThreat.company) && _reader.Read(_outThreat.step) &&
          _outThreat.step < Tuning::THREAT_STEP_COUNT && _reader.ReadTick(_outThreat.stepChangedAtTick) &&
          _reader.ReadTick(_outThreat.cleanSinceTick);
+}
+
+void WriteEvidence(Neuron::ByteWriter& _writer, const Evidence& _evidence)
+{
+  WriteEnum(_writer, _evidence.kind);
+  _writer.WriteId(_evidence.incident);
+  _writer.WriteId(_evidence.suspectCompany);
+  _writer.WriteId(_evidence.suspectEmpire);
+  _writer.WriteHundredths(_evidence.weight);
+  _writer.WriteId(_evidence.source);
+  _writer.WriteTick(_evidence.tick);
+}
+
+[[nodiscard]] bool ReadEvidence(Neuron::ByteReader& _reader, Evidence& _outEvidence)
+{
+  return ReadEnum(_reader, _outEvidence.kind, EVIDENCE_KIND_COUNT) && _reader.ReadId(_outEvidence.incident) &&
+         _reader.ReadId(_outEvidence.suspectCompany) && _reader.ReadId(_outEvidence.suspectEmpire) &&
+         _reader.ReadHundredths(_outEvidence.weight) && _reader.ReadId(_outEvidence.source) && _reader.ReadTick(_outEvidence.tick);
+}
+
+void WriteEvidenceIds(Neuron::ByteWriter& _writer, const std::vector<EvidenceId>& _ids)
+{
+  _writer.Write(static_cast<std::uint32_t>(_ids.size()));
+  for (const EvidenceId id : _ids)
+  {
+    _writer.WriteId(id);
+  }
+}
+
+[[nodiscard]] bool ReadEvidenceIds(Neuron::ByteReader& _reader, std::vector<EvidenceId>& _outIds)
+{
+  std::uint32_t count = 0;
+  if (!_reader.Read(count) || count > _reader.Remaining())
+  {
+    return false;
+  }
+  _outIds.assign(count, EvidenceId{});
+  for (EvidenceId& id : _outIds)
+  {
+    if (!_reader.ReadId(id))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+void WriteAccusation(Neuron::ByteWriter& _writer, const Accusation& _accusation)
+{
+  _writer.WriteId(_accusation.incident);
+  _writer.WriteId(_accusation.accuser);
+  _writer.WriteId(_accusation.suspectCompany);
+  _writer.WriteId(_accusation.suspectEmpire);
+  _writer.WriteHundredths(_accusation.confidence);
+  WriteEvidenceIds(_writer, _accusation.evidenceFor);
+  WriteEvidenceIds(_writer, _accusation.evidenceAgainst);
+  _writer.WriteTick(_accusation.issuedAtTick);
+  _writer.WriteTick(_accusation.actedAtTick);
+}
+
+[[nodiscard]] bool ReadAccusation(Neuron::ByteReader& _reader, Accusation& _outAccusation)
+{
+  return _reader.ReadId(_outAccusation.incident) && _reader.ReadId(_outAccusation.accuser) &&
+         _reader.ReadId(_outAccusation.suspectCompany) && _reader.ReadId(_outAccusation.suspectEmpire) &&
+         _reader.ReadHundredths(_outAccusation.confidence) && ReadEvidenceIds(_reader, _outAccusation.evidenceFor) &&
+         ReadEvidenceIds(_reader, _outAccusation.evidenceAgainst) && _reader.ReadTick(_outAccusation.issuedAtTick) &&
+         _reader.ReadTick(_outAccusation.actedAtTick);
 }
 
 void WriteObserverRecord(Neuron::ByteWriter& _writer, const ObserverRecord& _record)
@@ -371,6 +442,8 @@ void Knowledge::Serialize(Neuron::ByteWriter& _writer) const
   WriteTableOf(_writer, m_beliefs, WriteBelief);
   WriteTableOf(_writer, m_opinions, WriteOpinion);
   WriteTableOf(_writer, m_threats, WriteThreat);
+  WriteTableOf(_writer, m_evidence, WriteEvidence);
+  WriteTableOf(_writer, m_accusations, WriteAccusation);
   WriteTableOf(_writer, m_observerRecords, WriteObserverRecord);
 }
 
@@ -392,6 +465,7 @@ bool Knowledge::Deserialize(Neuron::ByteReader& _reader)
   Knowledge loaded;
   if (!ReadTableOf(_reader, loaded.m_reports, ReadReport) || !ReadTableOf(_reader, loaded.m_beliefs, ReadBelief) ||
       !ReadTableOf(_reader, loaded.m_opinions, ReadOpinion) || !ReadTableOf(_reader, loaded.m_threats, ReadThreat) ||
+      !ReadTableOf(_reader, loaded.m_evidence, ReadEvidence) || !ReadTableOf(_reader, loaded.m_accusations, ReadAccusation) ||
       !ReadTableOf(_reader, loaded.m_observerRecords, ReadObserverRecord))
   {
     return false;

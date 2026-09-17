@@ -10,6 +10,8 @@
     <ClCompile Include="Sensor.cpp" />
     <ClCompile Include="Knowledge.cpp" />
     <ClCompile Include="Memory.cpp" />
+    <ClCompile Include="Accusation.cpp" />
+    <ClCompile Include="Inference.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -48,6 +50,10 @@
     <ClInclude Include="Incident.h" />
     <ClInclude Include="Knowledge.h" />
     <ClInclude Include="Memory.h" />
+    <ClInclude Include="Accusation.h" />
+    <ClInclude Include="Evidence.h" />
+    <ClInclude Include="Inference.h" />
+    <ClInclude Include="WireAccusation.h" />
     <ClInclude Include="Opinion.h" />
     <ClInclude Include="ThreatAssessment.h" />
     <ClInclude Include="WireReport.h" />

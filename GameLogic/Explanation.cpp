@@ -91,6 +91,8 @@ namespace
     return "you finished what you were hired to do";
   case ReasonCode::ASuccessorTookOver:
     return "a successor took over, and inherited what was on file";
+  case ReasonCode::TheEvidencePointsAtYou:
+    return "you raided them";
   }
   return "something happened that nobody recorded a reason for";
 }

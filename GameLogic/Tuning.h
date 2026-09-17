@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Credits.h"
+#include "Evidence.h"
 #include "Good.h"
 #include "ShipClass.h"
 
@@ -201,6 +202,43 @@ inline constexpr Neuron::Hundredths EVIDENCE_RIVAL_DENIAL_FOR_THE_RIVAL = Neuron
 inline constexpr Neuron::Hundredths EVIDENCE_RIVAL_DENIAL_FOR_OTHERS = Neuron::Hundredths::FromRaw(5);
 inline constexpr Neuron::Hundredths EVIDENCE_EXPOSED_FALSE_DENIAL = Neuron::Hundredths::FromRaw(20);
 
+/// **The §6 table again, as a table** (NC-052). One entry per `EvidenceKind`, in the enumerator's own order, each
+/// entry being one of the named constants above and never a second copy of a number. `Inference` indexes this and
+/// holds no weight of its own, which is what R20 asks for: a literal in a resolver is a magic number twice over.
+///
+/// The two denial rows are the §6 line "A rival's denial: −0.10 for the rival, 0.05 for others" split into the two
+/// enumerators it really is, because one row that means two different numbers depending on who is reading it is not
+/// a row a table can hold.
+inline constexpr Neuron::Hundredths EVIDENCE_WEIGHT[EVIDENCE_KIND_COUNT] = {EVIDENCE_DETECTED_WITHIN_TWO_JUMPS,
+                                                                            EVIDENCE_HULL_CLASSES_MATCH,
+                                                                            EVIDENCE_TESTIMONY_NAMES_SUSPECT,
+                                                                            EVIDENCE_ROUTE_CONFLICTS,
+                                                                            EVIDENCE_PRIOR_INCIDENT,
+                                                                            EVIDENCE_CAPTURED_ORDERS,
+                                                                            EVIDENCE_MARKED_GOODS_SOLD_NEARBY,
+                                                                            EVIDENCE_RIVAL_DENIAL_FOR_THE_RIVAL,
+                                                                            EVIDENCE_RIVAL_DENIAL_FOR_OTHERS,
+                                                                            EVIDENCE_EXPOSED_FALSE_DENIAL};
+
+/// "Detected **within two jumps** at the time" (GDD §6). Both halves of that phrase are levers: how near counts, and
+/// how wide "at the time" is. The window is a day because an incident is a thing a scout notices on its rounds, not
+/// a thing anybody times to the minute.
+inline constexpr std::uint32_t EVIDENCE_WITHIN_JUMPS = 2;
+inline constexpr Neuron::Tick EVIDENCE_WINDOW_TICKS = Neuron::TICKS_PER_DAY;
+
+/// "Decays with distance" (GDD §6). The weight is scaled by one minus this per jump, floored at zero: a sighting in
+/// the same system is worth the full weight, and each jump takes a fixed share of it.
+inline constexpr Neuron::Hundredths DISTANCE_DECAY_HUNDREDTHS_PER_JUMP = Neuron::Hundredths::FromRaw(30);
+
+/// How far from an incident a sighting has to put a suspect before it is an **alibi** rather than merely no evidence
+/// (GDD §6's "route conflicts with the timing", −0.30). Beyond the detection radius by a clear margin, so that the
+/// two rules cannot both fire on one sighting.
+inline constexpr std::uint32_t EVIDENCE_ALIBI_JUMPS = 4;
+
+/// "And a region-wide discretion penalty" (GDD §6, the exposed false denial row). Declared here so that NC-054 does
+/// not invent one; nothing spends it yet.
+inline constexpr Neuron::Hundredths DISCRETION_PENALTY = Neuron::Hundredths::FromRaw(20);
+
 /// "Below forty percent, an empire suspects and says nothing. From forty, it accuses. From seventy, it acts."
 inline constexpr Neuron::Hundredths ACCUSE_THRESHOLD = Neuron::Hundredths::FromRaw(40);
 inline constexpr Neuron::Hundredths ACT_THRESHOLD = Neuron::Hundredths::FromRaw(70);
@@ -235,6 +273,12 @@ inline constexpr Neuron::Hundredths THREAT_SURCHARGE_HUNDREDTHS[THREAT_STEP_COUN
 /// **The overwrite rule** (GDD §9): "each completed contract for an empire, and each month without an incident it
 /// attributes to the player, moves its threat assessment down a step." This is the month.
 inline constexpr Neuron::Tick CLEAN_PERIOD_TICKS = 30 * Neuron::TICKS_PER_DAY;
+
+/// **How long an empire keeps working an unsolved incident** before it goes cold. GDD §6 does not name a horizon, and
+/// one is needed: a rule that re-weighed every incident every day forever would accumulate evidence rows without
+/// bound over Milestone 2's decades, and an empire still re-litigating a raid from four years ago is not what §9's
+/// "a month without an incident moves the assessment down" describes. A month, matching §9's own period.
+inline constexpr Neuron::Tick INCIDENT_OPEN_TICKS = CLEAN_PERIOD_TICKS;
 
 /// What a successor inherits of a predecessor's opinion (GDD §9: "successors inherit part of a predecessor's opinion
 /// and all of the record"). The record is all of it and is not a fraction, so it has no constant.

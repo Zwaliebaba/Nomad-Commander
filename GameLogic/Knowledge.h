@@ -1,7 +1,9 @@
 // GameLogic/Knowledge.h
 #pragma once
 
+#include "Accusation.h"
 #include "Belief.h"
+#include "Evidence.h"
 #include "Opinion.h"
 #include "Report.h"
 #include "Table.h"
@@ -86,6 +88,30 @@ public:
     return m_threats;
   }
 
+  /// Every item GDD §6's table ever scored, kept rather than recomputed: an accusation shows its working, and
+  /// working recomputed later from a world that has moved is a reconstruction (NC-052, `Evidence.h`).
+  [[nodiscard]] Table<Evidence, EvidenceId>& EvidenceItems() noexcept
+  {
+    return m_evidence;
+  }
+
+  [[nodiscard]] const Table<Evidence, EvidenceId>& EvidenceItems() const noexcept
+  {
+    return m_evidence;
+  }
+
+  /// Every accusation any empire has made (GDD §6's forty). Rows stay: the window between accusation and action is a
+  /// thing the player acts inside, and an accusation that vanished when the number drifted would take it with them.
+  [[nodiscard]] Table<Accusation, AccusationId>& Accusations() noexcept
+  {
+    return m_accusations;
+  }
+
+  [[nodiscard]] const Table<Accusation, AccusationId>& Accusations() const noexcept
+  {
+    return m_accusations;
+  }
+
   /// What each observer has found out about its sources (GDD §4's track record).
   [[nodiscard]] Table<ObserverRecord, ObserverRecordId>& ObserverRecords() noexcept
   {
@@ -129,13 +155,15 @@ public:
 
   /// Bumped when the layout changes in a way an older store could not be read as. Separate from `World`'s, because
   /// the two halves change for different reasons.
-  static constexpr std::uint16_t SCHEMA_VERSION = 1;
+  static constexpr std::uint16_t SCHEMA_VERSION = 2;
 
 private:
   Table<Report, ReportId> m_reports;
   Table<Belief, EmpireId> m_beliefs;
   Table<Opinion, OpinionId> m_opinions;
   Table<ThreatAssessment, ThreatId> m_threats;
+  Table<Evidence, EvidenceId> m_evidence;
+  Table<Accusation, AccusationId> m_accusations;
   Table<ObserverRecord, ObserverRecordId> m_observerRecords;
 };
 

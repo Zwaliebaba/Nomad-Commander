@@ -4,6 +4,7 @@
 
 #include "Economy.h"
 #include "Fabricator.h"
+#include "Inference.h"
 #include "LogEvent.h"
 #include "Memory.h"
 #include "Mobility.h"
@@ -119,6 +120,7 @@ void ResolveDaily(World& _world, Knowledge& _knowledge, [[maybe_unused]] std::ve
   Upkeep::ResolveDaily(_world, _outEvents);
   Politics::ResolveDaily(_world, _knowledge, _outEvents);
   Memory::ResolveDailyMemory(_world, _knowledge, _outEvents);
+  Inference::ResolveDailyInference(_world, _knowledge, _outEvents, _log);
   Fabricator::ResolveDaily(_world, _outEvents);
 
   // GDD §15 requires "at least two willing employers after two months", which is a series and not a reading, so it
