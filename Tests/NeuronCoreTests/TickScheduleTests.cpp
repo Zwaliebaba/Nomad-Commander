@@ -73,12 +73,25 @@ public:
     TickSchedule schedule(TickSchedule::Rate::Compressed);
     schedule.Anchor(START, 0);
     // Two real hours at the compressed rate is 7,200 ticks, which is more than one pump may run.
-    const std::uint32_t first = schedule.TicksDue(After(7200));
-    Assert::AreEqual(TickSchedule::MAX_TICKS_PER_PUMP, first);
-    const std::uint32_t second = schedule.TicksDue(After(7200));
-    Assert::AreEqual(std::uint32_t{7200} - TickSchedule::MAX_TICKS_PER_PUMP, second);
-    Assert::AreEqual(std::uint32_t{0}, schedule.TicksDue(After(7200)));
-    Assert::AreEqual(Neuron::Tick{7200}, schedule.ScheduledTick());
+    //
+    // The gap is drained in a loop rather than in a fixed number of calls, because how many pumps it takes is
+    // MAX_TICKS_PER_PUMP's business and not this test's: NC-048 measured a real tick cost and moved the cap from
+    // 4,096 to 512, and an assertion that assumed two pumps was asserting the old number in disguise. What is being
+    // checked is what ADR-005 actually decided -- no pump runs more than the cap, nothing is lost, and nothing is run
+    // twice.
+    constexpr std::uint32_t GAP_TICKS = 7200;
+    std::uint32_t drained = 0;
+    std::uint32_t pumps = 0;
+    for (std::uint32_t due = schedule.TicksDue(After(GAP_TICKS)); due != 0; due = schedule.TicksDue(After(GAP_TICKS)))
+    {
+      Assert::IsTrue(due <= TickSchedule::MAX_TICKS_PER_PUMP, L"a pump ran more ticks than the cap allows");
+      drained += due;
+      ++pumps;
+    }
+    Assert::AreEqual(GAP_TICKS, drained, L"the gap was not drained exactly once");
+    Assert::AreEqual((GAP_TICKS + TickSchedule::MAX_TICKS_PER_PUMP - 1) / TickSchedule::MAX_TICKS_PER_PUMP, pumps,
+                     L"the gap took more pumps than the cap requires, so a pump ran short");
+    Assert::AreEqual(Neuron::Tick{GAP_TICKS}, schedule.ScheduledTick());
   }
 
   TEST_METHOD(ARateChangeMidIntervalNeitherLosesNorDoublesATick)
@@ -125,7 +138,11 @@ public:
     schedule.Anchor(START, 0);
     schedule.SetTicksPerRealSecond(1000, START);
     Assert::AreEqual(std::int64_t{1000}, schedule.MicrosecondsPerTick());
-    Assert::AreEqual(std::uint32_t{1000}, schedule.TicksDue(After(1)));
+    // A tenth of a second, not a whole one: a thousand ticks a second owes more in a second than MAX_TICKS_PER_PUMP
+    // allows one pump to run, and this test is about the rate rather than about the cap, which
+    // ALongGapIsCappedAndTheRemainderArrivesNext owns. It asked for a second while the cap was 4,096 and stopped
+    // meaning what it says when NC-048 measured a tick and moved it to 512.
+    Assert::AreEqual(std::uint32_t{100}, schedule.TicksDue(START + std::chrono::milliseconds{100}));
   }
 
   TEST_METHOD(TimeGoingBackwardsOwesNothing)

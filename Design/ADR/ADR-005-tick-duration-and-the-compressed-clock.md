@@ -19,7 +19,7 @@ The design's own durations set the floor and the ceiling. The shortest thing GDD
 3. **v0.1's compressed local clock is sixty ticks per real minute** (`Rate::Compressed`): a two-hour jump passes in two real minutes, so the §3 desk session can be played and replayed in an afternoon.
 4. **`Paused` runs no ticks at all**, and the time spent paused is never owed afterwards.
 5. **The simulation cannot observe which rate is in force.** `Simulation` has no clock, no rate and no wall-time parameter; `TickSchedule` lives in the host and hands it a number of ticks to run. A code path that behaved differently at a different rate would be the bug R21 names.
-6. **A pump runs at most `MAX_TICKS_PER_PUMP` ticks** (4,096 today) and carries the remainder to the next pump, so a host that was away all night catches up over several frames instead of stalling one. NC-048 revisits the number against a measured tick cost.
+6. **A pump runs at most `MAX_TICKS_PER_PUMP` ticks** (**512** since NC-048 measured a tick; 4,096 before it) and carries the remainder to the next pump, so a host that was away all night catches up over several frames instead of stalling one. The decision is the cap and the carry; the number is a measurement and the Measurements section carries it.
 7. **The schedule consumes what it reports.** `TicksDue` advances its anchor by exactly the count it returns, never to "now", so a partial interval is carried rather than lost, and a rate change re-anchors at the moment of the change rather than re-counting the elapsed part at the new rate.
 
 ## What this forecloses
@@ -38,4 +38,25 @@ The design's own durations set the floor and the ceiling. The shortest thing GDD
 
 ## Measurements
 
-None quoted. The schedule's arithmetic was checked by compiling `TickSchedule.cpp` under GCC and Clang, in `_DEBUG` and `NDEBUG`, against a driver that drives two simulated hours, a rate change mid-interval, a pause of an hour and a skip of five thousand ticks through fixed time points; the carry, the cap and the re-anchor behave as points 6 and 7 state in all four configurations. What a tick costs to run is a property of `GameLogic`, not of the schedule, and NC-048 measures it.
+The schedule's arithmetic was checked by compiling `TickSchedule.cpp` under GCC and Clang, in `_DEBUG` and `NDEBUG`, against a driver that drives two simulated hours, a rate change mid-interval, a pause of an hour and a skip of five thousand ticks through fixed time points; the carry, the cap and the re-anchor behave as points 6 and 7 state in all four configurations.
+
+**What a tick costs was left to NC-048, and NC-048 measured it.** A generated three-empire, ten-system world run for one simulated year — 525,600 ticks — with no player inputs (`GameLogicTests::SoakTests`, seed `0x50A4`), in three configurations: **MSVC `Debug|x64` on the GitHub `windows-latest` runner**, and clang 18.1.3 at `-O0 -D_DEBUG` and `-O2 -DNDEBUG` on an Intel Xeon at 2.10 GHz (4 vCPU, Ubuntu 24.04).
+
+| | MSVC `Debug\|x64`, CI runner | clang `-O0 -D_DEBUG` | clang `-O2 -DNDEBUG` |
+|---|---|---|---|
+| A simulated year | **7.46 s** (two runs: 5.81, 7.46) | 1.56 s (median of five; 1.51–1.94) | 0.098 s |
+| Ticks a second, averaged over the year | **70,400** (to 90,400) | 338,000 | 5.3 million |
+| **A tick, averaged over the year** | **14.2 µs** | 3.0 µs | 0.19 µs |
+| A tick *at the end* of the year, 246 fleet rows | not measured separately | 5.7 µs | 0.36 µs |
+| **A pump of 4,096, at the average tick** | **58 ms** | 12 ms | 0.8 ms |
+| **A pump of 512, at the average tick** | **7.3 ms** | 1.5 ms | 0.1 ms |
+| A pump of 512, at the year-*end* tick | — | 2.9 ms | 0.18 ms |
+
+**A frame at 60 Hz is 16.7 ms, and on the slowest machine that runs this test a pump of 4,096 averages 58 ms — three and a half frames.** That is the exact failure point 6 exists to prevent, so the cap is 512, where the same machine averages 7.3 ms and a night away at the compressed rate — eight real hours, 28,800 ticks — still drains in 57 pumps, under a second of frames.
+
+Two honest caveats rather than one confident number:
+
+- **The marginal tick is dearer than the average and gets dearer still**, because the cost is dominated by walking the fleet table and that table only grows: 240 rows a year on this map, none of them ever reclaimed. Measured under clang, a tick at the end of the year costs 1.9× the year's average. A constant cannot answer that, and 512 is set for the year a game is played over rather than the decade a sandbox runs. NC-048's report carries the finding.
+- **Nobody plays on a two-core CI runner, and it does not repeat itself closely.** Two runs of the same test came back 5.81 s and 7.46 s, a spread of 28 per cent of the smaller; NC-043's simulated month, measured in the same two runs, spread further still. Every MSVC figure above is the **slower** run, which is the conservative choice for both a floor and a cap. The runner is in the table because it is the slowest machine the figure is taken on, not because it is representative of anything anyone plays on.
+
+`SoakTests::OneYearFitsTheBudget` logs the figure on every CI run, and the workflow prints it, so the trend is readable rather than remembered.

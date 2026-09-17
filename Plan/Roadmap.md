@@ -126,8 +126,11 @@ The world moves (GDD §2's first step) with no client and no belief yet: reality
 | NC-046 | Credits, upkeep, insolvency, shipyards and the floor | GameLogic | M | NC-045 |
 | NC-047 | Empires, goals, wars and truces | GameLogic | L | NC-045 |
 | NC-048 | The one-year soak | GameLogic | S | NC-046, NC-047 |
+| NC-049 | The map balances per good | GameLogic | S | NC-048 |
 
 **Exit:** NC-048 passes: a generated three-empire world runs one simulated year in `GameLogicTests`, twice, to the same hash; a store written mid-year restores to the same hash; stocks stay bounded; at least one war is active on every day; the run fits the time budget the task states.
+
+**NC-049 was added by NC-048 and is what makes the third of those true of the generator rather than of one map.** The soak measured that every generated map runs a permanent daily deficit in at least one good — the arithmetic is in NC-049 — which a single simulated year is just short enough to hide on nine maps in ten and does not hide at all on the tenth. NC-048's own criterion holds on the seed it runs; GDD §10's "stocks neither run away nor drain to zero" does not hold on any seed past the first year, and that is NC-049's.
 
 ### Phase 3 — Belief, evidence and the hook
 
@@ -218,7 +221,7 @@ Numbers are assigned when they land (Design/README.md). Each recommendation is t
 | Numeric model: `Hundredths`, rounding, credit width (**ADR-003**) | NC-012 | `Hundredths` is an `std::int32_t` where 100 is unity; products round half away from zero through a 64-bit intermediate; `Credits` is `std::int64_t`. | no |
 | Byte encoding and versioning (**ADR-004**) | NC-013 | Little-endian fixed width; strings and arrays length-prefixed with `std::uint32_t`; one `std::uint16_t` schema version at the head of each store and each message; no varints. | no |
 | Include edges and the `Wire*.h` seam (**ADR-001**) | NC-004 | As stated under *Conventions*. | no |
-| Tick duration and the compressed clock (**ADR-005**) | NC-014 | A7. | **yes** |
+| Tick duration and the compressed clock (**ADR-005**) | NC-014 | A7. *`MAX_TICKS_PER_PUMP` was left at 4,096 "until GameLogic's tick cost is measured"; NC-048 measured it and the cap is **512**, with the figures in ADR-005's Measurements.* | **yes** |
 | Client–host transport in v0.1 (**ADR-006**) | NC-015 | A2. | **yes** |
 | ~~Test-only offscreen target on WARP~~ | NC-021 | **Not written, and not needed.** ADR-009 removed the premise: the scene target is the game's own, so there is no test-only object to justify. See A12 and NC-021's report. | no |
 | The UI model (**ADR-012**) | NC-025 | *Taken unchanged, and its font half since superseded by ADR-016.* Immediate mode in pixel space on 24-pixel cells and an 80×45 grid; widgets are functions on a `Ui` context keyed by a caller-supplied id; panels are opaque by default, and a pass that wants blending sets it (AGENTS.md §5, owner decision 2026-09-16). The cell was the 8×8 font at `GLYPH_SCALE` 3 and is now the line the text faces are baked to; the numbers did not move. | **yes** |
@@ -227,6 +230,7 @@ Numbers are assigned when they land (Design/README.md). Each recommendation is t
 | Instrumentation log format (**ADR-015**) | NC-032 | *Taken unchanged.* One event a line: tick, wall-clock ISO-8601 in UTC, kind, then `key=value` fields, tab-separated, UTF-8, flushed per line. A tab or a newline in a value asserts and writes nothing. | no |
 | Universe generation (**ADR-017**) | NC-041 | *Taken, and sharpened by the thing the plan did not say:* **four of the eight roles are claims about the graph and are true by construction** — a chokepoint’s removal disconnects the map, a dead end has one lane, a crossroads four or more, a bypass a way around. Measured over 100 consecutive seeds. The Kessel map stays hand-authored data in these types (NC-090). | no |
 | The wire schema and what the client is told (**ADR-018**) | NC-042 | *Taken.* Events, not state; every event carries its explanation; the wire shares no type with reality; and `ExplanationText::Compose` takes the **wire** record, so a sentence can hold nothing the client was not also sent. | **yes** |
+| Where the map's balancing term lives | NC-049 | *Not foreseen by the plan.* NC-048's soak measured that no distribution of roles balances a nine-owned-system map per good, so GDD §10's "stocks neither run away nor drain to zero" is false on every generated map by the second simulated year. The recommendation is the unowned harbour, which `Economy::Seed` already treats specially and which GDD §8 makes a place that lives off passing trade; the arithmetic and the alternatives are in the task. | no |
 | Detection and report noise | NC-050 | Sensor range in jumps per ship class; a report carries counts and hull classes with a PRNG spread scaled by range; identity only when marked or in the same system. | no |
 | Battle resolution model | NC-062 | Round-based, twelve rounds an engagement window; each side's template is a posture per round; losses by integer strength with the pinned spread; triggers recognized with a delay in rounds and executed with a failure chance from `Tuning`. | **yes** |
 | Anti-aliasing the 3D map, reopened (supersedes **ADR-013**) | NC-072 | *Owed against a trigger, not a date.* ADR-013 deferred MSAA until "the first task that moves the camera or a fleet along a lane", and warned the deferral "can be missed if nothing checks". NC-072 is that task — fleets advance along lanes with the tick — and carries the obligation in its criteria. | no |
