@@ -241,9 +241,22 @@ inline constexpr Neuron::Hundredths DISTANCE_DECAY_HUNDREDTHS_PER_JUMP = Neuron:
 /// two rules cannot both fire on one sighting.
 inline constexpr std::uint32_t EVIDENCE_ALIBI_JUMPS = 4;
 
-/// "And a region-wide discretion penalty" (GDD §6, the exposed false denial row). Declared here so that NC-054 does
-/// not invent one; nothing spends it yet.
+/// "And a region-wide discretion penalty" (GDD §6, the exposed false denial row). **Region-wide is the point**: an
+/// exposed lie costs a company its standing with every leader who hears of it, not only with the one it lied to.
+/// NC-054 spends it.
 inline constexpr Neuron::Hundredths DISCRETION_PENALTY = Neuron::Hundredths::FromRaw(20);
+
+/// **What a settlement buys** (GDD §6: "Pay: a settlement that lowers the empire's opinion damage but leaves the
+/// belief untouched"). Paid per band rather than per credit, so the answer is a decision about how much to offer
+/// rather than an arithmetic exercise, and capped so money cannot buy a whole relationship.
+inline constexpr Credits SETTLEMENT_CREDIT_BAND = 500;
+inline constexpr Neuron::Hundredths SETTLEMENT_OPINION_HUNDREDTHS = Neuron::Hundredths::FromRaw(5);
+inline constexpr Neuron::Hundredths SETTLEMENT_OPINION_CAP = Neuron::Hundredths::FromRaw(25);
+
+/// GDD §3's six-hour wreck analysis: how long a scout must sit on an incident's site before it has something to
+/// submit. The §3 timeline spends it between 3:00 and 9:00, which is what makes the answer a decision with a clock
+/// on it rather than a button.
+inline constexpr Neuron::Tick WRECK_ANALYSIS_TICKS = 6 * Neuron::TICKS_PER_HOUR;
 
 /// "Below forty percent, an empire suspects and says nothing. From forty, it accuses. From seventy, it acts."
 inline constexpr Neuron::Hundredths ACCUSE_THRESHOLD = Neuron::Hundredths::FromRaw(40);

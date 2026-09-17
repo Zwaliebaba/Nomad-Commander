@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "Inference.h"
 
+#include "Answers.h"
 #include "LogEvent.h"
 #include "Memory.h"
 #include "Tuning.h"
@@ -179,13 +180,57 @@ void Weigh(World& _world, Knowledge& _knowledge, IncidentId _incident, EmpireId 
   suspicion->evidence = std::move(evidence);
   suspicion->confidence = confidence;
 
+  // **An exposed denial** (GDD §6, §4: a denial "that later evidence could expose"). A denial stands until something
+  // that *names* the suspect reaches this empire; then it costs the row and a region-wide discretion penalty, and
+  // the flag clears so one lie costs once. Recomputed here rather than in `Answers`, because the exposing evidence
+  // arrives through detection and a courier rather than through the answer.
+  if (suspicion->denied)
+  {
+    bool named = false;
+    for (const EvidenceId id : suspicion->evidence)
+    {
+      const EvidenceKind kind = _knowledge.EvidenceItems().Get(id).kind;
+      named = named || kind == EvidenceKind::TestimonyNames || kind == EvidenceKind::CapturedOrders;
+    }
+    if (named)
+    {
+      suspicion->denied = false;
+      Evidence exposed{};
+      exposed.kind = EvidenceKind::ExposedFalseDenial;
+      exposed.incident = _incident;
+      exposed.suspectCompany = _suspectCompany;
+      exposed.suspectEmpire = _suspectEmpire;
+      exposed.weight = Tuning::EVIDENCE_WEIGHT[static_cast<std::uint32_t>(EvidenceKind::ExposedFalseDenial)];
+      exposed.tick = now;
+      exposed.standing = true;
+      const EvidenceId added = _knowledge.EvidenceItems().Add(exposed);
+
+      belief = _knowledge.BeliefOf(_believer);
+      for (Suspicion& held : belief->suspicions)
+      {
+        if (IsAbout(held, _incident, _suspectCompany, _suspectEmpire))
+        {
+          held.evidence.push_back(added);
+          held.confidence = Inference::Assess(_knowledge, held.evidence);
+          suspicion = &held;
+          break;
+        }
+      }
+      if (_suspectCompany.IsValid())
+      {
+        Answers::ApplyDiscretionPenalty(_world, _knowledge, _suspectCompany, _outEvents);
+      }
+    }
+  }
+  const Neuron::Hundredths settled = suspicion->confidence;
+
   EventSubjects subjects{};
   subjects.company = _suspectCompany;
   subjects.empire = _believer;
   subjects.system = _world.Incidents().Get(_incident).system;
 
   // GDD §6: "From forty, it accuses: the player receives the accusation and its reasoning."
-  if (confidence.Raw() >= Tuning::ACCUSE_THRESHOLD.Raw() && suspicion->stage == BeliefStage::Silent)
+  if (settled.Raw() >= Tuning::ACCUSE_THRESHOLD.Raw() && suspicion->stage == BeliefStage::Silent)
   {
     suspicion->stage = BeliefStage::Accused;
     suspicion->stageChangedAtTick = now;
@@ -195,7 +240,7 @@ void Weigh(World& _world, Knowledge& _knowledge, IncidentId _incident, EmpireId 
     accusation.accuser = _believer;
     accusation.suspectCompany = _suspectCompany;
     accusation.suspectEmpire = _suspectEmpire;
-    accusation.confidence = confidence;
+    accusation.confidence = settled;
     for (const EvidenceId id : suspicion->evidence)
     {
       const bool against = _knowledge.EvidenceItems().Holds(id) && _knowledge.EvidenceItems().Get(id).weight.Raw() < 0;
@@ -213,7 +258,7 @@ void Weigh(World& _world, Knowledge& _knowledge, IncidentId _incident, EmpireId 
         LogField{LogEvent::Field::INCIDENT, std::to_string(_incident.Index())},
         LogField{LogEvent::Field::EMPIRE, std::to_string(_believer.Index())},
         LogField{LogEvent::Field::SUSPECT, std::to_string(_suspectCompany.IsValid() ? _suspectCompany.Index() : _suspectEmpire.Index())},
-        LogField{LogEvent::Field::CONFIDENCE, std::to_string(confidence.Raw())}};
+        LogField{LogEvent::Field::CONFIDENCE, std::to_string(settled.Raw())}};
       _log->Write(now, LogEvent::ACCUSATION_ISSUED, fields);
 
       // **The one place the truth is compared to a belief** (`Incident.h`, R24). The misattributions-per-ten-hours
@@ -232,7 +277,7 @@ void Weigh(World& _world, Knowledge& _knowledge, IncidentId _incident, EmpireId 
 
   // "From seventy, it acts: claims revoked, tolerance withdrawn, the player's fleet treated as hostile in its space,
   // and the incident entered in the record."
-  if (confidence.Raw() >= Tuning::ACT_THRESHOLD.Raw() && suspicion->stage != BeliefStage::Acted)
+  if (settled.Raw() >= Tuning::ACT_THRESHOLD.Raw() && suspicion->stage != BeliefStage::Acted)
   {
     suspicion->stage = BeliefStage::Acted;
     suspicion->stageChangedAtTick = now;
@@ -267,7 +312,7 @@ void Weigh(World& _world, Knowledge& _knowledge, IncidentId _incident, EmpireId 
       const std::array<LogField, 3> fields = {
         LogField{LogEvent::Field::INCIDENT, std::to_string(_incident.Index())},
         LogField{LogEvent::Field::SUSPECT, std::to_string(_suspectCompany.IsValid() ? _suspectCompany.Index() : _suspectEmpire.Index())},
-        LogField{LogEvent::Field::CONFIDENCE, std::to_string(confidence.Raw())}};
+        LogField{LogEvent::Field::CONFIDENCE, std::to_string(settled.Raw())}};
       _log->Write(now, LogEvent::ACCUSATION_RESOLVED, fields);
     }
   }
@@ -438,6 +483,20 @@ void Inference::CollectEvidence(const World& _world, Knowledge& _knowledge, Inci
     const Neuron::Hundredths capped =
       summed.Raw() > Tuning::EVIDENCE_PRIOR_INCIDENT_CAP.Raw() ? Tuning::EVIDENCE_PRIOR_INCIDENT_CAP : summed;
     Add(_knowledge, _outEvidence, EvidenceKind::PriorPattern, _incident, _suspectCompany, _suspectEmpire, capped, ReportId{}, now);
+  }
+
+  // **And whatever somebody put here** (NC-054, `Evidence.h`). The rows above are re-derived from reports every day
+  // because the reports can change; a denial was *said* and a route was *submitted*, and re-deriving those from
+  // reports would quietly delete them on the next daily pass. They are carried forward in table order, which is the
+  // order they were answered in (R16).
+  for (std::uint32_t index = 0; index < _knowledge.EvidenceItems().Count(); ++index)
+  {
+    const auto evidenceId = EvidenceId::FromIndex(index);
+    const Evidence& item = _knowledge.EvidenceItems().Get(evidenceId);
+    if (item.standing && item.incident == _incident && item.suspectCompany == _suspectCompany && item.suspectEmpire == _suspectEmpire)
+    {
+      _outEvidence.push_back(evidenceId);
+    }
   }
 }
 

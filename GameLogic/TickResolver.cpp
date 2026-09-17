@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "TickResolver.h"
 
+#include "Answers.h"
 #include "Couriers.h"
 #include "Economy.h"
 #include "Fabricator.h"
@@ -63,7 +64,7 @@ void SendAnOrder(World& _world, const Input& _input, std::vector<Event>& _outEve
   (void)Couriers::Send(_world, FleetOwner{_input.company}, desk, fleetAt, CourierPayload{std::move(order)}, _outEvents);
 }
 
-void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents, LogSink* _log)
+void ResolveInputs(World& _world, Knowledge& _knowledge, std::span<const Input> _inputs, std::vector<Event>& _outEvents, LogSink* _log)
 {
   const Neuron::Tick tick = _world.CurrentTick();
   for (const Input& input : _inputs)
@@ -94,6 +95,14 @@ void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Ev
 
     case InputKind::SendCourier:
       SendAnOrder(_world, input, _outEvents);
+      break;
+
+    case InputKind::AnswerAccusation:
+      Answers::Answer(_world, _knowledge, input, _outEvents, _log);
+      break;
+
+    case InputKind::AnalyzeWreck:
+      Answers::AnalyzeWreck(_world, input, _outEvents);
       break;
 
     case InputKind::SetActiveWindow:
@@ -224,10 +233,13 @@ void TickResolver::Advance(World& _world, Knowledge& _knowledge, std::span<const
   // since it was last drained and a headless year never drains one (Sensor.h).
   const std::size_t firstEventOfTick = _outEvents.size();
 
-  ResolveInputs(_world, _inputs, _outEvents, _log);
+  ResolveInputs(_world, _knowledge, _inputs, _outEvents, _log);
   ResolveMovement(_world, _outEvents);
   ResolveDetection(_world, _knowledge, std::span<const Event>{_outEvents}.subspan(firstEventOfTick), _outEvents);
   ResolveCouriers(_world, _knowledge, _outEvents);
+  // Six hours of a scout's time on a wreck runs on the tick and not on the day (GDD §3's 3:00 to 9:00), so it sits
+  // beside the couriers rather than in the daily block.
+  Answers::ResolveWreckAnalyses(_world, _outEvents);
   ResolveEncounters(_world, _outEvents);
   if (IsDailyTick(_world.CurrentTick()))
   {

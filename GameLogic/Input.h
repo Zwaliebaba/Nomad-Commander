@@ -1,6 +1,8 @@
 // GameLogic/Input.h
 #pragma once
 
+#include "Accusation.h"
+#include "Credits.h"
 #include "EntityIds.h"
 #include "Explanation.h"
 #include "Good.h"
@@ -37,6 +39,14 @@ struct Input
 
   Good good;
   std::uint32_t units;
+
+  /// GDD §6's answers (NC-054). `offered` is what a submission claims it can prove; the rest are unused by the other
+  /// kinds, the same way every other field here is.
+  AccusationId accusation;
+  IncidentId incident;
+  AccusationAnswer answer;
+  Credits settlement;
+  std::vector<EvidenceOffer> offered;
 };
 
 [[nodiscard]] inline WireInput ToWire(const Input& _input)
@@ -62,6 +72,15 @@ struct Input
   wire.engage = _input.engage;
   wire.goodIndex = static_cast<std::uint8_t>(_input.good);
   wire.units = _input.units;
+  wire.accusationIndex = WireIndexOf(_input.accusation);
+  wire.incidentIndex = WireIndexOf(_input.incident);
+  wire.answerKind = static_cast<std::uint8_t>(_input.answer);
+  wire.settlement = _input.settlement;
+  wire.evidenceOffers.reserve(_input.offered.size());
+  for (const EvidenceOffer offer : _input.offered)
+  {
+    wire.evidenceOffers.push_back(static_cast<std::uint8_t>(offer));
+  }
   return wire;
 }
 

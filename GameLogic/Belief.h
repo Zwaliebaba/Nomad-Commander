@@ -52,6 +52,13 @@ struct Suspicion
 
   /// When the stage last moved, for the window GDD §6 describes.
   Neuron::Tick stageChangedAtTick;
+
+  /// **The suspect denied it, and the denial has not been exposed** (GDD §6, §4: a denial "that later evidence could
+  /// expose"). Free while it stands and fatal when it does not: evidence that names the suspect while this is set
+  /// turns into `ExposedFalseDenial` and a region-wide discretion penalty. Cleared at the moment of exposure, so one
+  /// lie costs once.
+  bool denied;
+  Neuron::Tick deniedAtTick;
 };
 
 /// What one empire believes about what has been done to it (GDD §9: "one belief state per empire about events").

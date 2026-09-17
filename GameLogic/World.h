@@ -14,6 +14,7 @@
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
+#include "WreckAnalysis.h"
 
 #include "Random.h"
 #include "Tick.h"
@@ -73,7 +74,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 9;
+  static constexpr std::uint16_t SCHEMA_VERSION = 10;
 
   explicit World(std::uint64_t _seed);
 
@@ -205,6 +206,18 @@ public:
     return m_couriers;
   }
 
+  /// Scouts reading incident sites, and what they found (GDD §3's six hours; NC-054). Reality: a scout being
+  /// somewhere is a fact. What the finding *means* becomes belief only when it is submitted and weighed.
+  [[nodiscard]] Table<WreckAnalysis, WreckAnalysisId>& WreckAnalyses() noexcept
+  {
+    return m_wreckAnalyses;
+  }
+
+  [[nodiscard]] const Table<WreckAnalysis, WreckAnalysisId>& WreckAnalyses() const noexcept
+  {
+    return m_wreckAnalyses;
+  }
+
   /// The couriers still in the air, in dispatch order (NC-053).
   ///
   /// **Derived state, and it exists for a measured reason.** Rows are never erased from any table here, so the
@@ -294,6 +307,7 @@ private:
   Table<Incident, IncidentId> m_incidents;
   Table<Courier, CourierId> m_couriers;
   std::vector<CourierId> m_couriersInFlight;
+  Table<WreckAnalysis, WreckAnalysisId> m_wreckAnalyses;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

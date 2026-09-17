@@ -7,10 +7,42 @@
 #include "Hundredths.h"
 #include "Tick.h"
 
+#include <cstdint>
 #include <vector>
 
 namespace Nomad
 {
+
+/// The four answers GDD §6 gives a player. "Say nothing" is one of them and is recorded as one: a choice the log can
+/// count is a choice the design can measure (R24), and silence that left no trace would read as an accusation nobody
+/// ever received. The order is the schema (ADR-004).
+enum class AccusationAnswer : std::uint8_t
+{
+  Unanswered,
+  Deny,
+  SubmitEvidence,
+  Pay,
+  Silence
+};
+
+inline constexpr std::uint8_t ACCUSATION_ANSWER_COUNT = 5;
+
+/// What a company offers when it submits (GDD §6, §3). Each is a *claim*: the empire weighs it against what it
+/// already believes, and a claim its own sightings contradict is a lie it can catch (`Plan/Tasks/NC-054`, Notes).
+enum class EvidenceOffer : std::uint8_t
+{
+  /// The company's own movement record. It knows where its fleets were; whether the empire believes it is another
+  /// matter.
+  RecordedRoute,
+
+  /// Six hours of a scout's time on the site (GDD §3's 3:00 to 9:00), which says what actually did the damage.
+  WreckAnalysis,
+
+  /// A courier the company took off somebody, naming whoever sent it.
+  CapturedCourier
+};
+
+inline constexpr std::uint8_t EVIDENCE_OFFER_COUNT = 3;
 
 /// An empire saying out loud that it thinks a company did something (GDD §6: "From forty, it accuses: the player
 /// receives the accusation and its reasoning").
@@ -44,6 +76,11 @@ struct Accusation
   /// When the empire acted on it, or zero while the window is still open (GDD §6). NC-054's answer is what can still
   /// move the number before this is set.
   Neuron::Tick actedAtTick;
+
+  /// How the company answered, and when it landed. `Unanswered` until a courier carrying an answer arrives -- which
+  /// is not the same as `Silence`, and the difference is the whole of what the window is for.
+  AccusationAnswer answer;
+  Neuron::Tick answeredAtTick;
 };
 
 /// One accusation as the client is told it (ADR-018). The conversion lives here rather than in `WireAccusation.h`,

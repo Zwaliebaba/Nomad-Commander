@@ -1,6 +1,7 @@
 // GameLogic/Courier.h
 #pragma once
 
+#include "Accusation.h"
 #include "EntityIds.h"
 #include "Fleet.h"
 
@@ -36,14 +37,42 @@ struct CourierReport
   ReportId report;
 };
 
+/// A company's answer to an accusation, on its way to the empire that made it (GDD §6, NC-054).
+///
+/// **Free until exposed, and it travels like everything else.** A denial that arrived instantly would make the
+/// window between accusation and action a formality; a denial that can be intercepted on the way is a courier like
+/// any other, and a captor reads what was denied.
+struct CourierDenial
+{
+  AccusationId accusation;
+  CompanyId from;
+};
+
+/// What a company offers to prove, on its way to the empire (GDD §6's "submit evidence", §3's 3:00).
+///
+/// **The claim and the fact travel together, because the company genuinely knows its own movements** -- that is not
+/// fog, it is its own record. What the empire then does with it is weigh it against its own sightings, and a claim
+/// those contradict is the lie the Notes on `Plan/Tasks/NC-054` say it can catch.
+struct CourierEvidence
+{
+  AccusationId accusation;
+  CompanyId from;
+  std::vector<EvidenceOffer> offered;
+
+  /// Where the company says its fleets were, around the incident. Filled from its own world at submission time.
+  SystemId claimedAtSystem;
+  Neuron::Tick claimedAtTick;
+
+  /// What six hours on the site found, when a wreck analysis is among the offers (GDD §3). Zero otherwise.
+  ShipCounts wreckClasses;
+};
+
 /// What a courier is carrying. The alternative order is the store's schema: `Serialize` writes the index and then the
 /// payload, so reordering these renumbers every save (ADR-004). Append, never insert.
 ///
-/// **Two arms in v0.1, and the ones that are missing are named rather than reserved.** NC-054's denial and evidence
-/// submission and NC-061's plan override each append an arm, and the schema version is what carries the change --
-/// the same judgement NC-050 made about `Report::sighting`. Guessing the shape of a denial one task early would be
-/// worse than a version bump.
-using CourierPayload = std::variant<CourierOrder, CourierReport>;
+/// **Four arms in v0.1.** NC-061's plan override appends the fifth, and the schema version is what carries the
+/// change -- the same judgement NC-050 made about `Report::sighting`.
+using CourierPayload = std::variant<CourierOrder, CourierReport, CourierDenial, CourierEvidence>;
 
 /// Where a courier's journey ended, or that it has not. The order is the schema (ADR-004).
 enum class CourierState : std::uint8_t

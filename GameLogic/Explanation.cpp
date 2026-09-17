@@ -99,6 +99,22 @@ namespace
     return "a courier reached its destination";
   case ReasonCode::ACourierWasTaken:
     return "a courier was intercepted, and what it carried is in somebody else's hands";
+  case ReasonCode::YouDeniedIt:
+    return "you denied it";
+  case ReasonCode::YouSubmittedEvidence:
+    return "you sent them what you could prove";
+  case ReasonCode::YouSettled:
+    return "you paid rather than argue";
+  case ReasonCode::YouSaidNothing:
+    return "you let the accusation stand";
+  case ReasonCode::ADenialWasExposed:
+    return "your denial was exposed, and the region heard about it";
+  case ReasonCode::AScoutIsReadingTheWreck:
+    return "a scout is reading the wreck";
+  case ReasonCode::TheWreckWasRead:
+    return "the wreck says what actually did the damage";
+  case ReasonCode::TheScoutDidNotStay:
+    return "the scout left before it had finished reading";
   }
   return "something happened that nobody recorded a reason for";
 }

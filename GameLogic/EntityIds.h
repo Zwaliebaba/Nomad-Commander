@@ -33,6 +33,7 @@ struct EvidenceTag;
 struct ObserverRecordTag;
 struct AccusationTag;
 struct CourierTag;
+struct WreckAnalysisTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -80,5 +81,9 @@ using AccusationId = Neuron::Id<AccusationTag>;
 /// An order or a message physically crossing the lanes (GDD §4, §9; NC-053). **Reality**: it has a position and it
 /// can be taken off somebody. What it carries is named by id, never held by value -- see `Courier.h`.
 using CourierId = Neuron::Id<CourierTag>;
+
+/// Six hours of a scout's time on an incident's site (GDD §3, NC-054). **Reality**: the scout is either there or it
+/// is not.
+using WreckAnalysisId = Neuron::Id<WreckAnalysisTag>;
 
 } // namespace Nomad

@@ -84,6 +84,23 @@ namespace
     break;
   }
 
+  case InputKind::AnswerAccusation:
+    // The accusation is resolved against `Knowledge` rather than `World`, which this seam cannot see, so what it can
+    // check is the shape: an answer the schema knows, and a settlement that is not negative. `Answers` refuses an
+    // accusation index that names nothing, the same way it refuses one the company was never accused of.
+    if (_wire.answerKind == 0 || _wire.answerKind >= ACCUSATION_ANSWER_COUNT || _wire.settlement < 0)
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::AnalyzeWreck:
+    if (!ownsTheFleet || _wire.incidentIndex == WIRE_INDEX_NONE)
+    {
+      return false;
+    }
+    break;
+
   case InputKind::SendCourier:
     // **Lighter than MoveFleet's check, on purpose.** A courier's order is validated against where the fleet will be
     // when it lands, which nobody knows yet -- GDD §4 puts the delay there precisely so an order can be overtaken by
@@ -226,6 +243,17 @@ void WriteInput(Neuron::ByteWriter& _writer, const Input& _input)
   _outInput.engage = wire.engage;
   _outInput.good = wire.goodIndex < GOOD_COUNT ? static_cast<Good>(wire.goodIndex) : Good::Fuel;
   _outInput.units = wire.units;
+  _outInput.accusation = wire.accusationIndex == WIRE_INDEX_NONE ? AccusationId{} : AccusationId::FromIndex(wire.accusationIndex);
+  _outInput.incident = wire.incidentIndex == WIRE_INDEX_NONE ? IncidentId{} : IncidentId::FromIndex(wire.incidentIndex);
+  _outInput.answer =
+    wire.answerKind < ACCUSATION_ANSWER_COUNT ? static_cast<AccusationAnswer>(wire.answerKind) : AccusationAnswer::Unanswered;
+  _outInput.settlement = wire.settlement;
+  _outInput.offered.clear();
+  _outInput.offered.reserve(wire.evidenceOffers.size());
+  for (const std::uint8_t offer : wire.evidenceOffers)
+  {
+    _outInput.offered.push_back(static_cast<EvidenceOffer>(offer));
+  }
   return true;
 }
 

@@ -40,15 +40,28 @@ enum class InputKind : std::uint8_t
   /// GDD §4's "orders travel": an order for a fleet that is not at the mothership, carried by a courier that can be
   /// intercepted on the way. An empty `laneRoute` is a **recall**. An order to a fleet in the mothership's own system
   /// is applied on the spot with no courier at all, which is the same sentence in §4 read the other way round.
-  SendCourier
+  SendCourier,
+
+  /// GDD §6's four answers to an accusation: deny, submit, pay, say nothing. Each is one input, which is what makes
+  /// §3's three choices at 3:00 three things a player can actually do.
+  AnswerAccusation,
+
+  /// Send a scout to read an incident's site (GDD §3's six-hour wreck analysis). The scout has to be there and has
+  /// to stay; what it finds is the company's until it chooses to submit it.
+  AnalyzeWreck
 };
 
-inline constexpr std::uint8_t INPUT_KIND_COUNT = 11;
+inline constexpr std::uint8_t INPUT_KIND_COUNT = 13;
 
 /// The four ship classes, as the wire counts them. A wire header sees only NeuronCore (ADR-001), so it cannot include
 /// the enumerator; `Mobility.cpp` static_asserts that this and `SHIP_CLASS_COUNT` are the same number, which is where
 /// a mismatch is caught at compile time rather than on the wire.
 inline constexpr std::uint32_t WIRE_SHIP_CLASS_COUNT = 4;
+
+/// How many `EvidenceOffer` values the wire knows. A Wire header sees only NeuronCore (ADR-001), so it carries its
+/// own count; `Answers.cpp` static_asserts that this and `EVIDENCE_OFFER_COUNT` are the same number, the same shape
+/// `WireReport` uses for report sources.
+inline constexpr std::uint8_t EVIDENCE_OFFER_COUNT_ON_THE_WIRE = 3;
 
 /// One decision, on its way in.
 ///
@@ -84,6 +97,18 @@ struct WireInput
   /// Buy and Sell: which good, and how much of it.
   std::uint8_t goodIndex;
   std::uint32_t units;
+
+  /// AnswerAccusation and AnalyzeWreck: which accusation, which incident, which of GDD §6's four answers, what a
+  /// settlement offers, and what a submission claims to be able to prove.
+  std::uint32_t accusationIndex;
+  std::uint32_t incidentIndex;
+  std::uint8_t answerKind;
+
+  /// A settlement's offer. **A raw width and not `Credits`**, because a Wire header includes only NeuronCore and
+  /// other Wire headers (ADR-001) -- the same reason this file carries its own ship-class and evidence-offer counts.
+  /// `Credits` is this width; `Input` is where it becomes the named type.
+  std::int64_t settlement;
+  std::vector<std::uint8_t> evidenceOffers;
 };
 
 inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
@@ -108,6 +133,15 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
   _writer.WriteBool(_input.engage);
   _writer.Write(_input.goodIndex);
   _writer.Write(_input.units);
+  _writer.Write(_input.accusationIndex);
+  _writer.Write(_input.incidentIndex);
+  _writer.Write(_input.answerKind);
+  _writer.Write(_input.settlement);
+  _writer.Write(static_cast<std::uint32_t>(_input.evidenceOffers.size()));
+  for (const std::uint8_t offer : _input.evidenceOffers)
+  {
+    _writer.Write(offer);
+  }
 }
 
 [[nodiscard]] inline bool Deserialize(Neuron::ByteReader& _reader, WireInput& _outInput)
@@ -143,10 +177,26 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
     }
   }
   if (!_reader.Read(_outInput.systemIndex) || !_reader.ReadBool(_outInput.engage) || !_reader.Read(_outInput.goodIndex) ||
-      !_reader.Read(_outInput.units))
+      !_reader.Read(_outInput.units) || !_reader.Read(_outInput.accusationIndex) || !_reader.Read(_outInput.incidentIndex) ||
+      !_reader.Read(_outInput.answerKind) || !_reader.Read(_outInput.settlement))
   {
     return false;
   }
+
+  std::uint32_t offerCount = 0;
+  if (!_reader.Read(offerCount) || offerCount > _reader.Remaining())
+  {
+    return false;
+  }
+  _outInput.evidenceOffers.resize(offerCount);
+  for (std::uint8_t& offer : _outInput.evidenceOffers)
+  {
+    if (!_reader.Read(offer) || offer >= EVIDENCE_OFFER_COUNT_ON_THE_WIRE)
+    {
+      return false;
+    }
+  }
+
   _outInput.kind = static_cast<InputKind>(kind);
   return true;
 }

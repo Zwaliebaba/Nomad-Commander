@@ -64,10 +64,18 @@ enum class ReasonCode : std::uint16_t
   TheEvidencePointsAtYou,
   ACourierWasSent,
   ACourierArrived,
-  ACourierWasTaken
+  ACourierWasTaken,
+  YouDeniedIt,
+  YouSubmittedEvidence,
+  YouSettled,
+  YouSaidNothing,
+  ADenialWasExposed,
+  AScoutIsReadingTheWreck,
+  TheWreckWasRead,
+  TheScoutDidNotStay
 };
 
-inline constexpr std::uint16_t REASON_CODE_COUNT = 43;
+inline constexpr std::uint16_t REASON_CODE_COUNT = 51;
 
 /// One item of evidence as the player reads it: what it is, and what it was worth (GDD §6's weights, as a fraction of
 /// a full attribution in integer hundredths).

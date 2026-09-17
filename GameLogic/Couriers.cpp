@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "Couriers.h"
 
+#include "Answers.h"
 #include "Mobility.h"
 #include "Tuning.h"
 
@@ -106,13 +107,16 @@ void WriteCapturedReport(World& _world, Knowledge& _knowledge, const Courier& _c
     return;
   }
 
-  // A carried report: the captor reads what somebody else was told, which is intelligence about the *subject* and
-  // arrives with the captor's own record for this source rather than the original's.
+  // A denial or a submission taken off a courier tells the captor that somebody is answering an accusation, which
+  // is worth knowing and is not a sighting of anything. Nothing is written: a report with no subject would be a row
+  // the board could not draw, and NC-067 is where an intercepted answer becomes a board item.
   const auto* carried = std::get_if<CourierReport>(&_courier.payload);
   if (carried == nullptr || !_knowledge.Reports().Holds(carried->report))
   {
     return;
   }
+  // A carried report: the captor reads what somebody else was told, which is intelligence about the *subject* and
+  // arrives with the captor's own record for this source rather than the original's.
   taken.sighting = _knowledge.Reports().Get(carried->report).sighting;
   (void)_knowledge.Reports().Add(taken);
 }
@@ -132,6 +136,21 @@ void Deliver(World& _world, Knowledge& _knowledge, CourierId _courierId, std::ve
       _knowledge.Reports().Get(carried->report).deliveredAtTick = now;
     }
     Emit(_outEvents, now, EventKind::CourierArrived, courier.sender, courier.destination, ReasonCode::ACourierArrived);
+    return;
+  }
+
+  if (const auto* denial = std::get_if<CourierDenial>(&courier.payload); denial != nullptr)
+  {
+    const CourierDenial copy = *denial;
+    Emit(_outEvents, now, EventKind::CourierArrived, courier.sender, courier.destination, ReasonCode::ACourierArrived);
+    Answers::ApplyDenial(_world, _knowledge, copy, _outEvents);
+    return;
+  }
+  if (const auto* submission = std::get_if<CourierEvidence>(&courier.payload); submission != nullptr)
+  {
+    const CourierEvidence copy = *submission;
+    Emit(_outEvents, now, EventKind::CourierArrived, courier.sender, courier.destination, ReasonCode::ACourierArrived);
+    Answers::ApplySubmission(_world, _knowledge, copy, _outEvents);
     return;
   }
 

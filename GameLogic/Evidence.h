@@ -60,6 +60,15 @@ struct Evidence
 
   /// When it was collected, which is not when the incident happened: evidence accumulates.
   Neuron::Tick tick;
+
+  /// **Somebody put this here, and it stays** (NC-054).
+  ///
+  /// The §6 rows read off reports are recomputed from scratch every day, because the reports they are read from can
+  /// change: a sighting is checked, a courier lands, a source's record moves. An answer to an accusation is not like
+  /// that. A denial was *said*; a route was *submitted*; a lie was *exposed*. Recomputing those from reports would
+  /// quietly delete them on the next daily pass, so `Inference::CollectEvidence` carries the standing rows forward
+  /// instead of re-deriving them.
+  bool standing;
 };
 
 } // namespace Nomad

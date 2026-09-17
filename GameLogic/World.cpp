@@ -412,7 +412,28 @@ void WriteCourierPayload(Neuron::ByteWriter& _writer, const CourierPayload& _pay
     _writer.WriteBool(order->recall);
     return;
   }
-  _writer.WriteId(std::get<CourierReport>(_payload).report);
+  if (const auto* report = std::get_if<CourierReport>(&_payload); report != nullptr)
+  {
+    _writer.WriteId(report->report);
+    return;
+  }
+  if (const auto* denial = std::get_if<CourierDenial>(&_payload); denial != nullptr)
+  {
+    _writer.WriteId(denial->accusation);
+    _writer.WriteId(denial->from);
+    return;
+  }
+  const auto& evidence = std::get<CourierEvidence>(_payload);
+  _writer.WriteId(evidence.accusation);
+  _writer.WriteId(evidence.from);
+  _writer.Write(static_cast<std::uint32_t>(evidence.offered.size()));
+  for (const EvidenceOffer offer : evidence.offered)
+  {
+    _writer.Write(static_cast<std::uint8_t>(offer));
+  }
+  _writer.WriteId(evidence.claimedAtSystem);
+  _writer.WriteTick(evidence.claimedAtTick);
+  WriteShipCounts(_writer, evidence.wreckClasses);
 }
 
 [[nodiscard]] bool ReadCourierPayload(Neuron::ByteReader& _reader, CourierPayload& _outPayload)
@@ -442,7 +463,63 @@ void WriteCourierPayload(Neuron::ByteWriter& _writer, const CourierPayload& _pay
     _outPayload = report;
     return true;
   }
+  if (which == 2)
+  {
+    CourierDenial denial;
+    if (!_reader.ReadId(denial.accusation) || !_reader.ReadId(denial.from))
+    {
+      return false;
+    }
+    _outPayload = denial;
+    return true;
+  }
+  if (which == 3)
+  {
+    CourierEvidence evidence;
+    std::uint32_t offerCount = 0;
+    if (!_reader.ReadId(evidence.accusation) || !_reader.ReadId(evidence.from) || !_reader.Read(offerCount) ||
+        offerCount > _reader.Remaining())
+    {
+      return false;
+    }
+    evidence.offered.resize(offerCount);
+    for (EvidenceOffer& offer : evidence.offered)
+    {
+      std::uint8_t raw = 0;
+      if (!_reader.Read(raw) || raw >= EVIDENCE_OFFER_COUNT)
+      {
+        return false;
+      }
+      offer = static_cast<EvidenceOffer>(raw);
+    }
+    if (!_reader.ReadId(evidence.claimedAtSystem) || !_reader.ReadTick(evidence.claimedAtTick) ||
+        !ReadShipCounts(_reader, evidence.wreckClasses))
+    {
+      return false;
+    }
+    _outPayload = std::move(evidence);
+    return true;
+  }
   return false;
+}
+
+void WriteWreckAnalysis(Neuron::ByteWriter& _writer, const WreckAnalysis& _analysis)
+{
+  _writer.WriteId(_analysis.company);
+  _writer.WriteId(_analysis.incident);
+  _writer.WriteId(_analysis.scout);
+  _writer.WriteTick(_analysis.startedAtTick);
+  _writer.WriteTick(_analysis.completesAtTick);
+  WriteShipCounts(_writer, _analysis.found);
+  _writer.WriteBool(_analysis.complete);
+  _writer.WriteBool(_analysis.abandoned);
+}
+
+[[nodiscard]] bool ReadWreckAnalysis(Neuron::ByteReader& _reader, WreckAnalysis& _outAnalysis)
+{
+  return _reader.ReadId(_outAnalysis.company) && _reader.ReadId(_outAnalysis.incident) && _reader.ReadId(_outAnalysis.scout) &&
+         _reader.ReadTick(_outAnalysis.startedAtTick) && _reader.ReadTick(_outAnalysis.completesAtTick) &&
+         ReadShipCounts(_reader, _outAnalysis.found) && _reader.ReadBool(_outAnalysis.complete) && _reader.ReadBool(_outAnalysis.abandoned);
 }
 
 void WriteCourier(Neuron::ByteWriter& _writer, const Courier& _courier)
@@ -700,6 +777,7 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_relations, WriteRelation);
   WriteTable(_writer, m_incidents, WriteIncident);
   WriteTable(_writer, m_couriers, WriteCourier);
+  WriteTable(_writer, m_wreckAnalyses, WriteWreckAnalysis);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -728,7 +806,8 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
       !ReadTable(_reader, loaded.m_outposts, ReadOutpost) || !ReadTable(_reader, loaded.m_systems, ReadStarSystem) ||
       !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket) ||
       !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull) || !ReadTable(_reader, loaded.m_relations, ReadRelation) ||
-      !ReadTable(_reader, loaded.m_incidents, ReadIncident) || !ReadTable(_reader, loaded.m_couriers, ReadCourier))
+      !ReadTable(_reader, loaded.m_incidents, ReadIncident) || !ReadTable(_reader, loaded.m_couriers, ReadCourier) ||
+      !ReadTable(_reader, loaded.m_wreckAnalyses, ReadWreckAnalysis))
   {
     return false;
   }
