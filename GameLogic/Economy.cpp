@@ -2,6 +2,8 @@
 #include "pch.h"
 #include "Economy.h"
 
+#include "Contracts.h"
+#include "CovertRaid.h"
 #include "Mobility.h"
 #include "Politics.h"
 #include "Tuning.h"
@@ -106,6 +108,21 @@ void RecomputePriceAndState(Market& _market, Good _good)
   return _market.stock.Of(_good) < _market.consumedPerDay.Of(_good) * Tuning::CONVOY_DEFICIT_DAYS;
 }
 
+/// How far past its threshold a market is, in units, so that the convoy planner can say *deepest* rather than
+/// *first* (NC-049). Only meaningful where the matching predicate above is true, and each answers 0 where it is not,
+/// so neither can underflow into four billion units of fuel.
+[[nodiscard]] std::uint32_t SurplusDepth(const Market& _market, Good _good) noexcept
+{
+  const std::uint32_t threshold = _market.consumedPerDay.Of(_good) * Tuning::CONVOY_SURPLUS_DAYS;
+  return _market.stock.Of(_good) > threshold ? _market.stock.Of(_good) - threshold : 0;
+}
+
+[[nodiscard]] std::uint32_t DeficitDepth(const Market& _market, Good _good) noexcept
+{
+  const std::uint32_t threshold = _market.consumedPerDay.Of(_good) * Tuning::CONVOY_DEFICIT_DAYS;
+  return threshold > _market.stock.Of(_good) ? threshold - _market.stock.Of(_good) : 0;
+}
+
 /// A convoy is a fleet, so that every rule about fleets -- fuel, interception, sensors -- applies to it for free, and
 /// the escort is counts in the same fleet rather than a second one (the task's note, and GDD §10: convoys are "what
 /// the player raids and escorts").
@@ -132,7 +149,7 @@ void DispatchConvoy(World& _world, EmpireId _empire, SystemId _from, SystemId _t
   convoy.position = AtSystem{_from};
   convoy.cargoByGood.assign(GOOD_COUNT, 0);
   convoy.alive = true;
-  convoy.cargoOriginEmpire = _empire;
+  convoy.cargoMark = CargoMark{_empire, _from, _world.CurrentTick()};
   convoy.fuel = Mobility::FuelCapacity(convoy);
 
   // **Everything that can refuse the convoy is checked before the cargo leaves the warehouse.** Taking the goods and
@@ -267,6 +284,104 @@ void MarkBlockades(World& _world)
   }
 }
 
+/// Moves single units of daily production between the goods the **owned** systems make, so that the map's production
+/// of each good equals its consumption of that good (ADR-019).
+///
+/// **Why a balancing term has to exist.** The tuning constants balance a system's total production against its total
+/// consumption -- `Tuning.h`'s `static_assert` -- and that is the aggregate over all four goods, not each one. Per
+/// good, with `U` owned systems and `n(g)` of them carrying good `g`'s role bonus, their daily balance is
+///
+///     BASELINE * U + BONUS * n(g) - CONSUMPTION * U   =   4 * n(g) - U     (at 5, 4 and 6)
+///
+/// which is zero only at `n(g) = U / 4`. **No distribution of roles balances a nine-owned-system map**, and nine is
+/// what the generator makes, so every map ran a permanent per-good deficit: over five simulated years the map drained
+/// from 6,285 units to 3,999 (NC-049's measurements).
+///
+/// **Why the owned systems and not the harbour.** The harbour was tried first and measured worse. A convoy's source
+/// is always an empire's own system, so a harbour can neither export a surplus nor be a reliable destination for one:
+/// giving it the balancing term pinned it at its cap, where production is destroyed, or starved it outright. Only a
+/// system an empire holds can actually move what it is given.
+///
+/// **Why it is a swap and not an addition.** `adjust(g)` sums to zero across the four goods, so every unit added to
+/// one good can be taken from another *at the same system*. That keeps what `Tuning.h` asserts and what NC-045 built
+/// on true system by system -- production total equals consumption total everywhere -- and changes only which goods a
+/// system is long and short of.
+void BalanceOwnedSystems(World& _world)
+{
+  std::uint32_t ownedCount = 0;
+  std::uint32_t producersByGood[GOOD_COUNT] = {};
+  for (std::uint32_t index = 0; index < _world.Systems().Count(); ++index)
+  {
+    const StarSystem& system = _world.Systems().Get(SystemId::FromIndex(index));
+    if (!system.owner.IsValid())
+    {
+      continue;
+    }
+    ++ownedCount;
+    ++producersByGood[static_cast<std::uint32_t>(RoleProduces(system.role))];
+  }
+  if (ownedCount == 0)
+  {
+    return;
+  }
+
+  // What each good is short by across the empires, signed: positive means they make less than they eat.
+  const std::int64_t shortfallPerOwned =
+    static_cast<std::int64_t>(Tuning::CONSUMPTION_PER_DAY) - static_cast<std::int64_t>(Tuning::BASELINE_PRODUCTION_PER_DAY);
+  std::vector<std::uint32_t> owedGoods;
+  std::vector<std::uint32_t> sparedGoods;
+  for (std::uint32_t good = 0; good < GOOD_COUNT; ++good)
+  {
+    const std::int64_t adjust =
+      shortfallPerOwned * ownedCount - static_cast<std::int64_t>(Tuning::ROLE_PRODUCTION_BONUS_PER_DAY) * producersByGood[good];
+    for (std::int64_t unit = 0; unit < adjust; ++unit)
+    {
+      owedGoods.push_back(good);
+    }
+    for (std::int64_t unit = 0; unit < -adjust; ++unit)
+    {
+      sparedGoods.push_back(good);
+    }
+  }
+  // The two lists are the same length because the adjustments sum to zero -- 4 * U taken from the role bonuses and
+  // 4 * U owed by the baseline. If they are ever not, something upstream changed the constants and the swap below
+  // would silently move the aggregate.
+  NOMAD_ASSERT(owedGoods.size() == sparedGoods.size());
+  if (owedGoods.size() != sparedGoods.size())
+  {
+    return;
+  }
+
+  // One unit added and one taken away per owned system, in table order, wrapping until both lists are spent. Table
+  // order is the whole of what makes the same seed lay the same map down twice (R16).
+  std::vector<SystemId> owned;
+  owned.reserve(ownedCount);
+  for (std::uint32_t index = 0; index < _world.Systems().Count(); ++index)
+  {
+    const auto systemId = SystemId::FromIndex(index);
+    if (_world.Systems().Get(systemId).owner.IsValid())
+    {
+      owned.push_back(systemId);
+    }
+  }
+
+  for (std::size_t pair = 0; pair < owedGoods.size(); ++pair)
+  {
+    Market& market = _world.Markets().Get(owned[pair % owned.size()]);
+    std::uint32_t& spared = market.producedPerDay.byGood[sparedGoods[pair]];
+    // A system cannot give away production it does not have. It takes a quarter of the map carrying one good's role
+    // bonus before a system is asked for a fifth unit of a baseline of five, which the generator's round-robin cannot
+    // produce -- but the swap has to stay a swap, so a unit that cannot be taken is not given either.
+    NOMAD_ASSERT(spared > 0);
+    if (spared == 0)
+    {
+      continue;
+    }
+    --spared;
+    ++market.producedPerDay.byGood[owedGoods[pair]];
+  }
+}
+
 } // namespace
 
 std::uint32_t ProjectDaysRemaining(const Market& _market, Good _good) noexcept
@@ -341,6 +456,10 @@ void Economy::Seed(World& _world)
       RecomputePriceAndState(_world.Markets().Get(added), static_cast<Good>(good));
     }
   }
+
+  // After every market exists, because it needs the whole map's roles to know which goods are short. It moves no
+  // price: a price follows stock against consumption (Market.h) and neither of those is what changes here.
+  BalanceOwnedSystems(_world);
 }
 
 void Economy::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
@@ -382,7 +501,12 @@ void Economy::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
   {
     const auto empireId = EmpireId::FromIndex(empireIndex);
     const Empire& empire = _world.Empires().Get(empireId);
-    if (!empire.alive || empire.systemsHeld.size() < 2)
+    // **One system is enough to send a convoy out of** (NC-049). The guard here used to be `systemsHeld.size() < 2`,
+    // from when a convoy could only run between an empire's own systems; the destination has been map-wide since
+    // NC-045 and the guard outlived it. An empire the generator boxed in to its home never dispatched anything, so
+    // its warehouse stood at the cap destroying its own production every day while systems two jumps away were dry
+    // for two simulated years.
+    if (!empire.alive || empire.systemsHeld.empty())
     {
       continue;
     }
@@ -392,23 +516,28 @@ void Economy::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
     for (std::uint32_t good = 0; good < GOOD_COUNT; ++good)
     {
       const auto asGood = static_cast<Good>(good);
-      // The source is always the empire's own: a convoy is its goods.
+
+      // **The deepest surplus, not the first one found** (NC-049). The source is always the empire's own -- a convoy
+      // is its goods -- but which of its systems it comes out of decides whether the warehouse standing at its cap is
+      // ever emptied, and a cap is where production goes to be destroyed. Taking the first was why one system could
+      // sit pinned at the cap for two simulated years while another was dry for the same two years and the map held
+      // less than half of what it could.
       SystemId from{};
-      SystemId to{};
+      std::uint32_t deepestSurplus = 0;
       for (const SystemId held : empire.systemsHeld)
       {
         const Market* market = MarketAt(_world, held);
-        if (market == nullptr)
+        if (market == nullptr || !HasSurplus(*market, asGood))
         {
           continue;
         }
-        if (!from.IsValid() && HasSurplus(*market, asGood))
+        const std::uint32_t above = SurplusDepth(*market, asGood);
+        // Strictly greater leaves the lowest-index system holding a tie, which is the whole of what makes the choice
+        // reproduce from a seed (R16).
+        if (!from.IsValid() || above > deepestSurplus)
         {
           from = held;
-        }
-        else if (!to.IsValid() && HasDeficit(*market, asGood))
-        {
-          to = held;
+          deepestSurplus = above;
         }
       }
       if (!from.IsValid())
@@ -416,31 +545,40 @@ void Economy::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
         continue;
       }
 
-      // **The destination may be anywhere on the map, and it has to be.** An empire holds three systems on a
-      // ten-system map, so it produces at most three of the four goods and is permanently short of the fourth
-      // wherever it looks; a convoy confined to its own territory can never fix that, and a year-long run showed
-      // exactly the consequence -- a stock at zero for 186 consecutive days. GDD §10 says "empires move surplus to
-      // deficit in convoys along the lanes" and does not say the deficit is their own.
+      // **The destination is the deepest deficit, and it may be anywhere on the map.** An empire holds three systems
+      // on a ten-system map, so it produces at most three of the four goods and is permanently short of the fourth
+      // wherever it looks; a convoy confined to its own territory can never fix that. GDD §10 says "empires move
+      // surplus to deficit in convoys along the lanes" and does not say the deficit is their own. Its own holdings
+      // come first at equal depth, because an empire feeds itself before it feeds the region.
       //
       // **NC-047 has to restrict this by relations.** Shipping metals to an empire you are at war with is not a
       // trade route, it is a supply line to the enemy, and there is nothing here yet that can tell the difference.
-      if (!to.IsValid())
+      SystemId to{};
+      std::uint32_t deepestDeficit = 0;
+      bool toIsOwn = false;
+      for (std::uint32_t systemIndex = 0; systemIndex < _world.Markets().Count(); ++systemIndex)
       {
-        for (std::uint32_t systemIndex = 0; systemIndex < _world.Markets().Count(); ++systemIndex)
+        const auto candidate = SystemId::FromIndex(systemIndex);
+        if (candidate == from)
         {
-          const auto candidate = SystemId::FromIndex(systemIndex);
-          if (candidate == from)
-          {
-            continue;
-          }
-          if (HasDeficit(_world.Markets().Get(candidate), asGood))
-          {
-            to = candidate;
-            break;
-          }
+          continue;
+        }
+        const Market& market = _world.Markets().Get(candidate);
+        if (!HasDeficit(market, asGood))
+        {
+          continue;
+        }
+        const std::uint32_t below = DeficitDepth(market, asGood);
+        const bool own = _world.Systems().Get(candidate).owner == empireId;
+        const bool better = !to.IsValid() || below > deepestDeficit || (below == deepestDeficit && own && !toIsOwn);
+        if (better)
+        {
+          to = candidate;
+          deepestDeficit = below;
+          toIsOwn = own;
         }
       }
-      if (to.IsValid() && from != to)
+      if (to.IsValid())
       {
         DispatchConvoy(_world, empireId, from, to, asGood, _outEvents);
       }
@@ -529,25 +667,32 @@ bool Economy::Buy(World& _world, CompanyId _company, FleetId _fleet, Good _good,
   return true;
 }
 
-bool Economy::Sell(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units, std::vector<Event>& _outEvents)
+namespace
+{
+
+/// The half of a sale that both the honest one and the fence share. Hands back what was paid, or a negative number
+/// when the market refused it -- which keeps the two public entry points to their own one difference each.
+[[nodiscard]] Credits SellInto(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units, Neuron::Hundredths _cut,
+                               std::vector<Event>& _outEvents, EventKind _kind, ReasonCode _reason)
 {
   if (_units == 0 || !_world.Companies().Holds(_company) || !_world.Fleets().Holds(_fleet))
   {
-    return false;
+    return -1;
   }
   Fleet& fleet = _world.Fleets().Get(_fleet);
   if (!fleet.alive || fleet.owner != FleetOwner{_company} || std::holds_alternative<InLane>(fleet.position) ||
       fleet.cargoByGood.size() < GOOD_COUNT || fleet.cargoByGood[static_cast<std::uint32_t>(_good)] < _units)
   {
-    return false;
+    return -1;
   }
-  Market* market = MarketAt(_world, Mobility::LocationOf(fleet));
+  Market* market = Economy::MarketAt(_world, Mobility::LocationOf(fleet));
   if (market == nullptr || market->tradedToday + _units > market->liquidityPerDay)
   {
-    return false;
+    return -1;
   }
 
-  const Credits paid = QuoteSell(*market, _good, _units);
+  const Credits gross = Economy::QuoteSell(*market, _good, _units);
+  const Credits paid = gross - Neuron::Hundredths{_cut}.Of(gross);
   fleet.cargoByGood[static_cast<std::uint32_t>(_good)] -= _units;
   market->stock.Add(_good, _units);
   market->tradedToday += _units;
@@ -558,7 +703,65 @@ bool Economy::Sell(World& _world, CompanyId _company, FleetId _fleet, Good _good
   subjects.company = _company;
   subjects.fleet = _fleet;
   subjects.system = market->system;
-  _outEvents.emplace_back(_world.CurrentTick(), EventKind::GoodsSold, subjects, Because(ReasonCode::TradedAtAMarket));
+  _outEvents.emplace_back(_world.CurrentTick(), _kind, subjects, Because(_reason));
+  return paid;
+}
+
+} // namespace
+
+bool Economy::Fence(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units, std::vector<Event>& _outEvents)
+{
+  // GDD §5: "fencing costs a cut and buys distance." **No `Knowledge&` reaches this function**, so there is no way
+  // for it to write the report an honest sale would -- the distance it buys is structural rather than remembered.
+  const CargoMark mark = _world.Fleets().Holds(_fleet) ? _world.Fleets().Get(_fleet).cargoMark : CargoMark{};
+  if (SellInto(_world, _company, _fleet, _good, _units, Tuning::FENCE_CUT_HUNDREDTHS, _outEvents, EventKind::GoodsFenced,
+               ReasonCode::SoldThroughAnIntermediary) < 0)
+  {
+    return false;
+  }
+  // The escort contract is still finished -- the cargo is gone and the employer will not be paying for it -- but
+  // nothing here can move an opinion, because nothing here holds a `Knowledge&` to move one in (GDD §8's deniable).
+  Contracts::Betray(_world, Contracts::EscortOver(_world, _company, mark), _outEvents);
+  return true;
+}
+
+bool Economy::Sell(World& _world, Knowledge& _knowledge, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units,
+                   std::vector<Event>& _outEvents)
+{
+  const CargoMark mark = _world.Fleets().Holds(_fleet) ? _world.Fleets().Get(_fleet).cargoMark : CargoMark{};
+  const SystemId sellingAt = _world.Fleets().Holds(_fleet) ? Mobility::LocationOf(_world.Fleets().Get(_fleet)) : SystemId{};
+
+  if (SellInto(_world, _company, _fleet, _good, _units, Neuron::HUNDREDTHS_ZERO, _outEvents, EventKind::GoodsSold,
+               ReasonCode::TradedAtAMarket) < 0)
+  {
+    return false;
+  }
+
+  // **Loot is evidence** (GDD §5). Goods carrying somebody's marks, sold this near where they were taken and this
+  // soon after, are a thing traders say -- and what traders say reaches the empire whose marks they are.
+  const bool leftATrail = CovertRaid::WouldLeaveATrail(_world, mark, sellingAt);
+  if (leftATrail)
+  {
+    CovertRaid::ReportMarkedGoods(_world, _knowledge, mark, _company, sellingAt);
+    EventSubjects subjects{};
+    subjects.company = _company;
+    subjects.empire = mark.origin;
+    subjects.system = sellingAt;
+    _outEvents.emplace_back(_world.CurrentTick(), EventKind::MarkedGoodsSoldNearby, subjects, Because(ReasonCode::LootWasRecognised));
+  }
+
+  // **Betrayal** (GDD §8: "selling the cargo you were hired to escort"). The contract is finished either way; the
+  // employer's opinion moves only where the sale was one somebody noticed, which is the *deniable* in the design's
+  // own phrase.
+  const ContractId escorted = Contracts::EscortOver(_world, _company, mark);
+  if (escorted.IsValid())
+  {
+    Contracts::Betray(_world, escorted, _outEvents);
+    if (leftATrail)
+    {
+      Contracts::BetrayalNoticed(_world, _knowledge, escorted, _outEvents);
+    }
+  }
   return true;
 }
 

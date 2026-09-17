@@ -99,6 +99,15 @@
     <ClCompile Include="TickResolverTests.cpp" />
     <ClCompile Include="WireTests.cpp" />
     <ClCompile Include="SoakTests.cpp" />
+    <ClCompile Include="SensorTests.cpp" />
+    <ClCompile Include="BeliefTests.cpp" />
+    <ClCompile Include="OpinionTests.cpp" />
+    <ClCompile Include="ThreatAssessmentTests.cpp" />
+    <ClCompile Include="InferenceTests.cpp" />
+    <ClCompile Include="CourierTests.cpp" />
+    <ClCompile Include="AccusationAnswerTests.cpp" />
+    <ClCompile Include="CovertRaidTests.cpp" />
+    <ClCompile Include="ContractTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

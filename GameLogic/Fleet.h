@@ -1,6 +1,7 @@
 // GameLogic/Fleet.h
 #pragma once
 
+#include "Cargo.h"
 #include "EntityIds.h"
 #include "ShipClass.h"
 
@@ -21,7 +22,11 @@ enum class FleetRole : std::uint8_t
   Operational,
   Convoy,
   Picket,
-  Scout
+  Scout,
+
+  /// A force drawn from an empire's pool for one raid and stood down when it gets home (NC-055, GDD §5's shared
+  /// hulls). The order is the store's schema, so this is appended and never inserted (ADR-004).
+  Raider
 };
 
 /// Who owns a fleet. A std::variant rather than two ids, because a fleet has exactly one owner and the variant makes
@@ -86,9 +91,9 @@ struct Fleet
   /// Cargo by good, indexed by `Good` (NC-045). Empty until something is loaded.
   std::vector<std::uint32_t> cargoByGood;
 
-  /// Which empire's marks the cargo carries. "Loot is evidence" (GDD §5): a market that sees Varn-marked fuel sold
-  /// two days after a Varn convoy vanished is a report that reaches the Varn. NC-055 is what reads it.
-  EmpireId cargoOriginEmpire;
+  /// Whose marks the cargo carries, and where and when it was taken (GDD §5's loot trail, `Cargo.h`). NC-045 marks a
+  /// convoy's cargo at creation; NC-055 marks what a raid takes, and reads both.
+  CargoMark cargoMark;
 
   /// Marked by an empire, which is what makes identity available to a report rather than only hull classes (GDD §6,
   /// and NC-050's detection rule).

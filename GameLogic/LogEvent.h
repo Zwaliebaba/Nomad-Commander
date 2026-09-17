@@ -39,6 +39,12 @@ inline constexpr std::string_view ACCUSATION_RESOLVED = "AccusationResolved";
 /// An empire attributed an incident to a company that did not do it. The §6 hook working, or failing to.
 inline constexpr std::string_view MISATTRIBUTION = "Misattribution";
 
+/// An empire put an unmarked raider on somebody's convoy (GDD §6's generated ambiguity, NC-055). Counted so that the
+/// ten-hour metric can be read against how much ambiguity the world actually produced -- a misattribution rate of
+/// zero means something different when there were no covert raids to be blamed for.
+inline constexpr std::string_view COVERT_RAID = "CovertRaid";
+inline constexpr std::string_view MARKED_GOODS_SOLD = "MarkedGoodsSold";
+
 // --- GDD §15: "admirals choosing differently in identical situations" ---------------------------------------------
 
 inline constexpr std::string_view TEMPLATE_CHOSEN = "TemplateChosen";
@@ -71,6 +77,13 @@ inline constexpr std::string_view COMPANY = "company";
 inline constexpr std::string_view EMPIRE = "empire";
 inline constexpr std::string_view FLEET = "fleet";
 inline constexpr std::string_view COUNT = "count";
+
+/// GDD §6's own record: which incident, who was blamed, and -- for the misattribution line and nowhere else -- who
+/// actually did it (R24, `Incident.h`).
+inline constexpr std::string_view INCIDENT = "incident";
+inline constexpr std::string_view SUSPECT = "suspect";
+inline constexpr std::string_view CULPRIT = "culprit";
+inline constexpr std::string_view CONFIDENCE = "confidence";
 } // namespace Field
 
 } // namespace LogEvent

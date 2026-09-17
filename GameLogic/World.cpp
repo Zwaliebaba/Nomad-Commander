@@ -237,6 +237,27 @@ void WriteGoals(Neuron::ByteWriter& _writer, const std::vector<EmpireGoal>& _goa
   return true;
 }
 
+/// One incident (NC-051). `culprit` is written like any other field: the store is reality's, and reality includes
+/// who did it. Nothing on the belief side ever reads it.
+void WriteIncident(Neuron::ByteWriter& _writer, const Incident& _incident)
+{
+  _writer.WriteTick(_incident.tick);
+  _writer.WriteId(_incident.system);
+  _writer.WriteId(_incident.victim);
+  WriteEnum(_writer, _incident.kind);
+  WriteShipCounts(_writer, _incident.hullsObserved);
+  _writer.WriteId(_incident.markedAs);
+  _writer.WriteId(_incident.culprit);
+  _writer.WriteId(_incident.culpritEmpire);
+}
+
+[[nodiscard]] bool ReadIncident(Neuron::ByteReader& _reader, Incident& _outIncident)
+{
+  return _reader.ReadTick(_outIncident.tick) && _reader.ReadId(_outIncident.system) && _reader.ReadId(_outIncident.victim) &&
+         ReadEnum(_reader, _outIncident.kind, INCIDENT_KIND_COUNT) && ReadShipCounts(_reader, _outIncident.hullsObserved) &&
+         _reader.ReadId(_outIncident.markedAs) && _reader.ReadId(_outIncident.culprit) && _reader.ReadId(_outIncident.culpritEmpire);
+}
+
 void WriteRelation(Neuron::ByteWriter& _writer, const Relation& _relation)
 {
   _writer.WriteId(_relation.first);
@@ -379,6 +400,189 @@ void WriteFleetPosition(Neuron::ByteWriter& _writer, const FleetPosition& _posit
   return false;
 }
 
+/// A courier's payload: the variant's arm index, then the arm. Reordering `CourierPayload` renumbers every save
+/// (ADR-004), which is why `Courier.h` says append and never insert.
+void WriteCourierPayload(Neuron::ByteWriter& _writer, const CourierPayload& _payload)
+{
+  _writer.Write(static_cast<std::uint8_t>(_payload.index()));
+  if (const auto* order = std::get_if<CourierOrder>(&_payload); order != nullptr)
+  {
+    _writer.WriteId(order->fleet);
+    WriteIds(_writer, order->route);
+    _writer.WriteBool(order->recall);
+    return;
+  }
+  if (const auto* report = std::get_if<CourierReport>(&_payload); report != nullptr)
+  {
+    _writer.WriteId(report->report);
+    return;
+  }
+  if (const auto* denial = std::get_if<CourierDenial>(&_payload); denial != nullptr)
+  {
+    _writer.WriteId(denial->accusation);
+    _writer.WriteId(denial->from);
+    return;
+  }
+  const auto& evidence = std::get<CourierEvidence>(_payload);
+  _writer.WriteId(evidence.accusation);
+  _writer.WriteId(evidence.from);
+  _writer.Write(static_cast<std::uint32_t>(evidence.offered.size()));
+  for (const EvidenceOffer offer : evidence.offered)
+  {
+    _writer.Write(static_cast<std::uint8_t>(offer));
+  }
+  _writer.WriteId(evidence.claimedAtSystem);
+  _writer.WriteTick(evidence.claimedAtTick);
+  WriteShipCounts(_writer, evidence.wreckClasses);
+}
+
+[[nodiscard]] bool ReadCourierPayload(Neuron::ByteReader& _reader, CourierPayload& _outPayload)
+{
+  std::uint8_t which = 0;
+  if (!_reader.Read(which))
+  {
+    return false;
+  }
+  if (which == 0)
+  {
+    CourierOrder order;
+    if (!_reader.ReadId(order.fleet) || !ReadIds(_reader, order.route) || !_reader.ReadBool(order.recall))
+    {
+      return false;
+    }
+    _outPayload = std::move(order);
+    return true;
+  }
+  if (which == 1)
+  {
+    CourierReport report;
+    if (!_reader.ReadId(report.report))
+    {
+      return false;
+    }
+    _outPayload = report;
+    return true;
+  }
+  if (which == 2)
+  {
+    CourierDenial denial;
+    if (!_reader.ReadId(denial.accusation) || !_reader.ReadId(denial.from))
+    {
+      return false;
+    }
+    _outPayload = denial;
+    return true;
+  }
+  if (which == 3)
+  {
+    CourierEvidence evidence;
+    std::uint32_t offerCount = 0;
+    if (!_reader.ReadId(evidence.accusation) || !_reader.ReadId(evidence.from) || !_reader.Read(offerCount) ||
+        offerCount > _reader.Remaining())
+    {
+      return false;
+    }
+    evidence.offered.resize(offerCount);
+    for (EvidenceOffer& offer : evidence.offered)
+    {
+      std::uint8_t raw = 0;
+      if (!_reader.Read(raw) || raw >= EVIDENCE_OFFER_COUNT)
+      {
+        return false;
+      }
+      offer = static_cast<EvidenceOffer>(raw);
+    }
+    if (!_reader.ReadId(evidence.claimedAtSystem) || !_reader.ReadTick(evidence.claimedAtTick) ||
+        !ReadShipCounts(_reader, evidence.wreckClasses))
+    {
+      return false;
+    }
+    _outPayload = std::move(evidence);
+    return true;
+  }
+  return false;
+}
+
+void WriteWreckAnalysis(Neuron::ByteWriter& _writer, const WreckAnalysis& _analysis)
+{
+  _writer.WriteId(_analysis.company);
+  _writer.WriteId(_analysis.incident);
+  _writer.WriteId(_analysis.scout);
+  _writer.WriteTick(_analysis.startedAtTick);
+  _writer.WriteTick(_analysis.completesAtTick);
+  WriteShipCounts(_writer, _analysis.found);
+  _writer.WriteBool(_analysis.complete);
+  _writer.WriteBool(_analysis.abandoned);
+}
+
+[[nodiscard]] bool ReadWreckAnalysis(Neuron::ByteReader& _reader, WreckAnalysis& _outAnalysis)
+{
+  return _reader.ReadId(_outAnalysis.company) && _reader.ReadId(_outAnalysis.incident) && _reader.ReadId(_outAnalysis.scout) &&
+         _reader.ReadTick(_outAnalysis.startedAtTick) && _reader.ReadTick(_outAnalysis.completesAtTick) &&
+         ReadShipCounts(_reader, _outAnalysis.found) && _reader.ReadBool(_outAnalysis.complete) && _reader.ReadBool(_outAnalysis.abandoned);
+}
+
+void WriteContract(Neuron::ByteWriter& _writer, const Contract& _contract)
+{
+  _writer.WriteId(_contract.offer.employer);
+  _writer.WriteId(_contract.offer.leader);
+  WriteEnum(_writer, _contract.offer.kind);
+  _writer.Write(_contract.offer.goalIndex);
+  _writer.WriteId(_contract.offer.targetFleet);
+  _writer.WriteId(_contract.offer.targetSystem);
+  _writer.Write(_contract.offer.pay);
+  _writer.WriteBool(_contract.offer.requiresMarked);
+  _writer.WriteTick(_contract.offer.offeredAtTick);
+  _writer.WriteTick(_contract.offer.expiresAtTick);
+  _writer.WriteTick(_contract.offer.deadlineTick);
+  _writer.WriteId(_contract.company);
+  _writer.WriteTick(_contract.acceptedAtTick);
+  WriteEnum(_writer, _contract.state);
+  _writer.WriteBool(_contract.declined);
+  _writer.WriteBool(_contract.expired);
+  _writer.Write(_contract.paidCredits);
+  _writer.Write(_contract.pendingAttribution);
+  _writer.WriteId(_contract.incident);
+  _writer.WriteTick(_contract.settledAtTick);
+}
+
+[[nodiscard]] bool ReadContract(Neuron::ByteReader& _reader, Contract& _outContract)
+{
+  return _reader.ReadId(_outContract.offer.employer) && _reader.ReadId(_outContract.offer.leader) &&
+         ReadEnum(_reader, _outContract.offer.kind, WIRE_CONTRACT_KIND_COUNT) && _reader.Read(_outContract.offer.goalIndex) &&
+         _reader.ReadId(_outContract.offer.targetFleet) && _reader.ReadId(_outContract.offer.targetSystem) &&
+         _reader.Read(_outContract.offer.pay) && _reader.ReadBool(_outContract.offer.requiresMarked) &&
+         _reader.ReadTick(_outContract.offer.offeredAtTick) && _reader.ReadTick(_outContract.offer.expiresAtTick) &&
+         _reader.ReadTick(_outContract.offer.deadlineTick) && _reader.ReadId(_outContract.company) &&
+         _reader.ReadTick(_outContract.acceptedAtTick) && ReadEnum(_reader, _outContract.state, WIRE_CONTRACT_STATE_COUNT) &&
+         _reader.ReadBool(_outContract.declined) && _reader.ReadBool(_outContract.expired) && _reader.Read(_outContract.paidCredits) &&
+         _reader.Read(_outContract.pendingAttribution) && _reader.ReadId(_outContract.incident) &&
+         _reader.ReadTick(_outContract.settledAtTick);
+}
+
+void WriteCourier(Neuron::ByteWriter& _writer, const Courier& _courier)
+{
+  WriteFleetOwner(_writer, _courier.sender);
+  _writer.WriteId(_courier.origin);
+  _writer.WriteId(_courier.destination);
+  WriteIds(_writer, _courier.route);
+  WriteFleetPosition(_writer, _courier.position);
+  WriteCourierPayload(_writer, _courier.payload);
+  _writer.WriteTick(_courier.sentAtTick);
+  _writer.WriteTick(_courier.arrivesAtTick);
+  WriteEnum(_writer, _courier.state);
+  _writer.WriteId(_courier.capturedBy);
+}
+
+[[nodiscard]] bool ReadCourier(Neuron::ByteReader& _reader, Courier& _outCourier)
+{
+  return ReadFleetOwner(_reader, _outCourier.sender) && _reader.ReadId(_outCourier.origin) && _reader.ReadId(_outCourier.destination) &&
+         ReadIds(_reader, _outCourier.route) && ReadFleetPosition(_reader, _outCourier.position) &&
+         ReadCourierPayload(_reader, _outCourier.payload) && _reader.ReadTick(_outCourier.sentAtTick) &&
+         _reader.ReadTick(_outCourier.arrivesAtTick) && ReadEnum(_reader, _outCourier.state, COURIER_STATE_COUNT) &&
+         _reader.ReadId(_outCourier.capturedBy);
+}
+
 void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
 {
   _writer.WriteString(_fleet.name);
@@ -389,7 +593,9 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
   WriteFleetPosition(_writer, _fleet.position);
   _writer.Write(_fleet.fuel);
   WriteCounts(_writer, _fleet.cargoByGood);
-  _writer.WriteId(_fleet.cargoOriginEmpire);
+  _writer.WriteId(_fleet.cargoMark.origin);
+  _writer.WriteId(_fleet.cargoMark.takenAtSystem);
+  _writer.WriteTick(_fleet.cargoMark.takenAtTick);
   WriteIds(_writer, _fleet.route);
   _writer.WriteBool(_fleet.engageIntent);
   _writer.WriteTick(_fleet.interdictedUntilTick);
@@ -401,14 +607,15 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
 
 [[nodiscard]] bool ReadFleet(Neuron::ByteReader& _reader, Fleet& _outFleet)
 {
-  constexpr std::uint8_t FLEET_ROLE_COUNT = 4;
+  constexpr std::uint8_t FLEET_ROLE_COUNT = 5;
   return _reader.ReadString(_outFleet.name) && ReadFleetOwner(_reader, _outFleet.owner) &&
          ReadEnum(_reader, _outFleet.role, FLEET_ROLE_COUNT) && _reader.ReadId(_outFleet.commander) &&
          ReadShipCounts(_reader, _outFleet.ships) && ReadFleetPosition(_reader, _outFleet.position) && _reader.Read(_outFleet.fuel) &&
-         ReadCounts(_reader, _outFleet.cargoByGood) && _reader.ReadId(_outFleet.cargoOriginEmpire) && ReadIds(_reader, _outFleet.route) &&
-         _reader.ReadBool(_outFleet.engageIntent) && _reader.ReadTick(_outFleet.interdictedUntilTick) &&
-         _reader.ReadBool(_outFleet.marked) && _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) &&
-         _reader.ReadBool(_outFleet.alive);
+         ReadCounts(_reader, _outFleet.cargoByGood) && _reader.ReadId(_outFleet.cargoMark.origin) &&
+         _reader.ReadId(_outFleet.cargoMark.takenAtSystem) && _reader.ReadTick(_outFleet.cargoMark.takenAtTick) &&
+         ReadIds(_reader, _outFleet.route) && _reader.ReadBool(_outFleet.engageIntent) &&
+         _reader.ReadTick(_outFleet.interdictedUntilTick) && _reader.ReadBool(_outFleet.marked) &&
+         _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) && _reader.ReadBool(_outFleet.alive);
 }
 
 void WriteCharacter(Neuron::ByteWriter& _writer, const Character& _character)
@@ -609,6 +816,10 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_markets, WriteMarket);
   WriteTable(_writer, m_mothballs, WriteMothballedHull);
   WriteTable(_writer, m_relations, WriteRelation);
+  WriteTable(_writer, m_incidents, WriteIncident);
+  WriteTable(_writer, m_couriers, WriteCourier);
+  WriteTable(_writer, m_wreckAnalyses, WriteWreckAnalysis);
+  WriteTable(_writer, m_contracts, WriteContract);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -636,7 +847,9 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
       !ReadTable(_reader, loaded.m_fleets, ReadFleet) || !ReadTable(_reader, loaded.m_characters, ReadCharacter) ||
       !ReadTable(_reader, loaded.m_outposts, ReadOutpost) || !ReadTable(_reader, loaded.m_systems, ReadStarSystem) ||
       !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket) ||
-      !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull) || !ReadTable(_reader, loaded.m_relations, ReadRelation))
+      !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull) || !ReadTable(_reader, loaded.m_relations, ReadRelation) ||
+      !ReadTable(_reader, loaded.m_incidents, ReadIncident) || !ReadTable(_reader, loaded.m_couriers, ReadCourier) ||
+      !ReadTable(_reader, loaded.m_wreckAnalyses, ReadWreckAnalysis) || !ReadTable(_reader, loaded.m_contracts, ReadContract))
   {
     return false;
   }
@@ -651,6 +864,18 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
     if (!stream.ReadState(_reader))
     {
       return false;
+    }
+  }
+
+  // The in-flight index is derived, so it is rebuilt from the rows rather than read: a store cannot disagree with
+  // the table it was written beside, and an older save that never had one still loads (`World.h`, NC-053).
+  loaded.m_couriersInFlight.clear();
+  for (std::uint32_t index = 0; index < loaded.m_couriers.Count(); ++index)
+  {
+    const auto courierId = CourierId::FromIndex(index);
+    if (loaded.m_couriers.Get(courierId).state == CourierState::InFlight)
+    {
+      loaded.m_couriersInFlight.push_back(courierId);
     }
   }
 

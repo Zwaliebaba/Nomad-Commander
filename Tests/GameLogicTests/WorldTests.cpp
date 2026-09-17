@@ -265,7 +265,7 @@ public:
     // The offset is spelled out rather than searched for, so that a change to the layout breaks this test loudly
     // instead of leaving it quietly corrupting some other field's byte.
     Nomad::World world{3};
-    Nomad::Company company;
+    Nomad::Company company{};
     company.name.clear();
     company.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(0), Nomad::MothershipState::Damaged, 0, Nomad::ShipClass::Scout, 0};
     world.Companies().Add(company);

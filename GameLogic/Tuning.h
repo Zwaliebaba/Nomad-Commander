@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Credits.h"
+#include "Evidence.h"
 #include "Good.h"
 #include "ShipClass.h"
 
@@ -156,9 +157,35 @@ inline constexpr std::uint32_t DRIFTING_ARRIVAL_MULTIPLIER_HUNDREDTHS = 150;
 /// is what spends this.
 inline constexpr std::uint32_t COURIER_SPEED_MULTIPLIER_HUNDREDTHS = 60;
 
+/// **What a courier risks when it passes a fleet that wants to engage** (GDD §9: couriers are interceptable, and by
+/// everyone). Not a number the design states, so it is a lever: high enough that routing a message through a war zone
+/// is a decision, low enough that intelligence still moves. One draw per hostile system entered, from the pinned
+/// `Courier` stream (R16).
+inline constexpr std::uint32_t COURIER_CAPTURE_CHANCE_HUNDREDTHS = 25;
+
 /// GDD §12's interdiction "pins a fleet in a system for a stated time". The bounds an empire may state.
 inline constexpr Neuron::Tick INTERDICTION_MIN_TICKS = 2 * Neuron::TICKS_PER_HOUR;
 inline constexpr Neuron::Tick INTERDICTION_MAX_TICKS = 12 * Neuron::TICKS_PER_HOUR;
+
+// --- GDD §4 and §12: what anyone can see -------------------------------------------------------------------------
+//
+// The sensor range per class is `ShipStats::sensorRangeJumps` in the table at the top of this file, because it is a
+// property of a hull like its fuel and its cargo. What is here is what detection does with it.
+
+/// How much a sighting's counts are spread, per jump of distance, in hundredths of the true count. At three jumps a
+/// scout reports a number that may be off by most of what is there, which is what makes a long-range sighting a
+/// reading rather than a fact (GDD §4: "the player's advantage over the AI is interpretation, not information").
+inline constexpr std::uint32_t SIGHTING_NOISE_HUNDREDTHS_PER_JUMP = 30;
+
+/// What a courier costs in time, per jump, when a report has to travel to reach its reader (GDD §4: "orders travel").
+/// **This is NC-053's number, spent early.** Detection needs a delivery tick before couriers exist, and a report that
+/// arrived instantly from four jumps away would make the fog a formality; when NC-053 lands, its courier carries the
+/// report and this constant is what it should be measured against rather than a second opinion beside it.
+inline constexpr Neuron::Tick COURIER_TICKS_PER_JUMP = 45 * Neuron::TICKS_PER_MINUTE;
+
+/// How long a public event takes to become common knowledge (GDD §4: a marked raid is seen by everyone). NC-055 and
+/// NC-062 are what emit them; the delay is here so that the first of them does not invent one.
+inline constexpr Neuron::Tick NEWS_DELAY_TICKS = 6 * Neuron::TICKS_PER_HOUR;
 
 // --- GDD §6: how an empire decides who did it --------------------------------------------------------------------
 //
@@ -181,9 +208,199 @@ inline constexpr Neuron::Hundredths EVIDENCE_RIVAL_DENIAL_FOR_THE_RIVAL = Neuron
 inline constexpr Neuron::Hundredths EVIDENCE_RIVAL_DENIAL_FOR_OTHERS = Neuron::Hundredths::FromRaw(5);
 inline constexpr Neuron::Hundredths EVIDENCE_EXPOSED_FALSE_DENIAL = Neuron::Hundredths::FromRaw(20);
 
+/// **The §6 table again, as a table** (NC-052). One entry per `EvidenceKind`, in the enumerator's own order, each
+/// entry being one of the named constants above and never a second copy of a number. `Inference` indexes this and
+/// holds no weight of its own, which is what R20 asks for: a literal in a resolver is a magic number twice over.
+///
+/// The two denial rows are the §6 line "A rival's denial: −0.10 for the rival, 0.05 for others" split into the two
+/// enumerators it really is, because one row that means two different numbers depending on who is reading it is not
+/// a row a table can hold.
+inline constexpr Neuron::Hundredths EVIDENCE_WEIGHT[EVIDENCE_KIND_COUNT] = {EVIDENCE_DETECTED_WITHIN_TWO_JUMPS,
+                                                                            EVIDENCE_HULL_CLASSES_MATCH,
+                                                                            EVIDENCE_TESTIMONY_NAMES_SUSPECT,
+                                                                            EVIDENCE_ROUTE_CONFLICTS,
+                                                                            EVIDENCE_PRIOR_INCIDENT,
+                                                                            EVIDENCE_CAPTURED_ORDERS,
+                                                                            EVIDENCE_MARKED_GOODS_SOLD_NEARBY,
+                                                                            EVIDENCE_RIVAL_DENIAL_FOR_THE_RIVAL,
+                                                                            EVIDENCE_RIVAL_DENIAL_FOR_OTHERS,
+                                                                            EVIDENCE_EXPOSED_FALSE_DENIAL};
+
+/// "Detected **within two jumps** at the time" (GDD §6). Both halves of that phrase are levers: how near counts, and
+/// how wide "at the time" is. The window is a day because an incident is a thing a scout notices on its rounds, not
+/// a thing anybody times to the minute.
+inline constexpr std::uint32_t EVIDENCE_WITHIN_JUMPS = 2;
+inline constexpr Neuron::Tick EVIDENCE_WINDOW_TICKS = Neuron::TICKS_PER_DAY;
+
+/// "Decays with distance" (GDD §6). The weight is scaled by one minus this per jump, floored at zero: a sighting in
+/// the same system is worth the full weight, and each jump takes a fixed share of it.
+inline constexpr Neuron::Hundredths DISTANCE_DECAY_HUNDREDTHS_PER_JUMP = Neuron::Hundredths::FromRaw(30);
+
+/// How far from an incident a sighting has to put a suspect before it is an **alibi** rather than merely no evidence
+/// (GDD §6's "route conflicts with the timing", −0.30). Beyond the detection radius by a clear margin, so that the
+/// two rules cannot both fire on one sighting.
+inline constexpr std::uint32_t EVIDENCE_ALIBI_JUMPS = 4;
+
+/// "And a region-wide discretion penalty" (GDD §6, the exposed false denial row). **Region-wide is the point**: an
+/// exposed lie costs a company its standing with every leader who hears of it, not only with the one it lied to.
+/// NC-054 spends it.
+inline constexpr Neuron::Hundredths DISCRETION_PENALTY = Neuron::Hundredths::FromRaw(20);
+
+/// **What a settlement buys** (GDD §6: "Pay: a settlement that lowers the empire's opinion damage but leaves the
+/// belief untouched"). Paid per band rather than per credit, so the answer is a decision about how much to offer
+/// rather than an arithmetic exercise, and capped so money cannot buy a whole relationship.
+inline constexpr Credits SETTLEMENT_CREDIT_BAND = 500;
+inline constexpr Neuron::Hundredths SETTLEMENT_OPINION_HUNDREDTHS = Neuron::Hundredths::FromRaw(5);
+inline constexpr Neuron::Hundredths SETTLEMENT_OPINION_CAP = Neuron::Hundredths::FromRaw(25);
+
+/// GDD §3's six-hour wreck analysis: how long a scout must sit on an incident's site before it has something to
+/// submit. The §3 timeline spends it between 3:00 and 9:00, which is what makes the answer a decision with a clock
+/// on it rather than a button.
+inline constexpr Neuron::Tick WRECK_ANALYSIS_TICKS = 6 * Neuron::TICKS_PER_HOUR;
+
 /// "Below forty percent, an empire suspects and says nothing. From forty, it accuses. From seventy, it acts."
 inline constexpr Neuron::Hundredths ACCUSE_THRESHOLD = Neuron::Hundredths::FromRaw(40);
 inline constexpr Neuron::Hundredths ACT_THRESHOLD = Neuron::Hundredths::FromRaw(70);
+
+// --- GDD §6: ambiguity is generated, not scripted -----------------------------------------------------------------
+//
+// "Empires raid each other's convoys unmarked when at war and, at a lower rate, under a truce against an empire they
+// hold a grudge against, using the same shared hulls the player uses." Every number here is a lever, because §6 ends
+// with a measured requirement and a instruction about these very values: "The v0.1 sandbox is required to produce at
+// least one unscripted misattribution per ten hours of play; **if it doesn't, the rates are too low.**"
+
+/// The chance per empire per day of putting an unmarked raider on somebody's convoy, in hundredths.
+inline constexpr std::uint32_t COVERT_RAID_CHANCE_PER_DAY_WAR = 12;
+inline constexpr std::uint32_t COVERT_RAID_CHANCE_PER_DAY_TRUCE_WITH_GRUDGE = 3;
+
+/// How much of a grudge it takes before a truce stops meaning anything (GDD §6's "at a lower rate, under a truce
+/// against an empire they hold a grudge against").
+inline constexpr Neuron::Hundredths GRUDGE_COVERT_THRESHOLD = Neuron::Hundredths::FromRaw(40);
+
+/// How many raiders go. **Shared hulls are the point** (GDD §5): these are the same class a company buys from the
+/// same yards, which is what makes §6's hull-class row weak by design and misattribution possible at all.
+inline constexpr std::uint32_t COVERT_RAID_HULLS = 3;
+
+/// How many haulers a raid takes off a convoy, and how much of its cargo goes with them.
+inline constexpr std::uint32_t COVERT_RAID_HAULERS_DESTROYED = 2;
+
+/// **The loot trail** (GDD §5: "Loot is evidence"). Marked goods sold this near the place they were taken, this soon
+/// after, are a report to the empire whose marks they carry. Far enough away or long enough after, nobody connects
+/// them -- which is what makes fencing a decision about distance and time rather than a switch.
+inline constexpr std::uint32_t LOOT_TRAIL_JUMPS = 3;
+inline constexpr Neuron::Tick LOOT_TRAIL_TICKS = 10 * Neuron::TICKS_PER_DAY;
+
+/// What an intermediary takes for selling something nobody should be able to trace, in hundredths of the price. GDD
+/// §5: fencing "costs a cut and buys distance".
+inline constexpr Neuron::Hundredths FENCE_CUT_HUNDREDTHS = Neuron::Hundredths::FromRaw(35);
+
+// --- GDD §8 and §4: contracts, and what an employer pays for what it can attribute -----------------------------
+//
+// "Contracts are offers, not quests. Offers are generated from empire goals and dry up when the goal is met" (§8),
+// and "an employer pays for what it can attribute" (§4). Every number below is open and answered by play.
+
+/// What each kind is worth before the marked premium, indexed by `ContractKind`. GDD §3's worked offer is the anchor
+/// for the raid: "9,000 credits on completion, payable on their own observation of the result". An escort is worth
+/// less because the risk is lower and the employer's own escort is already there; the floor's work is a day's pay for
+/// a crew with no fleet and is set against `MOTHERSHIP_STANDING_INCOME_CREDITS_PER_DAY`, which it replaces.
+inline constexpr Credits CONTRACT_PAY_BASE[3] = {5000, 9000, 80};
+
+/// **What flying marked is worth** (GDD §4: "flying marked is a real choice: full pay, safe passage under the
+/// employer's flag during the contract, and open enmity with the victim"). A premium on the price, because the
+/// employer is buying a result it can point at.
+inline constexpr Neuron::Hundredths CONTRACT_MARKED_PREMIUM_HUNDREDTHS = Neuron::Hundredths::FromRaw(20);
+
+/// **GDD §4's two-part payment for an unmarked raid**: "the employer pays a reduced sum when its own reports confirm
+/// the result, and the rest only if it can later attribute the raid to the player privately." This is the first
+/// part; the remainder waits on the employer's own belief crossing `ACCUSE_THRESHOLD` against the company, which is
+/// the same §6 arithmetic that would accuse them of it. **Deniability therefore has a price**, and this number is it.
+inline constexpr Neuron::Hundredths UNMARKED_PAY_ON_EVIDENCE_HUNDREDTHS = Neuron::Hundredths::FromRaw(60);
+
+/// How long the employer keeps the second part on the table before writing the job off as unattributable. Long
+/// enough for a courier to bring a sighting in and for the daily inference pass to run several times.
+inline constexpr Neuron::Tick UNMARKED_ATTRIBUTION_WINDOW_TICKS = 14 * Neuron::TICKS_PER_DAY;
+
+/// "An offer lasts at least one full day, so a player who checks in daily never misses one" (GDD §7). The floor is a
+/// day exactly; the lifetime is longer so the day is a floor rather than a coincidence, and `Contracts.cpp`
+/// static-asserts the relation rather than trusting the two numbers to stay in order.
+inline constexpr Neuron::Tick CONTRACT_OFFER_LIFETIME_TICKS = 2 * Neuron::TICKS_PER_DAY;
+
+/// How long after the offer is made the work itself is due. GDD §3's offer has a "deadline in two days" and expires
+/// later than it is read, so the deadline is measured from the offer and not from acceptance.
+inline constexpr Neuron::Tick CONTRACT_DEADLINE_TICKS = 4 * Neuron::TICKS_PER_DAY;
+
+/// The chance per empire per day that an unsatisfied goal produces an offer at all. Not every want becomes a job on
+/// the day it is wanted, and a board with three new offers every morning is a board nobody reads (GDD §3).
+inline constexpr std::uint32_t CONTRACT_OFFER_CHANCE_PER_DAY = 25;
+
+/// **"Refusal is not free"** (GDD §6). "Declining an employer's offer during its war lowers its opinion a little;
+/// declining repeatedly lowers it a lot." The step is the little; each consecutive refusal adds another step, up to
+/// the cap, which is the a lot. A refusal outside the employer's war costs nothing, which is what makes neutrality
+/// have a price only "when both sides are asking".
+inline constexpr Neuron::Hundredths REFUSAL_OPINION_HUNDREDTHS = Neuron::Hundredths::FromRaw(4);
+inline constexpr std::uint32_t REFUSAL_COMPOUNDING_CAP = 5;
+
+/// What a kept contract is worth to the leader who offered it (GDD §8's "reliable").
+inline constexpr Neuron::Hundredths CONTRACT_KEPT_OPINION_HUNDREDTHS = Neuron::Hundredths::FromRaw(6);
+
+/// What a betrayal costs (GDD §8: "Betraying an employer, by selling the cargo you were hired to escort, is
+/// deniable raiding applied to employers"). It costs this much only when the employer works it out; until then it is
+/// deniable, which is the whole of what the word is doing in that sentence.
+inline constexpr Neuron::Hundredths CONTRACT_BETRAYAL_OPINION_HUNDREDTHS = Neuron::Hundredths::FromRaw(30);
+
+/// **GDD §9's release valve.** "A greedy leader offers to a suspected company anyway": the share of leaders, in
+/// hundredths, who will hire somebody they believe raided them, because a world where one accusation ends the game
+/// is a world where the §6 hook is a punishment rather than a situation.
+inline constexpr Neuron::Hundredths LEADER_GREED_HUNDREDTHS = Neuron::Hundredths::FromRaw(30);
+
+/// How many days of the floor's work one `MothershipWork` contract is (GDD §5). Short, because the point of the
+/// floor is that there is always another one.
+inline constexpr std::uint32_t FLOOR_WORK_DAYS = 3;
+
+// --- GDD §9 and §11: memory, and what an empire makes of a company -----------------------------------------------
+
+/// **The steps an empire's threat assessment moves through**, as the consequence each one carries. A step and not a
+/// number, because everything the design hangs off this is discrete and a player has to be able to be told which one
+/// they are on (GDD §9, §11).
+///
+/// `Hunted` is **declared and inert in v0.1**: GDD §15 puts the hunt in the full game, and a step nothing can reach
+/// is better than a threshold invented later by whichever task first needs one (R23).
+enum class ThreatStep : std::uint8_t
+{
+  Ignored,
+  Watched,
+  Surcharged,
+  Revoked,
+  Hunted
+};
+
+inline constexpr std::uint32_t THREAT_STEP_COUNT = 5;
+
+/// The highest step v0.1 may reach. NC-052's action takes a company to `Revoked`; nothing takes it past.
+inline constexpr std::uint32_t THREAT_STEP_MAX_IN_V0_1 = static_cast<std::uint32_t>(ThreatStep::Revoked);
+
+/// What each step costs the company, as hundredths added to what an empire's yards and fees ask. `Revoked` is not a
+/// price at all -- GDD §5 has a revoked empire selling nothing -- and is here so the table has one row per step.
+inline constexpr Neuron::Hundredths THREAT_SURCHARGE_HUNDREDTHS[THREAT_STEP_COUNT] = {
+  Neuron::HUNDREDTHS_ZERO, Neuron::HUNDREDTHS_ZERO, Neuron::Hundredths::FromRaw(40), Neuron::HUNDREDTHS_ZERO, Neuron::HUNDREDTHS_ZERO};
+
+/// **The overwrite rule** (GDD §9): "each completed contract for an empire, and each month without an incident it
+/// attributes to the player, moves its threat assessment down a step." This is the month.
+inline constexpr Neuron::Tick CLEAN_PERIOD_TICKS = 30 * Neuron::TICKS_PER_DAY;
+
+/// **How long an empire keeps working an unsolved incident** before it goes cold. GDD §6 does not name a horizon, and
+/// one is needed: a rule that re-weighed every incident every day forever would accumulate evidence rows without
+/// bound over Milestone 2's decades, and an empire still re-litigating a raid from four years ago is not what §9's
+/// "a month without an incident moves the assessment down" describes. A month, matching §9's own period.
+inline constexpr Neuron::Tick INCIDENT_OPEN_TICKS = CLEAN_PERIOD_TICKS;
+
+/// What a successor inherits of a predecessor's opinion (GDD §9: "successors inherit part of a predecessor's opinion
+/// and all of the record"). The record is all of it and is not a fraction, so it has no constant.
+inline constexpr Neuron::Hundredths INHERITANCE_HUNDREDTHS = Neuron::Hundredths::FromRaw(50);
+
+/// Where a character's regard starts before anything has happened. Neutral, and named so that "nobody has an opinion
+/// yet" is one number in one place rather than a zero somebody has to interpret.
+inline constexpr Neuron::Hundredths OPINION_NEUTRAL = Neuron::Hundredths::FromRaw(50);
 
 // --- GDD §10: the economy ------------------------------------------------------------------------------------------
 //

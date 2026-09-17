@@ -75,19 +75,25 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Player input | §3, §4 | `Input`, `InputKind` | `Input.h` | NC-042 |
 | The game's `Simulation` | — | `NomadSimulation` | `NomadSimulation.h` | NC-042 |
 | Wire schema the client may see (R18, ADR-018) | §4, §9 | `WireInput`, `WireEvent`, `WireExplanation`, `InputKind`, `EventKind`, `ReasonCode`, `WIRE_INDEX_NONE` | `WireInput.h`, `WireEvent.h`, `WireExplanation.h` | NC-042 onward |
-| Report: source, age, reliability | §4 | `Report`, `ReportSource`, `SourceRecord` | `Report.h` | NC-050 |
+| Report: source, age, reliability | §4 | `Report`, `ReportSource`, `SourceRecord`, `SightedFleet`, `Observer` | `Report.h` | NC-050 |
+| A report as the client is told it | §4 | `WireReport` | `WireReport.h` | NC-050 |
 | Sensor range and detection | §12 | `Sensor` | `Sensor.h` | NC-050 |
-| Incident (a raid or attack an empire suffered) | §6 | `Incident`, `IncidentId` | `Incident.h` | NC-051 |
-| Belief: one per empire about events | §6, §9 | `Belief`, `Suspicion` | `Belief.h` | NC-051 |
+| Incident (a raid or attack an empire suffered) | §6 | `Incident`, `IncidentId`, `IncidentKind` | `Incident.h` | NC-051 |
+| Belief: one per empire about events | §6, §9 | `Belief`, `Suspicion`, `BeliefStage` | `Belief.h` | NC-051 |
 | Opinion: one per character about a company | §8, §9 | `Opinion` | `Opinion.h` | NC-051 |
-| Institutional threat assessment and the overwrite rule | §9, §11 | `ThreatAssessment` | `ThreatAssessment.h` | NC-051 |
-| Evidence and its weight | §6 | `Evidence`, `EvidenceKind` | `Evidence.h` | NC-052 |
+| Institutional threat assessment and the overwrite rule | §9, §11 | `ThreatAssessment`, `Tuning::ThreatStep` | `ThreatAssessment.h` | NC-051 |
+| **Everything anybody knows, held beside reality** (R18, ADR-021) | §4, §9 | `Knowledge`, `ObserverRecord` | `Knowledge.h` | NC-051 |
+| The overwrite rule and successor inheritance | §8, §9 | `Memory` | `Memory.h` | NC-051 |
+| Evidence and its weight | §6 | `Evidence`, `EvidenceKind`, `Tuning::EVIDENCE_WEIGHT` | `Evidence.h` | NC-052 |
 | The inference rule and its thresholds | §6 | `Inference` | `Inference.h` | NC-052 |
-| Accusation and the answers to it | §6 | `Accusation`, `AccusationAnswer` | `Accusation.h` | NC-052, NC-054 |
-| Courier | §4, §9 | `Courier`, `CourierId`, `CourierPayload` | `Courier.h` | NC-053 |
+| Accusation and the answers to it | §6 | `Accusation`, `AccusationId`, `WireAccusation`, `AccusationAnswer`, `EvidenceOffer`, `Answers` | `Accusation.h`, `WireAccusation.h`, `Answers.h` | NC-052, NC-054 |
+| The six-hour wreck analysis | §3, §6 | `WreckAnalysis`, `WreckAnalysisId` | `WreckAnalysis.h` | NC-054 |
+| Courier | §4, §9 | `Courier`, `CourierId`, `CourierPayload`, `CourierState`, `Couriers` | `Courier.h`, `Couriers.h` | NC-053 |
 | Covert raid by an empire | §6 | `CovertRaid` | `CovertRaid.h` | NC-055 |
 | Marked goods, the loot trail, fencing | §5 | `CargoMark` | `Cargo.h` | NC-055 |
-| Contract, offer, payout by attribution | §4, §8 | `Contract`, `ContractKind`, `ContractOffer` | `Contract.h` | NC-056 |
+| Contract, offer, payout by attribution | §4, §8 | `Contract`, `ContractId`, `ContractKind`, `ContractState`, `ContractOffer`, `Contracts`, `WireContractOffer` | `Contract.h`, `Contracts.h`, `WireContract.h` | NC-056 |
+| The floor's work, as a contract | §5 | `ContractKind::MothershipWork` | `Contract.h` | NC-056 |
+| A covert raider, drawn from the pool for one raid | §5, §6 | `FleetRole::Raider` | `Fleet.h` | NC-055 |
 | Admiral traits and desperation | §8 | `AdmiralTraits`, `Desperation` | `Admiral.h` | NC-060 |
 | The eight templates | §8 | `BattleTemplate` | `BattleTemplate.h` | NC-060 |
 | Template selection from belief | §8 | `TemplateSelection`, `BelievedSituation` | `TemplateSelection.h` | NC-060 |

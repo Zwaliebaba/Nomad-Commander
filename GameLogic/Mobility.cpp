@@ -111,17 +111,22 @@ Neuron::Tick Mobility::TicksForLane(const Fleet& _fleet, const Lane& _lane) noex
 
 SystemId Mobility::LocationOf(const Fleet& _fleet) noexcept
 {
-  if (const auto* atSystem = std::get_if<AtSystem>(&_fleet.position))
+  return LocationOf(_fleet.position);
+}
+
+SystemId Mobility::LocationOf(const FleetPosition& _position) noexcept
+{
+  if (const auto* atSystem = std::get_if<AtSystem>(&_position))
   {
     return atSystem->system;
   }
-  if (const auto* drifting = std::get_if<Drifting>(&_fleet.position))
+  if (const auto* drifting = std::get_if<Drifting>(&_position))
   {
     return drifting->system;
   }
   // get_if rather than get throughout: std::get on a variant throws, and this is noexcept because every caller is on
   // a resolver path where there is nowhere for an exception to go.
-  const auto* inLane = std::get_if<InLane>(&_fleet.position);
+  const auto* inLane = std::get_if<InLane>(&_position);
   NOMAD_ASSERT(inLane != nullptr);
   return inLane != nullptr ? inLane->from : SystemId{};
 }
@@ -210,6 +215,12 @@ void Mobility::ApplyOrder(World& _world, const Input& _input, std::vector<Event>
   case InputKind::SetActiveWindow:
   case InputKind::Buy:
   case InputKind::Sell:
+  case InputKind::Fence:
+  case InputKind::SendCourier:
+  case InputKind::AnswerAccusation:
+  case InputKind::AnalyzeWreck:
+  case InputKind::AcceptOffer:
+  case InputKind::DeclineOffer:
     return;
 
   case InputKind::MoveFleet:

@@ -95,7 +95,7 @@ public:
   /// Advances one tick through the resolver, which is how movement actually runs.
   void Tick(std::span<const Nomad::Input> _inputs = {})
   {
-    Nomad::TickResolver::Advance(m_world, _inputs, m_events);
+    Nomad::TickResolver::Advance(m_world, m_knowledge, _inputs, m_events);
   }
 
   void TickTo(Neuron::Tick _tick, std::span<const Nomad::Input> _inputs = {})
@@ -138,6 +138,7 @@ private:
   }
 
   Nomad::World m_world;
+  Nomad::Knowledge m_knowledge;
   Nomad::CompanyId m_company;
   Nomad::EmpireId m_empire;
   std::vector<Nomad::Event> m_events;

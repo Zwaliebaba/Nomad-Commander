@@ -25,6 +25,16 @@ struct LaneTag;
 struct EventTag;
 struct MothballTag;
 struct RelationTag;
+struct ReportTag;
+struct IncidentTag;
+struct OpinionTag;
+struct ThreatTag;
+struct EvidenceTag;
+struct ObserverRecordTag;
+struct AccusationTag;
+struct CourierTag;
+struct WreckAnalysisTag;
+struct ContractTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -47,5 +57,38 @@ using MothballId = Neuron::Id<MothballTag>;
 
 /// Where one pair of empires stands (NC-047).
 using RelationId = Neuron::Id<RelationTag>;
+
+/// One thing somebody was told, with its source, its age and its reliability (GDD §4, NC-050). Everything the AI and
+/// the client ever reason from is one of these; reality is `World` and nothing outside `GameLogic` holds one.
+using ReportId = Neuron::Id<ReportTag>;
+
+/// A raid or an attack an empire suffered (GDD §6, NC-051). **Reality**, and the only place the culprit is written.
+using IncidentId = Neuron::Id<IncidentTag>;
+
+/// What one character thinks of one company (GDD §9), and how dangerous one empire finds one company (§11).
+using OpinionId = Neuron::Id<OpinionTag>;
+using ThreatId = Neuron::Id<ThreatTag>;
+
+/// One item of GDD §6's evidence table, with what it weighed (NC-052). Declared here because NC-051's `Suspicion`
+/// holds a list of them: a belief that could not say what it was built from would fail R19 on the first accusation.
+using EvidenceId = Neuron::Id<EvidenceTag>;
+
+/// What one observer has found out about its sources (GDD §4's track record, NC-050).
+using ObserverRecordId = Neuron::Id<ObserverRecordTag>;
+
+/// An empire saying out loud that it thinks somebody did something (GDD §6's forty, NC-052). NC-054 answers one.
+using AccusationId = Neuron::Id<AccusationTag>;
+
+/// An order or a message physically crossing the lanes (GDD §4, §9; NC-053). **Reality**: it has a position and it
+/// can be taken off somebody. What it carries is named by id, never held by value -- see `Courier.h`.
+using CourierId = Neuron::Id<CourierTag>;
+
+/// Six hours of a scout's time on an incident's site (GDD §3, NC-054). **Reality**: the scout is either there or it
+/// is not.
+using WreckAnalysisId = Neuron::Id<WreckAnalysisTag>;
+
+/// An offer an empire made and what became of it (GDD §8, NC-056). One id covers the offer and the contract because
+/// they are one row: an offer that was taken is a contract, and one that was not is still the thing the board showed.
+using ContractId = Neuron::Id<ContractTag>;
 
 } // namespace Nomad

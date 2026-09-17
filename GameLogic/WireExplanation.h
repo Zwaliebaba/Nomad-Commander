@@ -56,10 +56,38 @@ enum class ReasonCode : std::uint16_t
   TheTruceHeld,
   TheRegionWasTooQuiet,
   ACheaperWarWasAvailable,
-  ATreatyWasBroken
+  ATreatyWasBroken,
+  AnIncidentWasAttributed,
+  AMonthPassedWithNothingAttributed,
+  AContractWasCompleted,
+  ASuccessorTookOver,
+  TheEvidencePointsAtYou,
+  ACourierWasSent,
+  ACourierArrived,
+  ACourierWasTaken,
+  YouDeniedIt,
+  YouSubmittedEvidence,
+  YouSettled,
+  YouSaidNothing,
+  ADenialWasExposed,
+  AScoutIsReadingTheWreck,
+  TheWreckWasRead,
+  TheScoutDidNotStay,
+  SoldThroughAnIntermediary,
+  LootWasRecognised,
+  AGoalWantedSomethingDone,
+  YouTookTheJob,
+  YouTurnedItDown,
+  NobodyTookIt,
+  TheEmployerSawTheResult,
+  TheEmployerWorkedOutWhoDidIt,
+  TheDeadlinePassed,
+  TheEmployerCouldNotAttributeIt,
+  YouSoldWhatYouWereHiredToEscort,
+  TheCrewFoundWork
 };
 
-inline constexpr std::uint16_t REASON_CODE_COUNT = 35;
+inline constexpr std::uint16_t REASON_CODE_COUNT = 63;
 
 /// One item of evidence as the player reads it: what it is, and what it was worth (GDD §6's weights, as a fraction of
 /// a full attribution in integer hundredths).

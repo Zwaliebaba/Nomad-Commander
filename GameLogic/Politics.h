@@ -3,6 +3,7 @@
 
 #include "EmpireGoal.h"
 #include "Event.h"
+#include "Knowledge.h"
 #include "Relation.h"
 #include "World.h"
 
@@ -36,6 +37,17 @@ struct BelievedSituation
 
   /// Its grudge against each empire, as it holds it. Its own feeling, not a fact about the world.
   std::vector<Neuron::Hundredths> grudgeByEmpire;
+
+  /// **What its own reports say it has seen of somebody else's hulls** (NC-050), counted only from reports that have
+  /// actually been delivered. This is the first field here that is not simply something the empire owns, and it is
+  /// the one that makes the type mean what R18 says: the number is what its observers wrote down -- spread by
+  /// distance, possibly wrong, and never corrected against the world. An empire that has looked at nothing believes
+  /// nothing is there.
+  std::uint32_t sightedForeignHulls;
+
+  /// How many delivered reports that figure was built from, so a routine can tell "nobody is out there" from "nobody
+  /// has looked" (NC-060 will care; today it is what the test asserts against).
+  std::uint32_t reportsRead;
 };
 
 /// Empires that want things for years and fight about them (GDD §8).
@@ -50,10 +62,14 @@ public:
 
   /// The daily phase: goals conflict into wars, losses and quiet move grudges, wars exhaust into truces, truces
   /// expire back into wars, strained empires swap a costly war for a cheaper one, and **the region is never quiet**.
-  static void ResolveDaily(World& _world, std::vector<Event>& _outEvents);
+  static void ResolveDaily(World& _world, const Knowledge& _knowledge, std::vector<Event>& _outEvents);
 
   /// What an empire believes it is looking at. The only input a decision routine gets.
-  [[nodiscard]] static BelievedSituation Believe(const World& _world, EmpireId _empire);
+  ///
+  /// It takes both halves because an empire genuinely knows its own holdings, its own hulls and its own grudges --
+  /// that is `World` -- and knows about everybody else only what it was told, which is `Knowledge`. The `const` on
+  /// the second is not decoration: believing is reading.
+  [[nodiscard]] static BelievedSituation Believe(const World& _world, const Knowledge& _knowledge, EmpireId _empire);
 
   /// Whom this empire would rather fight, given only what it believes. **Takes no `World`** (R18).
   [[nodiscard]] static EmpireId ChooseAnEnemy(const BelievedSituation& _situation);
@@ -64,6 +80,10 @@ public:
 
   /// Whether any pair is at war. GDD §7: "A three-empire world at peace is a bug."
   [[nodiscard]] static bool AnyWarActive(const World& _world);
+
+  /// Whether this one is at war with anybody. GDD §6 prices a refusal only "during its war", which is a fact about
+  /// the employer and not about the region (NC-056).
+  [[nodiscard]] static bool IsAtWar(const World& _world, EmpireId _empire);
 
   /// How large an escort a convoy of this empire's should carry, which follows the war state (NC-045 reads it).
   [[nodiscard]] static std::uint32_t EscortStrengthFor(const World& _world, EmpireId _empire);

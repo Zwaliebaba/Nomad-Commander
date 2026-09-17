@@ -66,7 +66,7 @@ public:
     const Neuron::Tick until = m_world.CurrentTick() + _days * Neuron::TICKS_PER_DAY;
     while (m_world.CurrentTick() < until)
     {
-      Nomad::TickResolver::Advance(m_world, {}, m_events);
+      Nomad::TickResolver::Advance(m_world, m_knowledge, {}, m_events);
     }
   }
 
@@ -105,6 +105,7 @@ public:
 
 private:
   Nomad::World m_world;
+  Nomad::Knowledge m_knowledge;
   Nomad::CompanyId m_company;
   std::vector<Nomad::Event> m_events;
 };

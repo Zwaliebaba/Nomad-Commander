@@ -117,6 +117,21 @@ IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # R11: the losing half of each spelling family, matched inside identifiers, case-insensitively.
 BANNED_SPELLINGS = ("colour", "initialise", "serialise", "normalise", "quantise", "synchronise", "behaviour",
                     "neighbour", "centre", "grey", "cancelled")
+
+# Identifiers the Windows headers have already taken, as OBJECT-LIKE MACROS that expand to nothing or to another
+# keyword. `NeuronCore.h` includes <windows.h> (AGENTS.md §4), so every one of these is live in most of the tree, and
+# a local or a field with one of these names does not fail to compile -- it VANISHES, and the error lands a line or
+# two later on something innocent.
+#
+# This exists because it happened: NC-050 named a local `far`, which minwindef.h defines as nothing, so
+# `far = candidate;` became ` = candidate;` and MSVC reported a syntax error on the `=`. Clang on Linux has no
+# windef.h at all, so no amount of local checking could have seen it -- which is exactly why it belongs in a checker
+# rather than in a reviewer's memory.
+#
+# `far`, `near`, `pascal` and `cdecl` are the 16-bit memory-model leftovers; `IN`, `OUT` and `OPTIONAL` are SAL's
+# older empty markers; `interface` is `struct` from combaseapi.h. `min` and `max` are absent on purpose: NOMINMAX is
+# set in NeuronCore.h, so they are not defined and a `Min`/`Max` helper is fine.
+WINDOWS_MACRO_NAMES = ("far", "near", "pascal", "cdecl", "interface", "IN", "OUT", "OPTIONAL")
 QUOTED_INCLUDE = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
 
 
@@ -479,13 +494,19 @@ def check_r2_and_r11(project, findings):
         findings.add("R2", location, f"type {name!r} carries a prefix or affix; name the concept (R2)",
                      line_of(text, offset))
     for match in IDENTIFIER.finditer(text):
-      lowered = match.group(0).lower()
+      name = match.group(0)
+      lowered = name.lower()
       for spelling in BANNED_SPELLINGS:
         if spelling in lowered:
           findings.add("R11", location,
-                       f"identifier {match.group(0)!r} spells {spelling!r}; the SDK's spelling wins (R11)",
+                       f"identifier {name!r} spells {spelling!r}; the SDK's spelling wins (R11)",
                        line_of(text, match.start()))
           break
+      if name in WINDOWS_MACRO_NAMES:
+        findings.add("windows-macro", location,
+                     f"identifier {name!r} is an object-like macro in the Windows headers; it expands to nothing and "
+                     f"the compiler reports the error somewhere else. Rename it",
+                     line_of(text, match.start()))
 
 
 def resolve_include(project, including_file, include, projects_by_name):

@@ -44,10 +44,32 @@ enum class EventKind : std::uint8_t
   WarDeclared,
   TruceAgreed,
   PeaceSettled,
-  GoalSatisfied
+  GoalSatisfied,
+  ThreatStepChanged,
+  OpinionInherited,
+  AccusationIssued,
+  ClaimRevoked,
+  CourierSent,
+  CourierArrived,
+  CourierCaptured,
+  AccusationAnswered,
+  DenialExposed,
+  WreckAnalysisBegan,
+  WreckAnalysisFinished,
+  WreckAnalysisAbandoned,
+  ConvoyRaided,
+  MarkedGoodsSoldNearby,
+  GoodsFenced,
+  ContractOffered,
+  ContractAccepted,
+  ContractDeclined,
+  ContractExpired,
+  ContractPaid,
+  ContractFailed,
+  ContractBetrayed
 };
 
-inline constexpr std::uint8_t EVENT_KIND_COUNT = 28;
+inline constexpr std::uint8_t EVENT_KIND_COUNT = 50;
 
 /// One consequence, as the client is told it (ADR-018).
 ///

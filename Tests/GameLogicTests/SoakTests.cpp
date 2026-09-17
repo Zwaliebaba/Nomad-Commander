@@ -33,17 +33,17 @@ constexpr std::uint64_t SOAK_SEED = 0x50A4;
 constexpr std::uint32_t SOAK_SYSTEMS = 10;
 constexpr std::uint32_t SOAK_EMPIRES = 3;
 
-/// **What a map may be short of, and why this seed.** Every generated map runs a per-good deficit -- see
-/// `OneYearStocksStayBounded` for the arithmetic and NC-049 for the fix. Nine in ten maps are short one unit a day of
-/// three goods, which a year absorbs; the other one in ten is short five units a day of one good, which it does not.
-/// `SOAK_SEED` is one of the first kind, and picking it was a choice rather than a default: a soak that ran on a map
-/// whose economy is collapsing would be measuring the collapse.
-constexpr std::uint32_t MAX_DRY_DAYS = 14;
+/// **How long a market may be empty before a shortage is a sink.** A day or two dry is a situation the world
+/// produced; a week is a system nothing is feeding. NC-049 measured **zero** dry market-days across 48 maps over two
+/// simulated years and 8 maps over five, at both v0.1's shape and Milestone 2's, so this is not a budget being spent
+/// -- it is a tripwire. Before NC-049 the same soak reached 6 dry days here in year one and 1,035 in year two, and
+/// this constant was 14 to accommodate it.
+constexpr std::uint32_t MAX_DRY_DAYS = 3;
 
-/// The map-wide stock may fall well below what it started with -- goods sit in convoys, a glut is clipped at the
-/// capacity, and the per-good deficit above drains a little every day -- but it may not collapse. Measured over this
-/// year: it bottoms out at 85 percent of the start.
-constexpr std::uint32_t STOCK_FLOOR_PERCENT_OF_START = 70;
+/// The map-wide stock may dip below what it started with -- goods sit in convoys while they fly, and a glut is
+/// clipped at the warehouse cap -- but it may not drain. Measured over this year since NC-049: it bottoms out at
+/// **96 percent** of the start, where before it reached 85 and kept going in later years.
+constexpr std::uint32_t STOCK_FLOOR_PERCENT_OF_START = 90;
 
 /// **The floor CI must clear, and it is deliberately an order of magnitude below the measurement.**
 ///
@@ -159,17 +159,14 @@ public:
     // GDD §10: a system "produces a fixed flow of the goods its role implies ... and consumes a fixed flow of the
     // others, **so stocks neither run away nor drain to zero**". Three readings of that, taken every day.
     //
-    // **The soak found that the third one holds for a year and not for two, on every map the generator makes.** The
-    // arithmetic, because it is short: every map is ten systems of which nine are owned and one is the harbour GDD
-    // §8's contraction left behind, and a harbour balances its own books (NC-045). An owned system eats
-    // CONSUMPTION_PER_DAY of each good and makes BASELINE_PRODUCTION_PER_DAY of each plus ROLE_PRODUCTION_BONUS_PER_DAY
-    // of the one its role implies, so the map's daily balance in good g is
-    //
-    //     9 * 5 + 4 * n(g) - 9 * 6  =  4 * n(g) - 9
-    //
-    // which is zero only at n(g) = 2.25. **There is no distribution of roles that balances a nine-system map per
-    // good**, and the second year is where the difference shows: 1,035 dry market-days against this year's 6. The
-    // fix is a decision about where the balancing term lives and it is **NC-049**, not this test.
+    // **This is the test that found the third one to be false, and NC-049 is what made it true** (ADR-019). What it
+    // caught first was a slow one: every generated map ran a permanent per-good deficit, because the tuning constants
+    // balance a system's *total* production against its total consumption and nothing balanced each good. What it
+    // caught second, and had wrongly blamed on the first, was the larger one: the convoy planner took the first
+    // surplus and the first deficit it found where its own header promised the *deepest* of each, so a warehouse
+    // could stand at its cap destroying its production every day while a system two jumps away was dry for two
+    // simulated years beside it. NC-049's report carries both measurements. The numbers this test now holds are
+    // tripwires rather than budgets: the measured answer on every map tried is zero dry days.
     Nomad::NomadSimulation simulation{SOAK_SEED};
     Generate(simulation);
 

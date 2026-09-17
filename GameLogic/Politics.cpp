@@ -2,6 +2,8 @@
 #include "pch.h"
 #include "Politics.h"
 
+#include "Report.h"
+
 #include "Tuning.h"
 
 #include "IntegerMath.h"
@@ -107,6 +109,18 @@ bool Politics::AnyWarActive(const World& _world)
   return false;
 }
 
+bool Politics::IsAtWar(const World& _world, EmpireId _empire)
+{
+  for (const Relation& relation : _world.Relations().Rows())
+  {
+    if (relation.state == RelationState::War && (relation.first == _empire || relation.second == _empire))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::uint32_t Politics::EscortStrengthFor(const World& _world, EmpireId _empire)
 {
   for (const Relation& relation : _world.Relations().Rows())
@@ -119,7 +133,7 @@ std::uint32_t Politics::EscortStrengthFor(const World& _world, EmpireId _empire)
   return Tuning::CONVOY_ESCORT_WARSHIPS;
 }
 
-BelievedSituation Politics::Believe(const World& _world, EmpireId _empire)
+BelievedSituation Politics::Believe(const World& _world, const Knowledge& _knowledge, EmpireId _empire)
 {
   BelievedSituation situation{};
   situation.self = _empire;
@@ -159,6 +173,23 @@ BelievedSituation Politics::Believe(const World& _world, EmpireId _empire)
       ++situation.warsFought;
     }
   }
+
+  // **And what it has been told**, which is the only way anything about anybody else reaches this type (NC-050,
+  // R18). Delivered reports only: one in a courier's hold has reached nobody, and an empire cannot act on it.
+  //
+  // The counts added up here are the ones its observers wrote down -- spread by distance and never checked against
+  // the world -- so two empires looking at one fleet believe different things about it, which is the point.
+  const Neuron::Tick now = _world.CurrentTick();
+  for (const Report& report : _knowledge.Reports().Rows())
+  {
+    const auto* observer = std::get_if<EmpireId>(&report.observer);
+    if (observer == nullptr || *observer != _empire || !IsDelivered(report, now))
+    {
+      continue;
+    }
+    ++situation.reportsRead;
+    situation.sightedForeignHulls += report.sighting.countsSeen.Total();
+  }
   return situation;
 }
 
@@ -197,6 +228,22 @@ void Politics::Seed(World& _world)
   {
     const auto empireId = EmpireId::FromIndex(index);
     Empire& empire = _world.Empires().Get(empireId);
+
+    // **The leader the goals belong to.** GDD §8 states them as one thing -- "Each leader pursues a small set of
+    // persistent goals" -- and the goals below were seeded here without one, which left `Empire::leader` invalid in
+    // every generated world. Nothing needed a leader until contracts did: an offer is made by a person, a refusal
+    // lowers that person's opinion, and §9's release valve is a *greedy leader* hiring somebody they suspect
+    // (NC-056). An empire with no leader has none of that, so the person is seeded beside the wants.
+    if (!empire.leader.IsValid())
+    {
+      Character leader{};
+      leader.name = empire.name + " leadership";
+      leader.role = CharacterRole::Leader;
+      leader.allegiance.empire = empireId;
+      leader.commandCapacity = 0;
+      leader.alive = true;
+      empire.leader = _world.Characters().Add(leader);
+    }
 
     EmpireGoal hold{};
     hold.kind = GoalKind::HoldSystem;
@@ -248,7 +295,7 @@ void Politics::Seed(World& _world)
   }
 }
 
-void Politics::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
+void Politics::ResolveDaily(World& _world, const Knowledge& _knowledge, std::vector<Event>& _outEvents)
 {
   const Neuron::Tick now = _world.CurrentTick();
 
@@ -429,7 +476,7 @@ void Politics::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
   for (std::uint32_t index = 0; index < _world.Empires().Count(); ++index)
   {
     const auto empireId = EmpireId::FromIndex(index);
-    const BelievedSituation situation = Believe(_world, empireId);
+    const BelievedSituation situation = Believe(_world, _knowledge, empireId);
     if (situation.warsFought < Tuning::INSTABILITY_WAR_COUNT)
     {
       continue;

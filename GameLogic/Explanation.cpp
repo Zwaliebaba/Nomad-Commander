@@ -83,6 +83,62 @@ namespace
     return "an empire traded a costly war for one it would rather fight";
   case ReasonCode::ATreatyWasBroken:
     return "an empire broke its truce, and the region will remember";
+  case ReasonCode::AnIncidentWasAttributed:
+    return "an incident was laid at your door";
+  case ReasonCode::AMonthPassedWithNothingAttributed:
+    return "a month passed with nothing laid at your door";
+  case ReasonCode::AContractWasCompleted:
+    return "you finished what you were hired to do";
+  case ReasonCode::ASuccessorTookOver:
+    return "a successor took over, and inherited what was on file";
+  case ReasonCode::TheEvidencePointsAtYou:
+    return "you raided them";
+  case ReasonCode::ACourierWasSent:
+    return "orders went out by courier";
+  case ReasonCode::ACourierArrived:
+    return "a courier reached its destination";
+  case ReasonCode::ACourierWasTaken:
+    return "a courier was intercepted, and what it carried is in somebody else's hands";
+  case ReasonCode::YouDeniedIt:
+    return "you denied it";
+  case ReasonCode::YouSubmittedEvidence:
+    return "you sent them what you could prove";
+  case ReasonCode::YouSettled:
+    return "you paid rather than argue";
+  case ReasonCode::YouSaidNothing:
+    return "you let the accusation stand";
+  case ReasonCode::ADenialWasExposed:
+    return "your denial was exposed, and the region heard about it";
+  case ReasonCode::AScoutIsReadingTheWreck:
+    return "a scout is reading the wreck";
+  case ReasonCode::TheWreckWasRead:
+    return "the wreck says what actually did the damage";
+  case ReasonCode::TheScoutDidNotStay:
+    return "the scout left before it had finished reading";
+  case ReasonCode::SoldThroughAnIntermediary:
+    return "you sold it through somebody who does not ask questions";
+  case ReasonCode::LootWasRecognised:
+    return "goods carrying their marks were sold where somebody noticed";
+  case ReasonCode::AGoalWantedSomethingDone:
+    return "an empire wants something done and is willing to pay for it";
+  case ReasonCode::YouTookTheJob:
+    return "you took the job";
+  case ReasonCode::YouTurnedItDown:
+    return "you turned the job down";
+  case ReasonCode::NobodyTookIt:
+    return "the offer stood until it expired";
+  case ReasonCode::TheEmployerSawTheResult:
+    return "the employer's own reports confirm the result";
+  case ReasonCode::TheEmployerWorkedOutWhoDidIt:
+    return "the employer worked out privately that it was you";
+  case ReasonCode::TheDeadlinePassed:
+    return "the deadline passed with the work undone";
+  case ReasonCode::TheEmployerCouldNotAttributeIt:
+    return "the employer never worked out who did it";
+  case ReasonCode::YouSoldWhatYouWereHiredToEscort:
+    return "you sold the cargo you were hired to escort";
+  case ReasonCode::TheCrewFoundWork:
+    return "the crew found work that needs no fleet";
   }
   return "something happened that nobody recorded a reason for";
 }

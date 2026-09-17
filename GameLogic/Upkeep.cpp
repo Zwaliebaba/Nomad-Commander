@@ -55,30 +55,6 @@ namespace
   return found;
 }
 
-/// Whether the system a company's mothership sits in tolerates it. A system nobody owns always does -- that is what a
-/// harbour is (GDD §8) -- and an empire that has revoked the company does not.
-[[nodiscard]] bool ToleratedAt(const World& _world, CompanyId _company, SystemId _system)
-{
-  if (!_world.Systems().Holds(_system))
-  {
-    return false;
-  }
-  const EmpireId owner = _world.Systems().Get(_system).owner;
-  if (!owner.IsValid())
-  {
-    return true;
-  }
-  const Empire& empire = _world.Empires().Get(owner);
-  for (const CompanyId revoked : empire.revokedCompanies)
-  {
-    if (revoked == _company)
-    {
-      return false;
-    }
-  }
-  return true;
-}
-
 } // namespace
 
 bool Upkeep::HasNoFleet(const World& _world, CompanyId _company)
@@ -185,17 +161,11 @@ void Upkeep::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
       continue;
     }
 
-    // The floor's standing income: "a small standing income from what its crew can do without a fleet: survey work,
-    // courier runs and information sales, which are the contracts an empire will give a fleetless nomad" (GDD §5).
-    // It is paid only while there is no fleet, and only where the company is welcome.
-    if (IsOnTheFloor(_world, companyId) && ToleratedAt(_world, companyId, company.mothership.location))
-    {
-      company.treasury += Tuning::MOTHERSHIP_STANDING_INCOME_CREDITS_PER_DAY;
-      EventSubjects subjects{};
-      subjects.company = companyId;
-      subjects.system = company.mothership.location;
-      _outEvents.emplace_back(now, EventKind::FloorIncomePaid, subjects, Because(ReasonCode::MothershipWork));
-    }
+    // **The floor's standing income is a contract now** (NC-056). GDD §5 already called it one -- "survey work,
+    // courier runs and information sales, which are the contracts an empire will give a fleetless nomad" -- and this
+    // was the flat daily credit standing in for it until there was a contract type to carry it. `Contracts` issues
+    // it, on the same terms this did: only to a company with no fleet, and only where it is welcome. Two rules for
+    // one payment would be two numbers to keep in step, so there is one.
 
     const Credits burn = DailyBurn(_world, companyId);
     company.treasury -= burn;

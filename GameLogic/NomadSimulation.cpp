@@ -84,6 +84,52 @@ namespace
     break;
   }
 
+  case InputKind::Fence:
+    if (!ownsTheFleet || _wire.units == 0 || _wire.goodIndex >= GOOD_COUNT)
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::AnswerAccusation:
+    // The accusation is resolved against `Knowledge` rather than `World`, which this seam cannot see, so what it can
+    // check is the shape: an answer the schema knows, and a settlement that is not negative. `Answers` refuses an
+    // accusation index that names nothing, the same way it refuses one the company was never accused of.
+    if (_wire.answerKind == 0 || _wire.answerKind >= ACCUSATION_ANSWER_COUNT || _wire.settlement < 0)
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::AnalyzeWreck:
+    if (!ownsTheFleet || _wire.incidentIndex == WIRE_INDEX_NONE)
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::AcceptOffer:
+  case InputKind::DeclineOffer:
+    // The offer is a `World` row, so this seam can check it names one; whether it is still open is `Contracts`'
+    // question, because an offer that expired between the client sending this and the tick it applies at is a race
+    // the design expects (GDD §3's expiry times) rather than a malformed record.
+    if (_wire.contractIndex == WIRE_INDEX_NONE || _wire.contractIndex >= _world.Contracts().Count())
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::SendCourier:
+    // **Lighter than MoveFleet's check, on purpose.** A courier's order is validated against where the fleet will be
+    // when it lands, which nobody knows yet -- GDD §4 puts the delay there precisely so an order can be overtaken by
+    // events. So this refuses only what can never be right (somebody else's fleet, a lane that does not exist, which
+    // the route loop above already did) and `Couriers` drops the order on arrival if the world has moved on.
+    if (!ownsTheFleet)
+    {
+      return false;
+    }
+    break;
+
   case InputKind::EmergencyJump:
     // The one order that may be given with too little fuel: it still has to be one lane the fleet is standing on.
     if (!ownsTheFleet || route.size() != 1 || !Mobility::CanBeOrdered(_world, _world.Fleets().Get(fleet)) ||
@@ -215,6 +261,19 @@ void WriteInput(Neuron::ByteWriter& _writer, const Input& _input)
   _outInput.engage = wire.engage;
   _outInput.good = wire.goodIndex < GOOD_COUNT ? static_cast<Good>(wire.goodIndex) : Good::Fuel;
   _outInput.units = wire.units;
+  _outInput.accusation = wire.accusationIndex == WIRE_INDEX_NONE ? AccusationId{} : AccusationId::FromIndex(wire.accusationIndex);
+  _outInput.incident = wire.incidentIndex == WIRE_INDEX_NONE ? IncidentId{} : IncidentId::FromIndex(wire.incidentIndex);
+  _outInput.answer =
+    wire.answerKind < ACCUSATION_ANSWER_COUNT ? static_cast<AccusationAnswer>(wire.answerKind) : AccusationAnswer::Unanswered;
+  _outInput.settlement = wire.settlement;
+  _outInput.offered.clear();
+  _outInput.offered.reserve(wire.evidenceOffers.size());
+  for (const std::uint8_t offer : wire.evidenceOffers)
+  {
+    _outInput.offered.push_back(static_cast<EvidenceOffer>(offer));
+  }
+  _outInput.contract = wire.contractIndex == WIRE_INDEX_NONE ? ContractId{} : ContractId::FromIndex(wire.contractIndex);
+  _outInput.flyMarked = wire.flyMarked;
   return true;
 }
 
@@ -227,7 +286,7 @@ NomadSimulation::NomadSimulation(std::uint64_t _seed)
 
 void NomadSimulation::Advance()
 {
-  TickResolver::Advance(m_world, PendingInputs(), m_events, m_log);
+  TickResolver::Advance(m_world, m_knowledge, PendingInputs(), m_events, m_log);
 }
 
 Neuron::Tick NomadSimulation::CurrentTick() const
@@ -273,6 +332,10 @@ void NomadSimulation::WriteState(Neuron::ByteWriter& _writer) const
 {
   m_world.Serialize(_writer);
 
+  // Belief after reality, with its own schema version: the two halves change for different reasons and a store that
+  // carried one number for both would refuse a save every time either moved (`Knowledge.h`).
+  m_knowledge.Serialize(_writer);
+
   // The journal goes with the world. ADR-014 makes a store a seed and the inputs, replayed; a snapshot taken mid-run
   // still has to carry the inputs whose tick has not come, or the run continues into a different future.
   _writer.Write(static_cast<std::uint32_t>(m_inputs.size()));
@@ -285,7 +348,8 @@ void NomadSimulation::WriteState(Neuron::ByteWriter& _writer) const
 bool NomadSimulation::ReadState(Neuron::ByteReader& _reader)
 {
   World loaded{0};
-  if (!loaded.Deserialize(_reader))
+  Knowledge loadedKnowledge;
+  if (!loaded.Deserialize(_reader) || !loadedKnowledge.Deserialize(_reader))
   {
     return false;
   }
@@ -309,6 +373,7 @@ bool NomadSimulation::ReadState(Neuron::ByteReader& _reader)
   // Nothing is moved into place until every part has been read, so a truncated state leaves the simulation as it was
   // rather than half replaced.
   m_world = std::move(loaded);
+  m_knowledge = std::move(loadedKnowledge);
   m_inputs = std::move(inputs);
   m_events.clear();
   return true;

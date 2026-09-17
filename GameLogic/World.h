@@ -3,8 +3,10 @@
 
 #include "Character.h"
 #include "Company.h"
+#include "Courier.h"
 #include "Empire.h"
 #include "Fleet.h"
+#include "Incident.h"
 #include "Lane.h"
 #include "Market.h"
 #include "MothballedHull.h"
@@ -12,6 +14,8 @@
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
+#include "Contract.h"
+#include "WreckAnalysis.h"
 
 #include "Random.h"
 #include "Tick.h"
@@ -42,18 +46,26 @@ enum class RandomStream : std::uint64_t
   Economy,
   Empires,
   Inference,
-  Admirals
+  Admirals,
+  Contracts
 };
 
-inline constexpr std::uint32_t RANDOM_STREAM_COUNT = 8;
+inline constexpr std::uint32_t RANDOM_STREAM_COUNT = 9;
 
 /// Reality: the whole world state, and the only thing in this tree that holds the truth (`Plan/Glossary.md`).
 ///
 /// **What is not here is as fixed as what is.** No belief, no report, no opinion, no evidence and no confidence: those
-/// are NC-050's, NC-051's and NC-052's types, and they are held beside a World rather than inside one. R18 is why --
+/// are `Knowledge`'s (NC-050 to NC-052), and they are held beside a World rather than inside one. R18 is why --
 /// "an admiral plans against reports about the player's fleet, not against its true position and strength" -- and the
 /// way that rule is kept structural is that a decision routine takes belief and there is no path from belief to here.
 /// Nothing outside GameLogic holds a World at all.
+///
+/// **NC-050 broke that paragraph and NC-051 put it back.** Detection landed its `Reports` table here, which compiled,
+/// passed every test and quietly made the sentence above false. If a later task finds itself adding something anyone
+/// merely *believes* to this class, the answer is `Knowledge` and the reason is this note.
+///
+/// `Incident` is the case that looks like an exception and is not: an incident **happened**, and `Incident::culprit`
+/// is ground truth. What an empire makes of it is a `Suspicion`, and that is in `Knowledge`.
 ///
 /// **No presentation either**, with one named exception: Empire::colorSlot, which the simulation never reads.
 ///
@@ -64,7 +76,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 6;
+  static constexpr std::uint16_t SCHEMA_VERSION = 12;
 
   explicit World(std::uint64_t _seed);
 
@@ -168,6 +180,78 @@ public:
     return m_relations;
   }
 
+  /// What has been done to the empires (GDD §6, NC-051). **Reality, culprit included** -- what anyone *believes*
+  /// about who did it is a `Suspicion` in `Knowledge`, and the two are joined by an `IncidentId` and nothing else.
+  [[nodiscard]] Table<Incident, IncidentId>& Incidents() noexcept
+  {
+    return m_incidents;
+  }
+
+  [[nodiscard]] const Table<Incident, IncidentId>& Incidents() const noexcept
+  {
+    return m_incidents;
+  }
+
+  /// Orders and messages physically crossing the lanes (GDD §4, §9; NC-053). **Reality**: a courier is at a place and
+  /// a fleet can take it off somebody. What it carries is named by id and never held by value, so a routine with a
+  /// `World&` still cannot read a report through one (`Courier.h`, ADR-021).
+  ///
+  /// Rows stay after delivery or capture, like every other table: a courier that was taken is a thing that happened,
+  /// and the receipt refers back to it.
+  [[nodiscard]] Table<Courier, CourierId>& Couriers() noexcept
+  {
+    return m_couriers;
+  }
+
+  [[nodiscard]] const Table<Courier, CourierId>& Couriers() const noexcept
+  {
+    return m_couriers;
+  }
+
+  /// Scouts reading incident sites, and what they found (GDD §3's six hours; NC-054). Reality: a scout being
+  /// somewhere is a fact. What the finding *means* becomes belief only when it is submitted and weighed.
+  [[nodiscard]] Table<WreckAnalysis, WreckAnalysisId>& WreckAnalyses() noexcept
+  {
+    return m_wreckAnalyses;
+  }
+
+  [[nodiscard]] const Table<WreckAnalysis, WreckAnalysisId>& WreckAnalyses() const noexcept
+  {
+    return m_wreckAnalyses;
+  }
+
+  /// Every offer an empire has made and what became of it (GDD §8, NC-056).
+  ///
+  /// **An offer is reality**: the empire made it, at a price, with a deadline. What the player *believes* about
+  /// whether it can be met is reports, and the wire record carries no answer to that question (`WireContract.h`).
+  [[nodiscard]] Table<Contract, ContractId>& Contracts() noexcept
+  {
+    return m_contracts;
+  }
+
+  [[nodiscard]] const Table<Contract, ContractId>& Contracts() const noexcept
+  {
+    return m_contracts;
+  }
+
+  /// The couriers still in the air, in dispatch order (NC-053).
+  ///
+  /// **Derived state, and it exists for a measured reason.** Rows are never erased from any table here, so the
+  /// courier table grows for the whole run; walking all of it twice a tick cost a measured 1.7x over a simulated
+  /// year for 273 couriers that had all long since landed. This is the working set, and `Deserialize` rebuilds it
+  /// from the rows rather than carrying it in the store, so there is nothing a save can disagree with.
+  ///
+  /// Dispatch order is load-bearing: it is the order the resolver moves them in, and removal keeps it (R16).
+  [[nodiscard]] std::vector<CourierId>& CouriersInFlight() noexcept
+  {
+    return m_couriersInFlight;
+  }
+
+  [[nodiscard]] const std::vector<CourierId>& CouriersInFlight() const noexcept
+  {
+    return m_couriersInFlight;
+  }
+
   /// What JumpsBetween answers when there is no route at all. A disconnected map is a generator bug (NC-041 asserts
   /// connectivity), but a route to a system that does not exist is an ordinary caller error and gets an answer.
   static constexpr std::uint32_t UNREACHABLE = 0xFFFFFFFFu;
@@ -236,6 +320,11 @@ private:
   Table<Market, SystemId> m_markets;
   Table<MothballedHull, MothballId> m_mothballs;
   Table<Relation, RelationId> m_relations;
+  Table<Incident, IncidentId> m_incidents;
+  Table<Courier, CourierId> m_couriers;
+  std::vector<CourierId> m_couriersInFlight;
+  Table<WreckAnalysis, WreckAnalysisId> m_wreckAnalyses;
+  Table<Contract, ContractId> m_contracts;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;
