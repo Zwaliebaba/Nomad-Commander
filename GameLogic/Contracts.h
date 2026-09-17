@@ -58,6 +58,15 @@ public:
   /// contract and nothing else. That is the distance the cut buys, made structural rather than remembered.
   static void BetrayalNoticed(World& _world, Knowledge& _knowledge, ContractId _contract, std::vector<Event>& _outEvents);
 
+  /// **A rival's offer, attached to what you just lost** (GDD §7: "a seized outpost is a situation, with an offer
+  /// from the rival empire attached more often than not"). NC-066 decides whether one comes; this is what puts it on
+  /// the board, on the same terms and at the same price every other raid offer is on.
+  ///
+  /// It names no goal, because it did not come out of one: an opening is not an ambition. The goal index is the
+  /// employer's count, which is past the end of its list and therefore satisfies nothing -- so the offer stands or
+  /// expires on its own clock rather than drying up when some unrelated goal is met.
+  static ContractId OfferAgainst(World& _world, EmpireId _employer, SystemId _at, std::vector<Event>& _outEvents);
+
   /// How many leaders would presently employ this company (GDD §15's "willing employers after two months"). Written
   /// to the log once a day so the metric is a series rather than a single reading (R24).
   [[nodiscard]] static std::uint32_t WillingEmployers(const World& _world, const Knowledge& _knowledge, CompanyId _company);

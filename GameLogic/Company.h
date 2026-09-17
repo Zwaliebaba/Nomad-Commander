@@ -23,6 +23,11 @@ struct ActiveWindow
 {
   Neuron::Tick startTickOfDay;
   Neuron::Tick lengthTicks;
+
+  /// When it was last moved. GDD §7 puts "a one-day cooldown" on changing the window, and a cooldown needs a moment
+  /// to count from; the tick it changed at is that moment, held here rather than inferred from the record because a
+  /// record can be drained (NC-066).
+  Neuron::Tick changedAtTick;
 };
 
 /// The nomad, as an entity type with any number of instances (R22, GDD §14).

@@ -75,6 +75,11 @@ public:
     return m_world;
   }
 
+  [[nodiscard]] Nomad::Knowledge& Knowledge() noexcept
+  {
+    return m_knowledge;
+  }
+
   [[nodiscard]] Nomad::CompanyId Company() const noexcept
   {
     return m_company;
@@ -126,7 +131,7 @@ public:
       Nomad::Tuning::MOTHERSHIP_UPKEEP_CREDITS_PER_DAY +
       2 * Nomad::Tuning::SHIP_CLASSES[static_cast<std::uint32_t>(Nomad::ShipClass::Warship)].upkeepCreditsPerDay +
       Nomad::Tuning::SHIP_CLASSES[static_cast<std::uint32_t>(Nomad::ShipClass::Scout)].upkeepCreditsPerDay;
-    Assert::AreEqual(expected, Nomad::Upkeep::DailyBurn(ledger.World(), ledger.Company()));
+    Assert::AreEqual(expected, Nomad::Upkeep::DailyBurn(ledger.World(), ledger.Knowledge(), ledger.Company()));
 
     const Nomad::Credits before = ledger.Treasury();
     ledger.RunDays(1);
@@ -165,7 +170,7 @@ public:
 
     // Enough that exactly one hull has to go, so "until the fleet is affordable again" has something to stop at.
     // With nothing at all in the treasury both hulls go and the stopping rule is untestable.
-    const Nomad::Credits burn = Nomad::Upkeep::DailyBurn(left.World(), left.Company());
+    const Nomad::Credits burn = Nomad::Upkeep::DailyBurn(left.World(), left.Knowledge(), left.Company());
     const Nomad::Credits oneRaider = Nomad::Tuning::SHIP_CLASSES[static_cast<std::uint32_t>(Nomad::ShipClass::Raider)].upkeepCreditsPerDay;
     left.World().Companies().Get(left.Company()).treasury = burn - oneRaider;
     right.World().Companies().Get(right.Company()).treasury = burn - oneRaider;
@@ -186,7 +191,7 @@ public:
     (void)ledger.AddFleet({{Nomad::ShipClass::Scout, 2}}, 0);
 
     // Enough for a little over the warning window, so the forecast has a day to fall on.
-    const Nomad::Credits burn = Nomad::Upkeep::DailyBurn(ledger.World(), ledger.Company());
+    const Nomad::Credits burn = Nomad::Upkeep::DailyBurn(ledger.World(), ledger.Knowledge(), ledger.Company());
     ledger.World().Companies().Get(ledger.Company()).treasury = burn * (Nomad::Tuning::INSOLVENCY_WARNING_DAYS + 3);
 
     ledger.RunDays(Nomad::Tuning::INSOLVENCY_WARNING_DAYS + 3);
@@ -223,7 +228,7 @@ public:
     const Nomad::Credits raiderUpkeep =
       Nomad::Tuning::SHIP_CLASSES[static_cast<std::uint32_t>(Nomad::ShipClass::Raider)].upkeepCreditsPerDay;
     ledger.World().Companies().Get(ledger.Company()).treasury =
-      Nomad::Upkeep::DailyBurn(ledger.World(), ledger.Company()) - 2 * raiderUpkeep;
+      Nomad::Upkeep::DailyBurn(ledger.World(), ledger.Knowledge(), ledger.Company()) - 2 * raiderUpkeep;
     ledger.RunDays(1);
     Assert::AreEqual(2u, ledger.World().Mothballs().Count(), L"something other than the two raiders was mothballed");
     Assert::IsTrue(ledger.World().Fleets().Get(fleet).alive, L"the fleet meant to survive the day did not");
@@ -254,7 +259,7 @@ public:
     const Nomad::Credits raiderUpkeep =
       Nomad::Tuning::SHIP_CLASSES[static_cast<std::uint32_t>(Nomad::ShipClass::Raider)].upkeepCreditsPerDay;
     ledger.World().Companies().Get(ledger.Company()).treasury =
-      Nomad::Upkeep::DailyBurn(ledger.World(), ledger.Company()) - 2 * raiderUpkeep;
+      Nomad::Upkeep::DailyBurn(ledger.World(), ledger.Knowledge(), ledger.Company()) - 2 * raiderUpkeep;
     ledger.RunDays(1);
     Assert::IsTrue(ledger.World().Mothballs().Count() > 0);
 

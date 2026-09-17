@@ -4,6 +4,7 @@
 #include "Credits.h"
 #include "EntityIds.h"
 #include "Event.h"
+#include "Knowledge.h"
 #include "MothballedHull.h"
 #include "ShipClass.h"
 #include "World.h"
@@ -23,12 +24,16 @@ namespace Nomad
 class Upkeep
 {
 public:
-  /// What a company burns in a day: every hull it owns across every fleet, plus the mothership's base.
-  [[nodiscard]] static Credits DailyBurn(const World& _world, CompanyId _company);
+  /// What a company burns in a day: every hull it owns across every fleet **and every dock**, the mothership's base,
+  /// and what its footholds cost it in tolerance (GDD §5's sink list, NC-066).
+  ///
+  /// **It takes belief because a tolerance fee is priced off one** (GDD §11: "tolerance fees rise" with the empire's
+  /// threat assessment). Nothing else here reads it, and nothing here can reach a fleet's true position through it.
+  [[nodiscard]] static Credits DailyBurn(const World& _world, const Knowledge& _knowledge, CompanyId _company);
 
   /// The daily phase. Charges the burn, credits the floor income, mothballs what cannot be paid for, expires what
   /// was not recovered, and forecasts an insolvency before it arrives.
-  static void ResolveDaily(World& _world, std::vector<Event>& _outEvents);
+  static void ResolveDaily(World& _world, const Knowledge& _knowledge, std::vector<Event>& _outEvents);
 
   /// Recovers a mothballed hull for its fee, into a fleet of the company's at the same system. False when the grace
   /// period has passed, the fee cannot be paid, or there is no fleet there to put it in.

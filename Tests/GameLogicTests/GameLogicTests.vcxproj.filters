@@ -6,6 +6,7 @@
     <ClCompile Include="NomadSimulationTests.cpp" />
     <ClCompile Include="DeterminismTests.cpp" />
     <ClCompile Include="MobilityTests.cpp" />
+    <ClCompile Include="OutpostTests.cpp" />
     <ClCompile Include="PoliticsTests.cpp" />
     <ClCompile Include="EconomyTests.cpp" />
     <ClCompile Include="FloorTests.cpp" />

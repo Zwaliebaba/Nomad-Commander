@@ -88,10 +88,25 @@ enum class ReasonCode : std::uint16_t
   TheAdmiralFoughtLikeHimself,
   TheAdmiralRetired,
   TheAdmiralDeviatedFromDoctrine,
-  TheAdmiralWasPromoted
+  TheAdmiralWasPromoted,
+
+  /// GDD §11's outposts and §7's timers (NC-066).
+  RefuelledAtAnOutpost,
+  StoredAtAnOutpost,
+  TakenOutOfStorage,
+  TheGovernorsSellRule,
+  AFootholdWasEstablished,
+  TheGovernorWasGivenNewOrders,
+  HostileContactsAppeared,
+  AnEmpireBroughtForceToBear,
+  TheFleetStoodInTheWay,
+  NobodyAnsweredInTime,
+  ARaiderBurnedIt,
+  TheGraceRanOut,
+  ARivalSawAnOpening
 };
 
-inline constexpr std::uint16_t REASON_CODE_COUNT = 67;
+inline constexpr std::uint16_t REASON_CODE_COUNT = 80;
 
 /// One item of evidence as the player reads it: what it is, and what it was worth (GDD §6's weights, as a fraction of
 /// a full attribution in integer hundredths).

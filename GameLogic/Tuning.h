@@ -4,6 +4,7 @@
 #include "Credits.h"
 #include "Evidence.h"
 #include "Good.h"
+#include "Outpost.h"
 #include "ShipClass.h"
 
 #include "Hundredths.h"
@@ -625,6 +626,77 @@ inline constexpr std::int64_t GLUT_RATIO_HUNDREDTHS = 50;
 /// without being repeatable; the impact is what makes a large transaction cost more per unit than a small one.
 inline constexpr std::uint32_t MARKET_LIQUIDITY_PER_DAY = 40;
 inline constexpr std::int64_t PRICE_IMPACT_HUNDREDTHS_PER_UNIT = 2;
+
+// --- GDD §7 and §11: outposts, governors, claims and timers -------------------------------------------------------
+//
+// **A foothold's whole life is four numbers and two clocks.** What it costs to put up, what it costs a day to be
+// tolerated, how long an attack takes to come to a head, and how long a revoked claim gives you to get out. GDD §5
+// names outpost construction and tolerance fees among the credit sinks, and §7 defines the two clocks against the
+// player's own active window; every one of them is open and answered by play (the appendix), so they live here.
+
+/// What an outpost costs to put up (GDD §5's sink list). Priced against the floor's standing income rather than
+/// against a hull: a foothold should be several weeks of a working fleet's margin, not an afternoon's.
+inline constexpr Credits OUTPOST_BUILD_COST_CREDITS = 4000;
+
+/// What an empire charges a day to keep tolerating one (GDD §5: "the fees an empire charges for tolerance"). Paid
+/// with the rest of the daily burn, and raised by the empire's threat surcharge like any other price it asks
+/// (`THREAT_SURCHARGE_HUNDREDTHS`, GDD §11's "tolerance fees rise").
+inline constexpr Credits OUTPOST_TOLERANCE_FEE_CREDITS_PER_DAY = 60;
+
+/// How warmly the granting empire's leader has to regard a company before it will grant a claim at all, and the
+/// threat step at which it stops granting them whatever the leader thinks. GDD §11 has an outpost surviving "on
+/// tolerance inside an empire", so the permission is the empire's to withhold before it is the empire's to revoke.
+inline constexpr Neuron::Hundredths OUTPOST_CLAIM_MINIMUM_WARMTH = Neuron::Hundredths::FromRaw(40);
+
+/// **How long after the window opens the attack comes to a head** (GDD §7: timers "expire inside the player's chosen
+/// daily active window", and the player is "notified with time to respond"). The expiry is the next window's start
+/// plus this, so it lands inside the window rather than at its edge -- which is what "with time to respond" asks
+/// for. It is clamped into the window by `Outposts`, so a grace longer than a short window still expires inside it.
+inline constexpr Neuron::Tick REINFORCEMENT_GRACE_TICKS = 2 * Neuron::TICKS_PER_HOUR;
+
+/// The floor under an attack, for the case the window has only just opened: an attack never comes to a head sooner
+/// than this after it starts, whatever the window says, because a timer that expired on the tick it started would be
+/// an attack the player could not answer even while sitting at the desk.
+inline constexpr Neuron::Tick REINFORCEMENT_MINIMUM_TICKS = 4 * Neuron::TICKS_PER_HOUR;
+
+/// GDD §7's "one-day cooldown" on moving the active window.
+inline constexpr Neuron::Tick ACTIVE_WINDOW_COOLDOWN_TICKS = Neuron::TICKS_PER_DAY;
+
+/// The grace a revoked claim gives an outpost to evacuate before it is seized (GDD §7's "grace period to evacuate").
+/// Long enough to fly a hauler in from a neighbouring system and out again on the §7 clock.
+inline constexpr Neuron::Tick CLAIM_EVACUATION_TICKS = 3 * Neuron::TICKS_PER_DAY;
+
+/// **"A seized outpost is a situation, with an offer from the rival empire attached more often than not"** (GDD §7).
+/// More often than not is what this number has to be, and the test says so rather than trusting the comment.
+inline constexpr Neuron::Hundredths SEIZED_OFFER_CHANCE_HUNDREDTHS = Neuron::Hundredths::FromRaw(65);
+
+/// What a governor starts with when the player has said nothing: hold a week of a fleet's jumps in fuel, sell at or
+/// above the going rate, and get the cargo out rather than sit on it. Defaults and not rules -- `SetGovernorPolicy`
+/// overwrites all three (GDD §11: "Those three are what a check-in adjusts").
+///
+/// **The sell rule defaults to the base price rather than to zero**, and the difference matters: a governor told to
+/// sell at any price empties the warehouse into whatever the market happens to be paying, which for a warehouse of
+/// loot also means raising the GDD §5 trail on the player's behalf. "At or above the going rate" is a standing order
+/// a player would actually give -- sell into a shortage, sit out a glut -- and it is `PRICE_BASE` because that is
+/// what the going rate means (GDD §10's formula).
+inline constexpr std::uint32_t GOVERNOR_DEFAULT_FUEL_RESERVE_UNITS = 20;
+inline constexpr ThreatResponse GOVERNOR_DEFAULT_THREAT_RESPONSE = ThreatResponse::Evacuate;
+
+/// A price no market reaches, which is how a player says "never sell this". Named because a magic large number in a
+/// policy is a number nobody can tell from a typo.
+inline constexpr Credits GOVERNOR_NEVER_SELL_CREDITS = 1000000;
+
+/// How much a warehouse holds, per good. A foothold and not an industry (GDD §11, R23).
+inline constexpr std::uint32_t OUTPOST_STOCK_CAPACITY_PER_GOOD = 200;
+
+/// How much of its stock a governor will move into the market in one day. The market's own liquidity caps what it
+/// can absorb; this is the governor's own restraint, so a warehouse does not empty itself into one day's prices.
+inline constexpr std::uint32_t GOVERNOR_SELL_UNITS_PER_DAY = 10;
+
+/// How far a hostile contact has to be, in jumps, before the governor stops calling it a threat (GDD §11's third
+/// policy: "evacuate cargo when hostile contacts appear"). Zero would mean the enemy is already in the system, which
+/// is too late to load a hauler.
+inline constexpr std::uint32_t GOVERNOR_THREAT_RANGE_JUMPS = 1;
 
 // --- GDD §10: the playstyle levers -------------------------------------------------------------------------------
 //

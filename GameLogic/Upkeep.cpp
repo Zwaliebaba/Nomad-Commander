@@ -3,6 +3,7 @@
 #include "Upkeep.h"
 
 #include "Mobility.h"
+#include "Outposts.h"
 #include "Tuning.h"
 
 #include <variant>
@@ -80,7 +81,7 @@ bool Upkeep::IsOnTheFloor(const World& _world, CompanyId _company)
   return HullCount(_world, _company) < Tuning::FLOOR_HULL_COUNT;
 }
 
-Credits Upkeep::DailyBurn(const World& _world, CompanyId _company)
+Credits Upkeep::DailyBurn(const World& _world, const Knowledge& _knowledge, CompanyId _company)
 {
   Credits burn = Tuning::MOTHERSHIP_UPKEEP_CREDITS_PER_DAY;
   for (const Fleet& fleet : _world.Fleets().Rows())
@@ -94,7 +95,23 @@ Credits Upkeep::DailyBurn(const World& _world, CompanyId _company)
       burn += static_cast<Credits>(fleet.ships.byClass[shipClass]) * Tuning::SHIP_CLASSES[shipClass].upkeepCreditsPerDay;
     }
   }
-  return burn;
+
+  // **A hull in a dock burns too** (GDD §5: "Each ship costs a daily upkeep in credits, whether it moves or not").
+  // A dock that suspended upkeep would be a mothball with no grace period and no recovery fee -- strictly better
+  // than the one §5 describes, which is the shape of an exploit rather than a design (NC-066).
+  for (const Outpost& outpost : _world.Outposts().Rows())
+  {
+    if (!outpost.alive || outpost.owningCompany != _company)
+    {
+      continue;
+    }
+    for (std::uint32_t shipClass = 0; shipClass < SHIP_CLASS_COUNT; ++shipClass)
+    {
+      burn += static_cast<Credits>(outpost.docked.byClass[shipClass]) * Tuning::SHIP_CLASSES[shipClass].upkeepCreditsPerDay;
+    }
+  }
+
+  return burn + Outposts::DailyToleranceFee(_world, _knowledge, _company);
 }
 
 bool Upkeep::Recover(World& _world, CompanyId _company, std::uint32_t _mothballIndex, FleetId _intoFleet, std::vector<Event>& _outEvents)
@@ -133,7 +150,7 @@ bool Upkeep::Recover(World& _world, CompanyId _company, std::uint32_t _mothballI
   return true;
 }
 
-void Upkeep::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
+void Upkeep::ResolveDaily(World& _world, const Knowledge& _knowledge, std::vector<Event>& _outEvents)
 {
   const Neuron::Tick now = _world.CurrentTick();
 
@@ -167,7 +184,7 @@ void Upkeep::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
     // it, on the same terms this did: only to a company with no fleet, and only where it is welcome. Two rules for
     // one payment would be two numbers to keep in step, so there is one.
 
-    const Credits burn = DailyBurn(_world, companyId);
+    const Credits burn = DailyBurn(_world, _knowledge, companyId);
     company.treasury -= burn;
 
     // "Insolvency is a decline, not a game over, and it is announced on the board days in advance" (GDD §5). The

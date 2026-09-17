@@ -48,10 +48,11 @@ enum class RandomStream : std::uint64_t
   Empires,
   Inference,
   Admirals,
-  Contracts
+  Contracts,
+  Outposts
 };
 
-inline constexpr std::uint32_t RANDOM_STREAM_COUNT = 9;
+inline constexpr std::uint32_t RANDOM_STREAM_COUNT = 10;
 
 /// Reality: the whole world state, and the only thing in this tree that holds the truth (`Plan/Glossary.md`).
 ///
@@ -77,7 +78,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 13;
+  static constexpr std::uint16_t SCHEMA_VERSION = 14;
 
   explicit World(std::uint64_t _seed);
 

@@ -68,10 +68,24 @@ enum class EventKind : std::uint8_t
   ContractFailed,
   ContractBetrayed,
   TemplateChosen,
-  AdmiralReplaced
+  AdmiralReplaced,
+
+  /// GDD §11's footholds and §7's clocks (NC-066). A seizure and a destruction are two kinds and not one with a
+  /// flag, because what the player lost differs: a seized outpost still stands and somebody else is standing in it.
+  OutpostBuilt,
+  HullsDocked,
+  HullsUndocked,
+  CargoStored,
+  CargoWithdrawn,
+  GovernorPolicySet,
+  OutpostAttacked,
+  OutpostDefended,
+  OutpostEvacuated,
+  OutpostSeized,
+  OutpostDestroyed
 };
 
-inline constexpr std::uint8_t EVENT_KIND_COUNT = 52;
+inline constexpr std::uint8_t EVENT_KIND_COUNT = 63;
 
 /// One consequence, as the client is told it (ADR-018).
 ///

@@ -17,6 +17,62 @@ namespace Nomad
 namespace
 {
 
+/// Every field of a wire record that is a pure conversion, with no world to check it against.
+///
+/// **Both paths into this file use it, and that is the point.** An input arrives either over the seam, where `Accept`
+/// resolves its indices against a world and refuses one that names nothing, or out of the store, where `ReadInput`
+/// trusts what it wrote earlier. They differ in what they *check*; they must not differ in what they *carry*.
+///
+/// They did. Until NC-066 these were two hand-written lists of assignments, and the seam's list was seven fields
+/// shorter than the store's: the accusation, the incident, the answer, the settlement, the evidence offered, the
+/// contract and `flyMarked` were validated by `Accept` and then dropped on the floor, so every answered accusation
+/// and every accepted offer that arrived over the wire reached the resolver naming nothing. Nothing caught it,
+/// because no test sent one of those kinds through `ApplyInput`. One list is what stops it happening again.
+void CopyWireFields(const WireInput& _wire, Input& _outInput)
+{
+  _outInput.applyAtTick = _wire.applyAtTick;
+  _outInput.kind = _wire.kind;
+  _outInput.company = CompanyId::FromIndex(_wire.companyIndex);
+  _outInput.activeWindowStartTickOfDay = _wire.activeWindowStartTickOfDay;
+  _outInput.activeWindowLengthTicks = _wire.activeWindowLengthTicks;
+  _outInput.fleet = _wire.fleetIndex == WIRE_INDEX_NONE ? FleetId{} : FleetId::FromIndex(_wire.fleetIndex);
+  _outInput.secondFleet = _wire.secondFleetIndex == WIRE_INDEX_NONE ? FleetId{} : FleetId::FromIndex(_wire.secondFleetIndex);
+  _outInput.route.clear();
+  _outInput.route.reserve(_wire.laneRoute.size());
+  for (const std::uint32_t laneIndex : _wire.laneRoute)
+  {
+    _outInput.route.push_back(LaneId::FromIndex(laneIndex));
+  }
+  for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
+  {
+    _outInput.shipCounts.byClass[index] = _wire.shipCounts[index];
+  }
+  _outInput.system = _wire.systemIndex == WIRE_INDEX_NONE ? SystemId{} : SystemId::FromIndex(_wire.systemIndex);
+  _outInput.engage = _wire.engage;
+  _outInput.good = _wire.goodIndex < GOOD_COUNT ? static_cast<Good>(_wire.goodIndex) : Good::Fuel;
+  _outInput.units = _wire.units;
+  _outInput.accusation = _wire.accusationIndex == WIRE_INDEX_NONE ? AccusationId{} : AccusationId::FromIndex(_wire.accusationIndex);
+  _outInput.incident = _wire.incidentIndex == WIRE_INDEX_NONE ? IncidentId{} : IncidentId::FromIndex(_wire.incidentIndex);
+  _outInput.answer =
+    _wire.answerKind < ACCUSATION_ANSWER_COUNT ? static_cast<AccusationAnswer>(_wire.answerKind) : AccusationAnswer::Unanswered;
+  _outInput.settlement = _wire.settlement;
+  _outInput.offered.clear();
+  _outInput.offered.reserve(_wire.evidenceOffers.size());
+  for (const std::uint8_t offer : _wire.evidenceOffers)
+  {
+    _outInput.offered.push_back(static_cast<EvidenceOffer>(offer));
+  }
+  _outInput.contract = _wire.contractIndex == WIRE_INDEX_NONE ? ContractId{} : ContractId::FromIndex(_wire.contractIndex);
+  _outInput.flyMarked = _wire.flyMarked;
+  _outInput.outpost = _wire.outpostIndex == WIRE_INDEX_NONE ? OutpostId{} : OutpostId::FromIndex(_wire.outpostIndex);
+  for (std::uint32_t index = 0; index < GOOD_COUNT; ++index)
+  {
+    _outInput.policy.sellAbovePriceByGood[index] = _wire.sellAbovePriceByGood[index];
+  }
+  _outInput.policy.fuelReserveUnits = _wire.fuelReserveUnits;
+  _outInput.policy.threatResponse = static_cast<ThreatResponse>(_wire.threatResponse);
+}
+
 /// Whether a wire input is one this simulation can act on, with every index resolved against the world it arrived at.
 ///
 /// **This is the only place an index becomes an id**, and therefore the only place that can refuse an index naming
@@ -207,24 +263,39 @@ namespace
       return false;
     }
     break;
+
+  case InputKind::BuildOutpost:
+    // The system has to exist and be one the company's mothership is standing in; whether the empire holding it will
+    // grant a claim is a thing the empire *believes*, so it is `Outposts::Build`'s question and not this seam's --
+    // this file holds no `Knowledge` and must not learn to (R18).
+    if (_wire.systemIndex == WIRE_INDEX_NONE || !_world.Systems().Holds(SystemId::FromIndex(_wire.systemIndex)))
+    {
+      return false;
+    }
+    break;
+
+  case InputKind::SetGovernorPolicy:
+  {
+    // GDD §11's three policies, and no fourth: the record carries exactly three and the seam checks each is a value
+    // the build knows. Which outpost it is, and whether this company owns it, is checked where the policy is applied.
+    const auto outpost = OutpostId::FromIndex(_wire.outpostIndex);
+    if (_wire.outpostIndex == WIRE_INDEX_NONE || !_world.Outposts().Holds(outpost) ||
+        _wire.threatResponse >= WIRE_INPUT_THREAT_RESPONSE_COUNT)
+    {
+      return false;
+    }
+    break;
+  }
   }
 
-  _outInput.applyAtTick = _wire.applyAtTick;
-  _outInput.kind = _wire.kind;
+  CopyWireFields(_wire, _outInput);
+
+  // The two the checks above resolved for themselves. A fleet index naming nothing is not an error for every kind --
+  // a trade at a market names one and a settlement does not -- so the seam carries an invalid id rather than
+  // refusing, and the route is the one this function already walked and knows every lane of.
   _outInput.company = company;
-  _outInput.activeWindowStartTickOfDay = _wire.activeWindowStartTickOfDay;
-  _outInput.activeWindowLengthTicks = _wire.activeWindowLengthTicks;
   _outInput.fleet = namesAFleet ? fleet : FleetId{};
-  _outInput.secondFleet = _wire.secondFleetIndex == WIRE_INDEX_NONE ? FleetId{} : FleetId::FromIndex(_wire.secondFleetIndex);
   _outInput.route = std::move(route);
-  for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
-  {
-    _outInput.shipCounts.byClass[index] = _wire.shipCounts[index];
-  }
-  _outInput.system = _wire.systemIndex == WIRE_INDEX_NONE ? SystemId{} : SystemId::FromIndex(_wire.systemIndex);
-  _outInput.engage = _wire.engage;
-  _outInput.good = static_cast<Good>(_wire.goodIndex);
-  _outInput.units = _wire.units;
   return true;
 }
 
@@ -240,40 +311,10 @@ void WriteInput(Neuron::ByteWriter& _writer, const Input& _input)
   {
     return false;
   }
-  _outInput.applyAtTick = wire.applyAtTick;
-  _outInput.kind = wire.kind;
-  _outInput.company = CompanyId::FromIndex(wire.companyIndex);
-  _outInput.activeWindowStartTickOfDay = wire.activeWindowStartTickOfDay;
-  _outInput.activeWindowLengthTicks = wire.activeWindowLengthTicks;
-  _outInput.fleet = wire.fleetIndex == WIRE_INDEX_NONE ? FleetId{} : FleetId::FromIndex(wire.fleetIndex);
-  _outInput.secondFleet = wire.secondFleetIndex == WIRE_INDEX_NONE ? FleetId{} : FleetId::FromIndex(wire.secondFleetIndex);
-  _outInput.route.clear();
-  _outInput.route.reserve(wire.laneRoute.size());
-  for (const std::uint32_t laneIndex : wire.laneRoute)
-  {
-    _outInput.route.push_back(LaneId::FromIndex(laneIndex));
-  }
-  for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
-  {
-    _outInput.shipCounts.byClass[index] = wire.shipCounts[index];
-  }
-  _outInput.system = wire.systemIndex == WIRE_INDEX_NONE ? SystemId{} : SystemId::FromIndex(wire.systemIndex);
-  _outInput.engage = wire.engage;
-  _outInput.good = wire.goodIndex < GOOD_COUNT ? static_cast<Good>(wire.goodIndex) : Good::Fuel;
-  _outInput.units = wire.units;
-  _outInput.accusation = wire.accusationIndex == WIRE_INDEX_NONE ? AccusationId{} : AccusationId::FromIndex(wire.accusationIndex);
-  _outInput.incident = wire.incidentIndex == WIRE_INDEX_NONE ? IncidentId{} : IncidentId::FromIndex(wire.incidentIndex);
-  _outInput.answer =
-    wire.answerKind < ACCUSATION_ANSWER_COUNT ? static_cast<AccusationAnswer>(wire.answerKind) : AccusationAnswer::Unanswered;
-  _outInput.settlement = wire.settlement;
-  _outInput.offered.clear();
-  _outInput.offered.reserve(wire.evidenceOffers.size());
-  for (const std::uint8_t offer : wire.evidenceOffers)
-  {
-    _outInput.offered.push_back(static_cast<EvidenceOffer>(offer));
-  }
-  _outInput.contract = wire.contractIndex == WIRE_INDEX_NONE ? ContractId{} : ContractId::FromIndex(wire.contractIndex);
-  _outInput.flyMarked = wire.flyMarked;
+  // **No world to check against, and none needed.** ADR-014 makes a store a journal of inputs that were accepted
+  // when they were made, so what comes back out was valid against the world it applied to, and the replay puts that
+  // same world back. The checking is `Accept`'s; the carrying is shared.
+  CopyWireFields(wire, _outInput);
   return true;
 }
 

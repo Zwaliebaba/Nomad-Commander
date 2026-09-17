@@ -49,7 +49,7 @@ namespace
   first.fleets = {Nomad::FleetId::FromIndex(0)};
   first.outposts = {Nomad::OutpostId::FromIndex(0)};
   first.record = {Nomad::EventId::FromIndex(7), Nomad::EventId::FromIndex(9)};
-  first.activeWindow = Nomad::ActiveWindow{8 * Neuron::TICKS_PER_HOUR, 2 * Neuron::TICKS_PER_HOUR};
+  first.activeWindow = Nomad::ActiveWindow{8 * Neuron::TICKS_PER_HOUR, 2 * Neuron::TICKS_PER_HOUR, 0};
   first.alive = true;
   const Nomad::CompanyId firstCompany = world.Companies().Add(first);
 
@@ -87,14 +87,32 @@ namespace
   stranded.alive = false;
   world.Fleets().Add(stranded);
 
-  Nomad::Outpost outpost;
+  // **Braced, unlike its neighbours above, and NC-066 is why.** An `Outpost` now carries a governor's policy, a
+  // claim and a reinforcement timer, and every field of all three is on the wire. Default-initializing the record
+  // would leave those scalars indeterminate, and a round trip of indeterminate bytes is a test that passes or fails
+  // on what the stack happened to hold.
+  Nomad::Outpost outpost{};
   outpost.name = "Pale Anchor Yard";
   outpost.owningCompany = firstCompany;
   outpost.owningEmpire = Nomad::EmpireId{};
   outpost.system = Nomad::SystemId::FromIndex(1);
   outpost.stockByGood = {12, 4, 0, 9};
+  outpost.stockMark = Nomad::CargoMark{varn, Nomad::SystemId::FromIndex(2), 31};
   outpost.docked = Nomad::ShipCounts{{1, 2, 0, 0}};
-  outpost.claimExpiresTick = 9 * Neuron::TICKS_PER_DAY;
+  outpost.policy.sellAbovePriceByGood[0] = 14;
+  outpost.policy.sellAbovePriceByGood[3] = 7;
+  outpost.policy.fuelReserveUnits = 25;
+  outpost.policy.threatResponse = Nomad::ThreatResponse::Hold;
+  outpost.claim.grantor = varn;
+  outpost.claim.state = Nomad::ClaimState::Revoked;
+  outpost.claim.revokedAtTick = 6 * Neuron::TICKS_PER_DAY;
+  outpost.claim.evacuateByTick = 9 * Neuron::TICKS_PER_DAY;
+  outpost.timer.attacker = Nomad::FleetId::FromIndex(0);
+  outpost.timer.attackerEmpire = varn;
+  outpost.timer.attackerWasRaider = true;
+  outpost.timer.startedAtTick = 12;
+  outpost.timer.expiresAtTick = 8 * Neuron::TICKS_PER_HOUR;
+  outpost.timer.running = true;
   outpost.alive = true;
   world.Outposts().Add(outpost);
 
@@ -216,7 +234,7 @@ public:
     Assert::AreNotEqual(baseHash, capacity.Hash(), L"a command capacity does not reach the store");
 
     Nomad::World claim = base;
-    claim.Outposts().Get(Nomad::OutpostId::FromIndex(0)).claimExpiresTick += 1;
+    claim.Outposts().Get(Nomad::OutpostId::FromIndex(0)).claim.evacuateByTick += 1;
     Assert::AreNotEqual(baseHash, claim.Hash(), L"an outpost's claim does not reach the store");
 
     Nomad::World slot = base;

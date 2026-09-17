@@ -58,6 +58,19 @@ public:
   [[nodiscard]] static Credits QuoteBuy(const Market& _market, Good _good, std::uint32_t _units);
   [[nodiscard]] static Credits QuoteSell(const Market& _market, Good _good, std::uint32_t _units);
 
+  /// **The market half of a trade that does not touch a hull** (GDD §11's governor and its refuelling, NC-066).
+  ///
+  /// The same liquidity cap and the same price impact a fleet's trade pays, and the money moves; what the goods came
+  /// out of or went into is the caller's business, and so is the event, because an outpost's trade explains itself in
+  /// its own terms (R19). They are here rather than in `Outposts` because the market is this file's -- a second
+  /// place that moved a stock and recomputed a price would be a second price formula waiting to disagree.
+  ///
+  /// `SellStock` answers what was paid, or a negative number when the market refused it. `BuyUnits` answers how many
+  /// units it could actually buy, which is bounded by the stock, the day's liquidity and the treasury, and may be
+  /// fewer than were asked for -- a tank that filled halfway is a real outcome and not a failure.
+  [[nodiscard]] static Credits SellStock(World& _world, CompanyId _company, SystemId _at, Good _good, std::uint32_t _units);
+  [[nodiscard]] static std::uint32_t BuyUnits(World& _world, CompanyId _company, SystemId _at, Good _good, std::uint32_t _units);
+
   /// The market at a system, or null when the system has none.
   [[nodiscard]] static Market* MarketAt(World& _world, SystemId _system);
   [[nodiscard]] static const Market* MarketAt(const World& _world, SystemId _system);

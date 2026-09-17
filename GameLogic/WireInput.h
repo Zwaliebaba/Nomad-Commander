@@ -58,15 +58,29 @@ enum class InputKind : std::uint8_t
   /// claims at Kessel" (§3); declining one is not free (§6). **Both are inputs and neither is required**: the
   /// player must always be able to act without a contract, so nothing in §12's verbs asks whether there is one.
   AcceptOffer,
-  DeclineOffer
+  DeclineOffer,
+
+  /// GDD §11's foothold and §5's sink: credits, and a claim from the system's empire if it will grant one. Building
+  /// one is a decision and not a purchase, which is why it is an input rather than a market verb.
+  BuildOutpost,
+
+  /// GDD §11's three policies, set in one decision, which is what §7's check-in adjusts.
+  SetGovernorPolicy
 };
 
-inline constexpr std::uint8_t INPUT_KIND_COUNT = 16;
+inline constexpr std::uint8_t INPUT_KIND_COUNT = 18;
 
 /// The four ship classes, as the wire counts them. A wire header sees only NeuronCore (ADR-001), so it cannot include
 /// the enumerator; `Mobility.cpp` static_asserts that this and `SHIP_CLASS_COUNT` are the same number, which is where
 /// a mismatch is caught at compile time rather than on the wire.
 inline constexpr std::uint32_t WIRE_SHIP_CLASS_COUNT = 4;
+
+/// How many goods the wire counts a per-good payload in. A Wire header sees only NeuronCore (ADR-001), so it cannot
+/// include the enumerator; `Outposts.cpp` static_asserts that this and `GOOD_COUNT` are the same number.
+inline constexpr std::uint32_t WIRE_INPUT_GOOD_COUNT = 4;
+
+/// How many `ThreatResponse` values the wire knows, checked the same way.
+inline constexpr std::uint8_t WIRE_INPUT_THREAT_RESPONSE_COUNT = 2;
 
 /// How many `EvidenceOffer` values the wire knows. A Wire header sees only NeuronCore (ADR-001), so it carries its
 /// own count; `Answers.cpp` static_asserts that this and `EVIDENCE_OFFER_COUNT` are the same number, the same shape
@@ -125,6 +139,15 @@ struct WireInput
   /// the employer will pay for, and this is what the company says it will do.
   std::uint32_t contractIndex;
   bool flyMarked;
+
+  /// SetGovernorPolicy: which outpost, and GDD §11's three policies. BuildOutpost uses `systemIndex` for where and
+  /// these for the governor's opening orders, so a foothold never stands for a day with nobody's rules on it.
+  ///
+  /// **A raw width for the prices and not `Credits`**, for ADR-001's reason: a Wire header includes only NeuronCore.
+  std::uint32_t outpostIndex;
+  std::int64_t sellAbovePriceByGood[WIRE_INPUT_GOOD_COUNT];
+  std::uint32_t fuelReserveUnits;
+  std::uint8_t threatResponse;
 };
 
 inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
@@ -160,6 +183,13 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
   }
   _writer.Write(_input.contractIndex);
   _writer.WriteBool(_input.flyMarked);
+  _writer.Write(_input.outpostIndex);
+  for (const std::int64_t price : _input.sellAbovePriceByGood)
+  {
+    _writer.Write(price);
+  }
+  _writer.Write(_input.fuelReserveUnits);
+  _writer.Write(_input.threatResponse);
 }
 
 [[nodiscard]] inline bool Deserialize(Neuron::ByteReader& _reader, WireInput& _outInput)
@@ -215,7 +245,19 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
     }
   }
 
-  if (!_reader.Read(_outInput.contractIndex) || !_reader.ReadBool(_outInput.flyMarked))
+  if (!_reader.Read(_outInput.contractIndex) || !_reader.ReadBool(_outInput.flyMarked) || !_reader.Read(_outInput.outpostIndex))
+  {
+    return false;
+  }
+  for (std::int64_t& price : _outInput.sellAbovePriceByGood)
+  {
+    if (!_reader.Read(price))
+    {
+      return false;
+    }
+  }
+  if (!_reader.Read(_outInput.fuelReserveUnits) || !_reader.Read(_outInput.threatResponse) ||
+      _outInput.threatResponse >= WIRE_INPUT_THREAT_RESPONSE_COUNT)
   {
     return false;
   }

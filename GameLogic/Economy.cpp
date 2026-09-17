@@ -765,4 +765,68 @@ bool Economy::Sell(World& _world, Knowledge& _knowledge, CompanyId _company, Fle
   return true;
 }
 
+Credits Economy::SellStock(World& _world, CompanyId _company, SystemId _at, Good _good, std::uint32_t _units)
+{
+  if (_units == 0 || !_world.Companies().Holds(_company))
+  {
+    return -1;
+  }
+  Market* market = MarketAt(_world, _at);
+  if (market == nullptr || market->tradedToday + _units > market->liquidityPerDay)
+  {
+    return -1;
+  }
+
+  const Credits paid = QuoteSell(*market, _good, _units);
+  market->stock.Add(_good, _units);
+  market->tradedToday += _units;
+  _world.Companies().Get(_company).treasury += paid;
+  RecomputePriceAndState(*market, _good);
+  return paid;
+}
+
+std::uint32_t Economy::BuyUnits(World& _world, CompanyId _company, SystemId _at, Good _good, std::uint32_t _units)
+{
+  if (_units == 0 || !_world.Companies().Holds(_company))
+  {
+    return 0;
+  }
+  Market* market = MarketAt(_world, _at);
+  if (market == nullptr)
+  {
+    return 0;
+  }
+
+  // What the market has, and what it will still trade today. Both are caps rather than refusals: a caller filling a
+  // tank wants as much as it can get, and a market with eight units left has eight units to give.
+  std::uint32_t affordable = _units;
+  if (affordable > market->stock.Of(_good))
+  {
+    affordable = market->stock.Of(_good);
+  }
+  const std::uint32_t liquidityLeft = market->tradedToday < market->liquidityPerDay ? market->liquidityPerDay - market->tradedToday : 0;
+  if (affordable > liquidityLeft)
+  {
+    affordable = liquidityLeft;
+  }
+
+  // And what the treasury will carry. The price moves with the size of the transaction, so the largest affordable
+  // quantity is found by stepping down rather than by dividing -- the quote is not linear in the units (GDD §10).
+  Company& company = _world.Companies().Get(_company);
+  while (affordable > 0 && company.treasury < QuoteBuy(*market, _good, affordable))
+  {
+    --affordable;
+  }
+  if (affordable == 0)
+  {
+    return 0;
+  }
+
+  company.treasury -= QuoteBuy(*market, _good, affordable);
+  (void)market->stock.Remove(_good, affordable);
+  market->tradedToday += affordable;
+  RecomputePriceAndState(*market, _good);
+  return affordable;
+}
+
 } // namespace Nomad

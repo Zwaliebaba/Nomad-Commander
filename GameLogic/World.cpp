@@ -181,6 +181,7 @@ void WriteCompany(Neuron::ByteWriter& _writer, const Company& _company)
   WriteIds(_writer, _company.record);
   _writer.WriteTick(_company.activeWindow.startTickOfDay);
   _writer.WriteTick(_company.activeWindow.lengthTicks);
+  _writer.WriteTick(_company.activeWindow.changedAtTick);
   _writer.WriteBool(_company.alive);
 }
 
@@ -189,7 +190,8 @@ void WriteCompany(Neuron::ByteWriter& _writer, const Company& _company)
   return _reader.ReadString(_outCompany.name) && ReadMothership(_reader, _outCompany.mothership) && _reader.Read(_outCompany.treasury) &&
          ReadIds(_reader, _outCompany.officers) && ReadIds(_reader, _outCompany.fleets) && ReadIds(_reader, _outCompany.outposts) &&
          ReadIds(_reader, _outCompany.record) && _reader.ReadTick(_outCompany.activeWindow.startTickOfDay) &&
-         _reader.ReadTick(_outCompany.activeWindow.lengthTicks) && _reader.ReadBool(_outCompany.alive);
+         _reader.ReadTick(_outCompany.activeWindow.lengthTicks) && _reader.ReadTick(_outCompany.activeWindow.changedAtTick) &&
+         _reader.ReadBool(_outCompany.alive);
 }
 
 void WriteGoal(Neuron::ByteWriter& _writer, const EmpireGoal& _goal)
@@ -712,16 +714,51 @@ void WriteOutpost(Neuron::ByteWriter& _writer, const Outpost& _outpost)
   _writer.WriteId(_outpost.owningEmpire);
   _writer.WriteId(_outpost.system);
   WriteCounts(_writer, _outpost.stockByGood);
+  _writer.WriteId(_outpost.stockMark.origin);
+  _writer.WriteId(_outpost.stockMark.takenAtSystem);
+  _writer.WriteTick(_outpost.stockMark.takenAtTick);
   WriteShipCounts(_writer, _outpost.docked);
-  _writer.WriteTick(_outpost.claimExpiresTick);
+  for (const Credits price : _outpost.policy.sellAbovePriceByGood)
+  {
+    _writer.Write(price);
+  }
+  _writer.Write(_outpost.policy.fuelReserveUnits);
+  WriteEnum(_writer, _outpost.policy.threatResponse);
+  _writer.WriteId(_outpost.claim.grantor);
+  WriteEnum(_writer, _outpost.claim.state);
+  _writer.WriteTick(_outpost.claim.revokedAtTick);
+  _writer.WriteTick(_outpost.claim.evacuateByTick);
+  _writer.WriteId(_outpost.timer.attacker);
+  _writer.WriteId(_outpost.timer.attackerEmpire);
+  _writer.WriteBool(_outpost.timer.attackerWasRaider);
+  _writer.WriteTick(_outpost.timer.startedAtTick);
+  _writer.WriteTick(_outpost.timer.expiresAtTick);
+  _writer.WriteBool(_outpost.timer.running);
   _writer.WriteBool(_outpost.alive);
 }
 
 [[nodiscard]] bool ReadOutpost(Neuron::ByteReader& _reader, Outpost& _outOutpost)
 {
-  return _reader.ReadString(_outOutpost.name) && _reader.ReadId(_outOutpost.owningCompany) && _reader.ReadId(_outOutpost.owningEmpire) &&
-         _reader.ReadId(_outOutpost.system) && ReadCounts(_reader, _outOutpost.stockByGood) &&
-         ReadShipCounts(_reader, _outOutpost.docked) && _reader.ReadTick(_outOutpost.claimExpiresTick) &&
+  if (!_reader.ReadString(_outOutpost.name) || !_reader.ReadId(_outOutpost.owningCompany) || !_reader.ReadId(_outOutpost.owningEmpire) ||
+      !_reader.ReadId(_outOutpost.system) || !ReadCounts(_reader, _outOutpost.stockByGood) ||
+      !_reader.ReadId(_outOutpost.stockMark.origin) || !_reader.ReadId(_outOutpost.stockMark.takenAtSystem) ||
+      !_reader.ReadTick(_outOutpost.stockMark.takenAtTick) || !ReadShipCounts(_reader, _outOutpost.docked))
+  {
+    return false;
+  }
+  for (Credits& price : _outOutpost.policy.sellAbovePriceByGood)
+  {
+    if (!_reader.Read(price))
+    {
+      return false;
+    }
+  }
+  return _reader.Read(_outOutpost.policy.fuelReserveUnits) && ReadEnum(_reader, _outOutpost.policy.threatResponse, THREAT_RESPONSE_COUNT) &&
+         _reader.ReadId(_outOutpost.claim.grantor) && ReadEnum(_reader, _outOutpost.claim.state, CLAIM_STATE_COUNT) &&
+         _reader.ReadTick(_outOutpost.claim.revokedAtTick) && _reader.ReadTick(_outOutpost.claim.evacuateByTick) &&
+         _reader.ReadId(_outOutpost.timer.attacker) && _reader.ReadId(_outOutpost.timer.attackerEmpire) &&
+         _reader.ReadBool(_outOutpost.timer.attackerWasRaider) && _reader.ReadTick(_outOutpost.timer.startedAtTick) &&
+         _reader.ReadTick(_outOutpost.timer.expiresAtTick) && _reader.ReadBool(_outOutpost.timer.running) &&
          _reader.ReadBool(_outOutpost.alive);
 }
 
