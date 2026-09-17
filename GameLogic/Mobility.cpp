@@ -216,6 +216,8 @@ void Mobility::ApplyOrder(World& _world, const Input& _input, std::vector<Event>
   case InputKind::Buy:
   case InputKind::Sell:
   case InputKind::SendCourier:
+  case InputKind::AnswerAccusation:
+  case InputKind::AnalyzeWreck:
     return;
 
   case InputKind::MoveFleet:
