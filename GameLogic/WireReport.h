@@ -18,7 +18,7 @@ namespace Nomad
 /// header includes only NeuronCore and other Wire headers (ADR-001), for the same reason `WireInput.h` carries its
 /// own ship-class count. `Sensor.cpp` static_asserts that this and `REPORT_SOURCE_COUNT` are the same number, which
 /// is where the two would be caught drifting apart.
-inline constexpr std::uint32_t WIRE_REPORT_SOURCE_COUNT = 7;
+inline constexpr std::uint32_t WIRE_REPORT_SOURCE_COUNT = 8;
 
 /// One report, as the client is told it (ADR-018, ADR-020).
 ///

@@ -84,6 +84,13 @@ namespace
     break;
   }
 
+  case InputKind::Fence:
+    if (!ownsTheFleet || _wire.units == 0 || _wire.goodIndex >= GOOD_COUNT)
+    {
+      return false;
+    }
+    break;
+
   case InputKind::AnswerAccusation:
     // The accusation is resolved against `Knowledge` rather than `World`, which this seam cannot see, so what it can
     // check is the shape: an answer the schema knows, and a settlement that is not negative. `Answers` refuses an

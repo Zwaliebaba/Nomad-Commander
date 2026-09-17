@@ -286,7 +286,7 @@ public:
       {
         sawAConvoyFleet = true;
         Assert::IsTrue(fleet.ships.Of(Nomad::ShipClass::Hauler) > 0, L"a convoy carries no haulers");
-        Assert::IsTrue(fleet.cargoOriginEmpire.IsValid(), L"a convoy's cargo carries no origin mark");
+        Assert::IsTrue(fleet.cargoMark.origin.IsValid(), L"a convoy's cargo carries no origin mark");
       }
     }
     Assert::IsTrue(sawAConvoyFleet, L"a convoy was dispatched but is not a fleet");

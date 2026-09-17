@@ -115,6 +115,10 @@ namespace
     return "the wreck says what actually did the damage";
   case ReasonCode::TheScoutDidNotStay:
     return "the scout left before it had finished reading";
+  case ReasonCode::SoldThroughAnIntermediary:
+    return "you sold it through somebody who does not ask questions";
+  case ReasonCode::LootWasRecognised:
+    return "goods carrying their marks were sold where somebody noticed";
   }
   return "something happened that nobody recorded a reason for";
 }

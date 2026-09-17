@@ -262,6 +262,38 @@ inline constexpr Neuron::Tick WRECK_ANALYSIS_TICKS = 6 * Neuron::TICKS_PER_HOUR;
 inline constexpr Neuron::Hundredths ACCUSE_THRESHOLD = Neuron::Hundredths::FromRaw(40);
 inline constexpr Neuron::Hundredths ACT_THRESHOLD = Neuron::Hundredths::FromRaw(70);
 
+// --- GDD §6: ambiguity is generated, not scripted -----------------------------------------------------------------
+//
+// "Empires raid each other's convoys unmarked when at war and, at a lower rate, under a truce against an empire they
+// hold a grudge against, using the same shared hulls the player uses." Every number here is a lever, because §6 ends
+// with a measured requirement and a instruction about these very values: "The v0.1 sandbox is required to produce at
+// least one unscripted misattribution per ten hours of play; **if it doesn't, the rates are too low.**"
+
+/// The chance per empire per day of putting an unmarked raider on somebody's convoy, in hundredths.
+inline constexpr std::uint32_t COVERT_RAID_CHANCE_PER_DAY_WAR = 12;
+inline constexpr std::uint32_t COVERT_RAID_CHANCE_PER_DAY_TRUCE_WITH_GRUDGE = 3;
+
+/// How much of a grudge it takes before a truce stops meaning anything (GDD §6's "at a lower rate, under a truce
+/// against an empire they hold a grudge against").
+inline constexpr Neuron::Hundredths GRUDGE_COVERT_THRESHOLD = Neuron::Hundredths::FromRaw(40);
+
+/// How many raiders go. **Shared hulls are the point** (GDD §5): these are the same class a company buys from the
+/// same yards, which is what makes §6's hull-class row weak by design and misattribution possible at all.
+inline constexpr std::uint32_t COVERT_RAID_HULLS = 3;
+
+/// How many haulers a raid takes off a convoy, and how much of its cargo goes with them.
+inline constexpr std::uint32_t COVERT_RAID_HAULERS_DESTROYED = 2;
+
+/// **The loot trail** (GDD §5: "Loot is evidence"). Marked goods sold this near the place they were taken, this soon
+/// after, are a report to the empire whose marks they carry. Far enough away or long enough after, nobody connects
+/// them -- which is what makes fencing a decision about distance and time rather than a switch.
+inline constexpr std::uint32_t LOOT_TRAIL_JUMPS = 3;
+inline constexpr Neuron::Tick LOOT_TRAIL_TICKS = 10 * Neuron::TICKS_PER_DAY;
+
+/// What an intermediary takes for selling something nobody should be able to trace, in hundredths of the price. GDD
+/// §5: fencing "costs a cut and buys distance".
+inline constexpr Neuron::Hundredths FENCE_CUT_HUNDREDTHS = Neuron::Hundredths::FromRaw(35);
+
 // --- GDD §9 and §11: memory, and what an empire makes of a company -----------------------------------------------
 
 /// **The steps an empire's threat assessment moves through**, as the consequence each one carries. A step and not a

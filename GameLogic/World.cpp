@@ -555,7 +555,9 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
   WriteFleetPosition(_writer, _fleet.position);
   _writer.Write(_fleet.fuel);
   WriteCounts(_writer, _fleet.cargoByGood);
-  _writer.WriteId(_fleet.cargoOriginEmpire);
+  _writer.WriteId(_fleet.cargoMark.origin);
+  _writer.WriteId(_fleet.cargoMark.takenAtSystem);
+  _writer.WriteTick(_fleet.cargoMark.takenAtTick);
   WriteIds(_writer, _fleet.route);
   _writer.WriteBool(_fleet.engageIntent);
   _writer.WriteTick(_fleet.interdictedUntilTick);
@@ -567,14 +569,15 @@ void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
 
 [[nodiscard]] bool ReadFleet(Neuron::ByteReader& _reader, Fleet& _outFleet)
 {
-  constexpr std::uint8_t FLEET_ROLE_COUNT = 4;
+  constexpr std::uint8_t FLEET_ROLE_COUNT = 5;
   return _reader.ReadString(_outFleet.name) && ReadFleetOwner(_reader, _outFleet.owner) &&
          ReadEnum(_reader, _outFleet.role, FLEET_ROLE_COUNT) && _reader.ReadId(_outFleet.commander) &&
          ReadShipCounts(_reader, _outFleet.ships) && ReadFleetPosition(_reader, _outFleet.position) && _reader.Read(_outFleet.fuel) &&
-         ReadCounts(_reader, _outFleet.cargoByGood) && _reader.ReadId(_outFleet.cargoOriginEmpire) && ReadIds(_reader, _outFleet.route) &&
-         _reader.ReadBool(_outFleet.engageIntent) && _reader.ReadTick(_outFleet.interdictedUntilTick) &&
-         _reader.ReadBool(_outFleet.marked) && _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) &&
-         _reader.ReadBool(_outFleet.alive);
+         ReadCounts(_reader, _outFleet.cargoByGood) && _reader.ReadId(_outFleet.cargoMark.origin) &&
+         _reader.ReadId(_outFleet.cargoMark.takenAtSystem) && _reader.ReadTick(_outFleet.cargoMark.takenAtTick) &&
+         ReadIds(_reader, _outFleet.route) && _reader.ReadBool(_outFleet.engageIntent) &&
+         _reader.ReadTick(_outFleet.interdictedUntilTick) && _reader.ReadBool(_outFleet.marked) &&
+         _reader.ReadHundredths(_outFleet.veterancy) && ReadIds(_reader, _outFleet.history) && _reader.ReadBool(_outFleet.alive);
 }
 
 void WriteCharacter(Neuron::ByteWriter& _writer, const Character& _character)

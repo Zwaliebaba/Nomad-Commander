@@ -48,10 +48,14 @@ enum class InputKind : std::uint8_t
 
   /// Send a scout to read an incident's site (GDD §3's six-hour wreck analysis). The scout has to be there and has
   /// to stay; what it finds is the company's until it chooses to submit it.
-  AnalyzeWreck
+  AnalyzeWreck,
+
+  /// GDD §5: selling through an intermediary, which "costs a cut and buys distance". Same fields as `Sell`; the
+  /// difference is the price and that nobody writes it down.
+  Fence
 };
 
-inline constexpr std::uint8_t INPUT_KIND_COUNT = 13;
+inline constexpr std::uint8_t INPUT_KIND_COUNT = 14;
 
 /// The four ship classes, as the wire counts them. A wire header sees only NeuronCore (ADR-001), so it cannot include
 /// the enumerator; `Mobility.cpp` static_asserts that this and `SHIP_CLASS_COUNT` are the same number, which is where

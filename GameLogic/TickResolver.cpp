@@ -4,6 +4,7 @@
 
 #include "Answers.h"
 #include "Couriers.h"
+#include "CovertRaid.h"
 #include "Economy.h"
 #include "Fabricator.h"
 #include "Inference.h"
@@ -80,7 +81,11 @@ void ResolveInputs(World& _world, Knowledge& _knowledge, std::span<const Input> 
       break;
 
     case InputKind::Sell:
-      (void)Economy::Sell(_world, input.company, input.fleet, input.good, input.units, _outEvents);
+      (void)Economy::Sell(_world, _knowledge, input.company, input.fleet, input.good, input.units, _outEvents);
+      break;
+
+    case InputKind::Fence:
+      (void)Economy::Fence(_world, input.company, input.fleet, input.good, input.units, _outEvents);
       break;
 
     case InputKind::MoveFleet:
@@ -136,7 +141,13 @@ void ResolveInputs(World& _world, Knowledge& _knowledge, std::span<const Input> 
 /// Phase 2 -- movement. Departures and arrivals along lanes (GDD §12's seven verbs).
 void ResolveMovement(World& _world, std::vector<Event>& _outEvents)
 {
+  const std::size_t firstOfThisPhase = _outEvents.size();
   Mobility::ResolveMovement(_world, _outEvents);
+  // A covert raider that has reached the end of its withdrawal goes back into the pool it was drawn from, on the
+  // tick it gets there rather than at the next daily pass (NC-055, `CovertRaid.h`). It reads the arrivals this
+  // phase just wrote, which is why it is spliced in here rather than given a phase of its own -- and it appends
+  // nothing, so the span into `_outEvents` stays live for as long as it is held.
+  CovertRaid::ResolveRaiderWithdrawals(_world, std::span<const Event>{_outEvents}.subspan(firstOfThisPhase));
 }
 
 /// Phase 3 -- detection. Who saw what, and the reports it produced (GDD §4's source, age and reliability).
@@ -172,6 +183,9 @@ void ResolveDaily(World& _world, Knowledge& _knowledge, [[maybe_unused]] std::ve
   Economy::ResolveDaily(_world, _outEvents);
   Upkeep::ResolveDaily(_world, _outEvents);
   Politics::ResolveDaily(_world, _knowledge, _outEvents);
+  // **Before inference and after the empires**, because a raid is a thing the empires did today and the rule that
+  // blames somebody for it reads what happened today (GDD §6).
+  CovertRaid::ResolveDailyCovertRaids(_world, _knowledge, _outEvents, _log);
   Memory::ResolveDailyMemory(_world, _knowledge, _outEvents);
   Inference::ResolveDailyInference(_world, _knowledge, _outEvents, _log);
   Fabricator::ResolveDaily(_world, _outEvents);

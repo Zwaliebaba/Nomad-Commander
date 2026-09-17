@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "Economy.h"
 
+#include "CovertRaid.h"
 #include "Mobility.h"
 #include "Politics.h"
 #include "Tuning.h"
@@ -147,7 +148,7 @@ void DispatchConvoy(World& _world, EmpireId _empire, SystemId _from, SystemId _t
   convoy.position = AtSystem{_from};
   convoy.cargoByGood.assign(GOOD_COUNT, 0);
   convoy.alive = true;
-  convoy.cargoOriginEmpire = _empire;
+  convoy.cargoMark = CargoMark{_empire, _from, _world.CurrentTick()};
   convoy.fuel = Mobility::FuelCapacity(convoy);
 
   // **Everything that can refuse the convoy is checked before the cargo leaves the warehouse.** Taking the goods and
@@ -665,25 +666,32 @@ bool Economy::Buy(World& _world, CompanyId _company, FleetId _fleet, Good _good,
   return true;
 }
 
-bool Economy::Sell(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units, std::vector<Event>& _outEvents)
+namespace
+{
+
+/// The half of a sale that both the honest one and the fence share. Hands back what was paid, or a negative number
+/// when the market refused it -- which keeps the two public entry points to their own one difference each.
+[[nodiscard]] Credits SellInto(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units, Neuron::Hundredths _cut,
+                               std::vector<Event>& _outEvents, EventKind _kind, ReasonCode _reason)
 {
   if (_units == 0 || !_world.Companies().Holds(_company) || !_world.Fleets().Holds(_fleet))
   {
-    return false;
+    return -1;
   }
   Fleet& fleet = _world.Fleets().Get(_fleet);
   if (!fleet.alive || fleet.owner != FleetOwner{_company} || std::holds_alternative<InLane>(fleet.position) ||
       fleet.cargoByGood.size() < GOOD_COUNT || fleet.cargoByGood[static_cast<std::uint32_t>(_good)] < _units)
   {
-    return false;
+    return -1;
   }
-  Market* market = MarketAt(_world, Mobility::LocationOf(fleet));
+  Market* market = Economy::MarketAt(_world, Mobility::LocationOf(fleet));
   if (market == nullptr || market->tradedToday + _units > market->liquidityPerDay)
   {
-    return false;
+    return -1;
   }
 
-  const Credits paid = QuoteSell(*market, _good, _units);
+  const Credits gross = Economy::QuoteSell(*market, _good, _units);
+  const Credits paid = gross - Neuron::Hundredths{_cut}.Of(gross);
   fleet.cargoByGood[static_cast<std::uint32_t>(_good)] -= _units;
   market->stock.Add(_good, _units);
   market->tradedToday += _units;
@@ -694,7 +702,43 @@ bool Economy::Sell(World& _world, CompanyId _company, FleetId _fleet, Good _good
   subjects.company = _company;
   subjects.fleet = _fleet;
   subjects.system = market->system;
-  _outEvents.emplace_back(_world.CurrentTick(), EventKind::GoodsSold, subjects, Because(ReasonCode::TradedAtAMarket));
+  _outEvents.emplace_back(_world.CurrentTick(), _kind, subjects, Because(_reason));
+  return paid;
+}
+
+} // namespace
+
+bool Economy::Fence(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units, std::vector<Event>& _outEvents)
+{
+  // GDD §5: "fencing costs a cut and buys distance." **No `Knowledge&` reaches this function**, so there is no way
+  // for it to write the report an honest sale would -- the distance it buys is structural rather than remembered.
+  return SellInto(_world, _company, _fleet, _good, _units, Tuning::FENCE_CUT_HUNDREDTHS, _outEvents, EventKind::GoodsFenced,
+                  ReasonCode::SoldThroughAnIntermediary) >= 0;
+}
+
+bool Economy::Sell(World& _world, Knowledge& _knowledge, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units,
+                   std::vector<Event>& _outEvents)
+{
+  const CargoMark mark = _world.Fleets().Holds(_fleet) ? _world.Fleets().Get(_fleet).cargoMark : CargoMark{};
+  const SystemId sellingAt = _world.Fleets().Holds(_fleet) ? Mobility::LocationOf(_world.Fleets().Get(_fleet)) : SystemId{};
+
+  if (SellInto(_world, _company, _fleet, _good, _units, Neuron::HUNDREDTHS_ZERO, _outEvents, EventKind::GoodsSold,
+               ReasonCode::TradedAtAMarket) < 0)
+  {
+    return false;
+  }
+
+  // **Loot is evidence** (GDD §5). Goods carrying somebody's marks, sold this near where they were taken and this
+  // soon after, are a thing traders say -- and what traders say reaches the empire whose marks they are.
+  if (CovertRaid::WouldLeaveATrail(_world, mark, sellingAt))
+  {
+    CovertRaid::ReportMarkedGoods(_world, _knowledge, mark, _company, sellingAt);
+    EventSubjects subjects{};
+    subjects.company = _company;
+    subjects.empire = mark.origin;
+    subjects.system = sellingAt;
+    _outEvents.emplace_back(_world.CurrentTick(), EventKind::MarkedGoodsSoldNearby, subjects, Because(ReasonCode::LootWasRecognised));
+  }
   return true;
 }
 

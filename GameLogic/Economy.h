@@ -4,6 +4,7 @@
 #include "Event.h"
 #include "Good.h"
 #include "Input.h"
+#include "Knowledge.h"
 #include "Market.h"
 #include "World.h"
 
@@ -40,8 +41,17 @@ public:
   /// transaction cost more than a small one per unit.
   [[nodiscard]] static bool Buy(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units,
                                 std::vector<Event>& _outEvents);
-  [[nodiscard]] static bool Sell(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units,
+  /// A sale. `_knowledge` is here for one reason and it is GDD §5's: goods carrying somebody's marks, sold near
+  /// where they were taken and soon after, are a **report** to the empire whose marks they are (NC-055). An honest
+  /// sale never touches it.
+  [[nodiscard]] static bool Sell(World& _world, Knowledge& _knowledge, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units,
                                  std::vector<Event>& _outEvents);
+
+  /// The same sale through an intermediary: `Tuning::FENCE_CUT_HUNDREDTHS` off the price, and **no report**. GDD §5:
+  /// fencing "costs a cut and buys distance". It takes no `Knowledge&` at all, which is the rule made structural --
+  /// a fence that could write a report would be a fence that leaked.
+  [[nodiscard]] static bool Fence(World& _world, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units,
+                                  std::vector<Event>& _outEvents);
 
   /// What `_units` would cost or fetch here, including the price impact the transaction itself causes. Public so the
   /// client can show a quote before the player commits (NC-079) without the client knowing the formula.

@@ -29,10 +29,14 @@ enum class ReportSource : std::uint8_t
   CapturedCourier,
   PurchasedTip,
   EmployerBriefing,
-  News
+  News,
+
+  /// A market saw goods carrying somebody's marks change hands (GDD §5: "Loot is evidence", NC-055). Not a sighting
+  /// of anything: it says who sold what, where, and that the goods were not theirs to sell.
+  MarkedGoods
 };
 
-inline constexpr std::uint32_t REPORT_SOURCE_COUNT = 7;
+inline constexpr std::uint32_t REPORT_SOURCE_COUNT = 8;
 
 /// What a source has been right and wrong about, and the whole of what its reliability is made of.
 ///

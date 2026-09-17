@@ -597,18 +597,29 @@ public:
     const Nomad::CompanyId suspect = AddCompany(world, "Sedu Compact");
     const auto raidedAt = Nomad::SystemId::FromIndex(0);
     Nomad::Knowledge::Seed(world, knowledge);
-    (void)ARaid(world, victim, suspect, raidedAt, Nomad::ShipClass::Hauler);
+    const Nomad::IncidentId mine = ARaid(world, victim, suspect, raidedAt, Nomad::ShipClass::Hauler);
     (void)ASighting(world, knowledge, victim, suspect, raidedAt, Nomad::ShipClass::Hauler, false);
 
+    // **Counted for this incident only.** Since NC-055 the empires raid each other unmarked while this runs, so the
+    // evidence table grows for reasons that have nothing to do with the incident under test.
+    const auto rowsAbout = [&knowledge](Nomad::IncidentId _incident)
+    {
+      std::uint32_t count = 0;
+      for (const Nomad::Evidence& item : knowledge.EvidenceItems().Rows())
+      {
+        count += item.incident == _incident ? 1u : 0u;
+      }
+      return count;
+    };
+
     RunDays(world, knowledge, events, 2, nullptr);
-    const std::uint32_t whileOpen = knowledge.EvidenceItems().Count();
-    Assert::IsTrue(whileOpen > 0, L"an open incident produced no evidence at all");
+    Assert::IsTrue(rowsAbout(mine) > 0, L"an open incident produced no evidence at all");
 
     constexpr std::uint32_t OPEN_DAYS = static_cast<std::uint32_t>(Nomad::Tuning::INCIDENT_OPEN_TICKS / Neuron::TICKS_PER_DAY);
     RunDays(world, knowledge, events, OPEN_DAYS + 2, nullptr);
-    const std::uint32_t whenCold = knowledge.EvidenceItems().Count();
+    const std::uint32_t whenCold = rowsAbout(mine);
     RunDays(world, knowledge, events, 5, nullptr);
-    Assert::AreEqual(whenCold, knowledge.EvidenceItems().Count(), L"a cold incident is still being re-weighed every day");
+    Assert::AreEqual(whenCold, rowsAbout(mine), L"a cold incident is still being re-weighed every day");
   }
 };
 

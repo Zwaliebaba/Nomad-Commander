@@ -56,10 +56,13 @@ enum class EventKind : std::uint8_t
   DenialExposed,
   WreckAnalysisBegan,
   WreckAnalysisFinished,
-  WreckAnalysisAbandoned
+  WreckAnalysisAbandoned,
+  ConvoyRaided,
+  MarkedGoodsSoldNearby,
+  GoodsFenced
 };
 
-inline constexpr std::uint8_t EVENT_KIND_COUNT = 40;
+inline constexpr std::uint8_t EVENT_KIND_COUNT = 43;
 
 /// One consequence, as the client is told it (ADR-018).
 ///

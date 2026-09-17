@@ -368,6 +368,7 @@ void Inference::CollectEvidence(const World& _world, Knowledge& _knowledge, Inci
   ReportId testimony{};
   ReportId alibi{};
   ReportId capturedOrders{};
+  ReportId markedGoods{};
 
   for (std::uint32_t index = 0; index < _knowledge.Reports().Count(); ++index)
   {
@@ -398,6 +399,18 @@ void Inference::CollectEvidence(const World& _world, Knowledge& _knowledge, Inci
       if (!capturedOrders.IsValid())
       {
         capturedOrders = reportId;
+      }
+      continue;
+    }
+
+    // **Loot is evidence** (GDD §5, §6's marked-goods row). Like a captured courier it is not a position claim: the
+    // "nearby" test was made when the trail was written (`CovertRaid::WouldLeaveATrail`), and where the goods were
+    // *sold* says nothing about where their seller was when the raid happened.
+    if (report.source == ReportSource::MarkedGoods)
+    {
+      if (!markedGoods.IsValid())
+      {
+        markedGoods = reportId;
       }
       continue;
     }
@@ -439,6 +452,11 @@ void Inference::CollectEvidence(const World& _world, Knowledge& _knowledge, Inci
   {
     Add(_knowledge, _outEvidence, EvidenceKind::CapturedOrders, _incident, _suspectCompany, _suspectEmpire,
         Tuning::EVIDENCE_WEIGHT[static_cast<std::uint32_t>(EvidenceKind::CapturedOrders)], capturedOrders, now);
+  }
+  if (markedGoods.IsValid())
+  {
+    Add(_knowledge, _outEvidence, EvidenceKind::MarkedGoodsSold, _incident, _suspectCompany, _suspectEmpire,
+        Tuning::EVIDENCE_WEIGHT[static_cast<std::uint32_t>(EvidenceKind::MarkedGoodsSold)], markedGoods, now);
   }
   if (matchingHulls.IsValid())
   {

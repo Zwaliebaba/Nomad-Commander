@@ -14,6 +14,7 @@
     <ClCompile Include="Inference.cpp" />
     <ClCompile Include="Couriers.cpp" />
     <ClCompile Include="Answers.cpp" />
+    <ClCompile Include="CovertRaid.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -58,6 +59,8 @@
     <ClInclude Include="Courier.h" />
     <ClInclude Include="Couriers.h" />
     <ClInclude Include="Answers.h" />
+    <ClInclude Include="Cargo.h" />
+    <ClInclude Include="CovertRaid.h" />
     <ClInclude Include="WreckAnalysis.h" />
     <ClInclude Include="WireAccusation.h" />
     <ClInclude Include="Opinion.h" />
