@@ -1,6 +1,7 @@
 // GameLogic/Empire.h
 #pragma once
 
+#include "BattleTemplate.h"
 #include "EmpireGoal.h"
 #include "EntityIds.h"
 
@@ -35,6 +36,12 @@ struct Empire
   /// Companies this empire has revoked (GDD §5: hulls are "unavailable from an empire that has revoked the
   /// player's tolerance"). A list on the empire until NC-051 gives tolerance a belief behind it.
   std::vector<CompanyId> revokedCompanies;
+
+  /// **How this empire says a fight should be fought** (GDD §8: admirals are "dismissed for deviation"). An empire
+  /// with no doctrine could not dismiss anybody for departing from it, so the doctrine is a field before it is a
+  /// rule. It bends nothing about how an admiral chooses -- his traits do that -- it only decides how long the
+  /// empire tolerates an officer who never reaches for it (NC-060, `Tuning::ADMIRAL_DOCTRINE_WINDOW`).
+  BattleTemplate doctrine;
 
   /// NC-047 brings goals, wars and truces; NC-066 brings the fees an empire charges. Named here, built there.
   bool alive;

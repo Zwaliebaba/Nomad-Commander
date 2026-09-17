@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "UniverseGenerator.h"
 
+#include "Admirals.h"
 #include "Economy.h"
 #include "Politics.h"
 
@@ -547,6 +548,8 @@ bool UniverseGenerator::Generate(const Desc& _desc, World& _outWorld)
   // what makes "generate a world and run it for a year" one call.
   Economy::Seed(_outWorld);
   Politics::Seed(_outWorld);
+  // The empires' admirals and their doctrines, which §8 makes the content of the game (NC-060).
+  Admirals::Seed(_outWorld);
   return true;
 }
 

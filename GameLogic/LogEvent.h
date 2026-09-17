@@ -84,6 +84,13 @@ inline constexpr std::string_view INCIDENT = "incident";
 inline constexpr std::string_view SUSPECT = "suspect";
 inline constexpr std::string_view CULPRIT = "culprit";
 inline constexpr std::string_view CONFIDENCE = "confidence";
+
+/// GDD §8's own record: which admiral, which template, and the hash of the situation he chose it in. **The hash is
+/// what makes §15's "identical situations" countable** -- without a key to group by, "different choices in the same
+/// situation" is a thing nobody can compute from a log after the fact (NC-060, R24).
+inline constexpr std::string_view CHARACTER = "character";
+inline constexpr std::string_view SITUATION = "situation";
+inline constexpr std::string_view TEMPLATE = "template";
 } // namespace Field
 
 } // namespace LogEvent

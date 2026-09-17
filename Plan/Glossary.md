@@ -94,9 +94,11 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Contract, offer, payout by attribution | §4, §8 | `Contract`, `ContractId`, `ContractKind`, `ContractState`, `ContractOffer`, `Contracts`, `WireContractOffer` | `Contract.h`, `Contracts.h`, `WireContract.h` | NC-056 |
 | The floor's work, as a contract | §5 | `ContractKind::MothershipWork` | `Contract.h` | NC-056 |
 | A covert raider, drawn from the pool for one raid | §5, §6 | `FleetRole::Raider` | `Fleet.h` | NC-055 |
-| Admiral traits and desperation | §8 | `AdmiralTraits`, `Desperation` | `Admiral.h` | NC-060 |
-| The eight templates | §8 | `BattleTemplate` | `BattleTemplate.h` | NC-060 |
+| Admiral traits and desperation | §8 | `AdmiralTraits`, `Desperation`, `Engagement`, `AdmiralRecord`, `AdmiralId` | `Admiral.h` | NC-060 |
+| The eight templates, and what a fleet was sent to do | §8, §3 | `BattleTemplate`, `BattleObjective`, `TemplateName` | `BattleTemplate.h` | NC-060 |
 | Template selection from belief | §8 | `TemplateSelection`, `BelievedSituation` | `TemplateSelection.h` | NC-060 |
+| The roster refreshes | §8 | `Admirals` | `Admirals.h` | NC-060 |
+| An empire's doctrine, and deviation from it | §8 | `Empire::doctrine` | `Empire.h` | NC-060 |
 | Plan: base rules, overrides, branch budget | §4 | `Plan`, `BaseRules`, `Override`, `Trigger` | `Plan.h` | NC-061 |
 | Command capacity (an officer's) | §11 | `Character::commandCapacity` | `Character.h` | NC-061 |
 | Battle and its record (the replay) | §4, §8 | `Battle`, `BattleRecord`, `BattleRound` | `Battle.h`, `BattleRecord.h` | NC-062 |

@@ -108,6 +108,7 @@
     <ClCompile Include="AccusationAnswerTests.cpp" />
     <ClCompile Include="CovertRaidTests.cpp" />
     <ClCompile Include="ContractTests.cpp" />
+    <ClCompile Include="TemplateSelectionTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

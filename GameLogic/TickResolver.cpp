@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "TickResolver.h"
 
+#include "Admirals.h"
 #include "Answers.h"
 #include "Contracts.h"
 #include "Couriers.h"
@@ -195,6 +196,10 @@ void ResolveDaily(World& _world, Knowledge& _knowledge, [[maybe_unused]] std::ve
   // **Before inference and after the empires**, because a raid is a thing the empires did today and the rule that
   // blames somebody for it reads what happened today (GDD §6).
   CovertRaid::ResolveDailyCovertRaids(_world, _knowledge, _outEvents, _log);
+  // **Before memory**, because a command that ended today hands its record over today: `Admirals::Replace` calls
+  // `Memory::Inherit`, and a successor who inherited after the overwrite rule had run would carry a threat
+  // assessment one day staler than his predecessor's (GDD §8, §9; NC-060).
+  Admirals::ResolveDailyRoster(_world, _knowledge, _outEvents);
   Memory::ResolveDailyMemory(_world, _knowledge, _outEvents);
   Inference::ResolveDailyInference(_world, _knowledge, _outEvents, _log);
   // **After inference**, because GDD §4's second payment waits on the employer having worked out who did it, and

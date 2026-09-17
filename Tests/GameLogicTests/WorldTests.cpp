@@ -38,6 +38,7 @@ namespace
                                                                  {Nomad::FleetId::FromIndex(0)},
                                                                  {},
                                                                  {},
+                                                                 Nomad::BattleTemplate::Ambush,
                                                                  true});
 
   Nomad::Company first;

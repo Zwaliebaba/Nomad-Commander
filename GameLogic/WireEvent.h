@@ -66,10 +66,12 @@ enum class EventKind : std::uint8_t
   ContractExpired,
   ContractPaid,
   ContractFailed,
-  ContractBetrayed
+  ContractBetrayed,
+  TemplateChosen,
+  AdmiralReplaced
 };
 
-inline constexpr std::uint8_t EVENT_KIND_COUNT = 50;
+inline constexpr std::uint8_t EVENT_KIND_COUNT = 52;
 
 /// One consequence, as the client is told it (ADR-018).
 ///

@@ -357,6 +357,108 @@ inline constexpr Neuron::Hundredths LEADER_GREED_HUNDREDTHS = Neuron::Hundredths
 /// floor is that there is always another one.
 inline constexpr std::uint32_t FLOOR_WORK_DAYS = 3;
 
+// --- GDD §8: the opponents, and why two admirals in one situation fight differently ------------------------------
+//
+// "An admiral's choice is scored from the believed odds, the objective, the admiral's traits and his circumstances,
+// and the trait weights are deliberately large relative to the situation weights, so that two admirals in the same
+// situation choose differently more often than not. **That is a v0.1 test: identical situations, different choices,
+// at least half the time.**" §16 lists the opposite outcome -- "AI personalities converge" -- as a named risk, and
+// the ratio below is the whole of what guards against it.
+
+/// **The ratio GDD §8 asks for, as two numbers.** Traits outweigh the situation four to one, so an admiral fights
+/// like himself in a situation that would suggest otherwise -- which is what makes him learnable, and what makes the
+/// identical-situation test pass. Narrowing this gap converges the personalities; §16 says that is the risk.
+inline constexpr std::int32_t TRAIT_WEIGHT = 100;
+inline constexpr std::int32_t SITUATION_WEIGHT = 25;
+
+/// **What a scenario's pinned habit is worth against an admiral's traits.** Most admirals have no entry here at all:
+/// an admiral's preferred template is simply the one his traits score highest, which is how GDD §8 talks about it.
+/// The field exists so that NC-090 can write Varik from §3's sentence -- "lightly escorted convoys as bait when he
+/// had a reserve" -- and have him reliably do it whatever traits he was drawn.
+///
+/// **Measured, not guessed**: over four thousand drawn admirals the span from a trait-best template to a trait-worst
+/// one has a median of 117, so a full habit at 150 outweighs the traits of nearly any officer -- a pinned ambush
+/// held for a hundred drawn admirals out of a hundred. That is the point: a signature move a scenario pins is a
+/// signature move.
+inline constexpr std::int64_t HABIT_WEIGHT = 150;
+
+/// **What desperation takes off an admiral's preferred template** (GDD §8: "desperation, measured by recent losses
+/// and exhaustion, lowers the weight on an admiral's preferred template, so a desperate Varik **may** abandon the
+/// carriers he protects, and a player who has studied him knows what desperation does to him").
+///
+/// **A share of the preference and not a flat amount**, which is the difference between the design's sentence and a
+/// near miss of it. A flat penalty bends an officer with an ordinary preference and can never bend one who holds
+/// his strongly -- so a scenario's Varik, whose whole point is that he holds his strongly, would be the one admiral
+/// in the game desperation could not reach. §8 names him as the example. Taking a share reaches everyone in
+/// proportion to how much there is to take, which is also what "lowers the weight" says.
+///
+/// At eighty, a fully desperate admiral keeps a fifth of his preference: measured over two hundred drawn officers,
+/// most abandon it and the ones who held it most strongly do not, which is the "may" and the thing a player learns.
+inline constexpr Neuron::Hundredths DESPERATION_TAKES_OF_PREFERENCE = Neuron::Hundredths::FromRaw(80);
+
+/// The pinned spread that settles a tie, small enough that it never outvotes a trait (R16, ADR-002: drawn from the
+/// world's own stream, so two runs of a seed pick the same template).
+inline constexpr std::uint32_t TEMPLATE_TIEBREAK_SPREAD = 8;
+
+/// **What each template is made of**, as an affinity per trait in hundredths, rows indexed by `BattleTemplate` and
+/// columns by the order the traits are declared in `AdmiralTraits`: aggression, caution, deception, preservation,
+/// initiative. A negative entry is a trait that argues *against* the template.
+///
+/// This table is the personalities. Two admirals differ because their traits hit different rows hardest, so the
+/// rows are deliberately distinct from one another -- a table whose rows resembled each other would converge the
+/// roster however large `TRAIT_WEIGHT` was (GDD §16).
+///
+/// **Every row sums to the same number, and that is load-bearing rather than tidy.** Traits are drawn uniformly, so
+/// a row's expected score is its sum times the average trait: a row that added up to more than its neighbours would
+/// win for arithmetic reasons before any admiral's character was consulted. The first version of this table had
+/// sums from 0 to 240 and Ambush took seventy percent of every choice -- the identical-situation test fell to 36%
+/// in the worst case, which is §16's convergence happening in the table rather than in the weights. Equal sums
+/// make the winner a question of *which* traits an officer is high in, which is what the design means by character.
+/// `TemplateSelection.cpp` asserts the equality at compile time, because a row edited by hand is exactly the thing
+/// that would quietly break it again.
+inline constexpr std::int32_t TEMPLATE_TRAIT_AFFINITY[8][5] = {
+  // aggression, caution, deception, preservation, initiative
+  {130, -60, -30, -40, 100}, // DirectAssault: aggression, and the impatience to go now
+  {-40, 130, 50, 40, -80},   // RefusedFlank: caution, and the patience to make them come
+  {70, -40, 30, -60, 100},   // Pincer: initiative first, and the nerve to divide a force
+  {60, 20, -20, 110, -70},   // ScreenAndStrike: something cheap in front of something he means to keep
+  {-70, 40, 130, 60, -60},   // FeintAndWithdrawal: deception, and no appetite for the fight
+  {100, -50, -30, -70, 150}, // ConcentratedBreakthrough: everything at one point, right now
+  {-60, 70, -30, 140, -20},  // Escort: the objective is the cargo, not the enemy
+  {-20, 60, 120, 30, -90}};  // Ambush: deception and the patience to wait (GDD §3's Varik)
+
+/// How much each template wants the odds in its favour, in hundredths. Positive means it is a manoeuvre for an
+/// admiral who believes he is winning; negative means it is what you reach for when you are not.
+///
+/// **Believed odds, never the odds** (R18, GDD §9): the number this multiplies is built from what the empire's
+/// observers wrote down, so an admiral who has been fed a bad count attacks a force he cannot beat.
+inline constexpr std::int32_t TEMPLATE_ODDS_AFFINITY[8] = {100, -20, 40, 20, -80, 60, 0, -50};
+
+/// What each objective argues for, rows indexed by `BattleObjective` and columns by `BattleTemplate`.
+inline constexpr std::int32_t TEMPLATE_OBJECTIVE_AFFINITY[4][8] = {{80, 20, 70, 50, -40, 90, -60, 40},    // Destroy
+                                                                   {-40, 40, -10, 70, 20, -30, 100, 10},  // Protect
+                                                                   {10, 90, 20, 60, -20, 0, 30, 50},      // Hold
+                                                                   {-80, 50, -30, 20, 100, -60, 10, 60}}; // Withdraw
+
+/// **The roster refreshes** (GDD §8: "Admirals are promoted, dismissed for deviation, killed in battle, or retire
+/// ... An admiral is never permanent"). How long a command lasts before retirement becomes possible, and the daily
+/// chance of it once it is.
+inline constexpr Neuron::Tick ADMIRAL_TENURE_TICKS = 180 * Neuron::TICKS_PER_DAY;
+inline constexpr std::uint32_t ADMIRAL_RETIREMENT_CHANCE_PER_DAY = 3;
+
+/// **Dismissed for deviation**: how many of his last engagements an admiral may fight without once reaching for his
+/// empire's doctrine before the empire replaces him. An empire tolerates a maverick for a while and then does not.
+inline constexpr std::uint32_t ADMIRAL_DOCTRINE_WINDOW = 6;
+
+/// How much of a predecessor's habit a successor who served under him keeps (GDD §8: "a replacement who served
+/// under the old admiral inherits some of his habits and his opinion of the player"). The opinion half is
+/// `INHERITANCE_HUNDREDTHS` and NC-051 spends it; this is the habits.
+inline constexpr Neuron::Hundredths ADMIRAL_HABIT_INHERITANCE = Neuron::Hundredths::FromRaw(50);
+
+/// How many hulls lost, against what he commands, counts as fully desperate, and how far back "recent" reaches.
+inline constexpr Neuron::Tick DESPERATION_WINDOW_TICKS = 14 * Neuron::TICKS_PER_DAY;
+inline constexpr std::uint32_t DESPERATION_LOSSES_FOR_FULL = 12;
+
 // --- GDD §9 and §11: memory, and what an empire makes of a company -----------------------------------------------
 
 /// **The steps an empire's threat assessment moves through**, as the consequence each one carries. A step and not a

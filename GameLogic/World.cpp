@@ -287,6 +287,7 @@ void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
   WriteIds(_writer, _empire.fleets);
   WriteGoals(_writer, _empire.goals);
   WriteIds(_writer, _empire.revokedCompanies);
+  WriteEnum(_writer, _empire.doctrine);
   _writer.WriteBool(_empire.alive);
 }
 
@@ -294,7 +295,8 @@ void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
 {
   return _reader.ReadString(_outEmpire.name) && _reader.ReadId(_outEmpire.leader) && _reader.ReadId(_outEmpire.homeSystem) &&
          _reader.Read(_outEmpire.colorSlot) && ReadIds(_reader, _outEmpire.systemsHeld) && ReadIds(_reader, _outEmpire.fleets) &&
-         ReadGoals(_reader, _outEmpire.goals) && ReadIds(_reader, _outEmpire.revokedCompanies) && _reader.ReadBool(_outEmpire.alive);
+         ReadGoals(_reader, _outEmpire.goals) && ReadIds(_reader, _outEmpire.revokedCompanies) &&
+         ReadEnum(_reader, _outEmpire.doctrine, TEMPLATE_COUNT) && _reader.ReadBool(_outEmpire.alive);
 }
 
 /// The variant's alternative index, then its payload. The index is the schema: appending an alternative is safe and
@@ -520,6 +522,73 @@ void WriteWreckAnalysis(Neuron::ByteWriter& _writer, const WreckAnalysis& _analy
   return _reader.ReadId(_outAnalysis.company) && _reader.ReadId(_outAnalysis.incident) && _reader.ReadId(_outAnalysis.scout) &&
          _reader.ReadTick(_outAnalysis.startedAtTick) && _reader.ReadTick(_outAnalysis.completesAtTick) &&
          ReadShipCounts(_reader, _outAnalysis.found) && _reader.ReadBool(_outAnalysis.complete) && _reader.ReadBool(_outAnalysis.abandoned);
+}
+
+void WriteAdmiral(Neuron::ByteWriter& _writer, const AdmiralRecord& _admiral)
+{
+  _writer.WriteId(_admiral.character);
+  _writer.WriteId(_admiral.empire);
+  _writer.WriteHundredths(_admiral.traits.aggression);
+  _writer.WriteHundredths(_admiral.traits.caution);
+  _writer.WriteHundredths(_admiral.traits.deception);
+  _writer.WriteHundredths(_admiral.traits.preservation);
+  _writer.WriteHundredths(_admiral.traits.initiative);
+  _writer.Write(static_cast<std::uint32_t>(_admiral.traits.preferredTemplates.size()));
+  for (const Neuron::Hundredths preference : _admiral.traits.preferredTemplates)
+  {
+    _writer.WriteHundredths(preference);
+  }
+  _writer.WriteTick(_admiral.appointedAtTick);
+  _writer.Write(static_cast<std::uint32_t>(_admiral.engagements.size()));
+  for (const Engagement& engagement : _admiral.engagements)
+  {
+    _writer.WriteTick(engagement.tick);
+    WriteEnum(_writer, engagement.chosen);
+    _writer.WriteBool(engagement.won);
+    _writer.Write(engagement.hullsLost);
+  }
+  _writer.WriteBool(_admiral.serving);
+}
+
+[[nodiscard]] bool ReadAdmiral(Neuron::ByteReader& _reader, AdmiralRecord& _outAdmiral)
+{
+  if (!_reader.ReadId(_outAdmiral.character) || !_reader.ReadId(_outAdmiral.empire) ||
+      !_reader.ReadHundredths(_outAdmiral.traits.aggression) || !_reader.ReadHundredths(_outAdmiral.traits.caution) ||
+      !_reader.ReadHundredths(_outAdmiral.traits.deception) || !_reader.ReadHundredths(_outAdmiral.traits.preservation) ||
+      !_reader.ReadHundredths(_outAdmiral.traits.initiative))
+  {
+    return false;
+  }
+
+  std::uint32_t preferenceCount = 0;
+  if (!_reader.Read(preferenceCount) || preferenceCount > _reader.Remaining())
+  {
+    return false;
+  }
+  _outAdmiral.traits.preferredTemplates.resize(preferenceCount);
+  for (Neuron::Hundredths& preference : _outAdmiral.traits.preferredTemplates)
+  {
+    if (!_reader.ReadHundredths(preference))
+    {
+      return false;
+    }
+  }
+
+  std::uint32_t engagementCount = 0;
+  if (!_reader.ReadTick(_outAdmiral.appointedAtTick) || !_reader.Read(engagementCount) || engagementCount > _reader.Remaining())
+  {
+    return false;
+  }
+  _outAdmiral.engagements.resize(engagementCount);
+  for (Engagement& engagement : _outAdmiral.engagements)
+  {
+    if (!_reader.ReadTick(engagement.tick) || !ReadEnum(_reader, engagement.chosen, TEMPLATE_COUNT) || !_reader.ReadBool(engagement.won) ||
+        !_reader.Read(engagement.hullsLost))
+    {
+      return false;
+    }
+  }
+  return _reader.ReadBool(_outAdmiral.serving);
 }
 
 void WriteContract(Neuron::ByteWriter& _writer, const Contract& _contract)
@@ -820,6 +889,7 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_couriers, WriteCourier);
   WriteTable(_writer, m_wreckAnalyses, WriteWreckAnalysis);
   WriteTable(_writer, m_contracts, WriteContract);
+  WriteTable(_writer, m_admirals, WriteAdmiral);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -849,7 +919,8 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
       !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket) ||
       !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull) || !ReadTable(_reader, loaded.m_relations, ReadRelation) ||
       !ReadTable(_reader, loaded.m_incidents, ReadIncident) || !ReadTable(_reader, loaded.m_couriers, ReadCourier) ||
-      !ReadTable(_reader, loaded.m_wreckAnalyses, ReadWreckAnalysis) || !ReadTable(_reader, loaded.m_contracts, ReadContract))
+      !ReadTable(_reader, loaded.m_wreckAnalyses, ReadWreckAnalysis) || !ReadTable(_reader, loaded.m_contracts, ReadContract) ||
+      !ReadTable(_reader, loaded.m_admirals, ReadAdmiral))
   {
     return false;
   }

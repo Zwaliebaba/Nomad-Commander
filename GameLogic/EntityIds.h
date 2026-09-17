@@ -35,6 +35,7 @@ struct AccusationTag;
 struct CourierTag;
 struct WreckAnalysisTag;
 struct ContractTag;
+struct AdmiralTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -90,5 +91,10 @@ using WreckAnalysisId = Neuron::Id<WreckAnalysisTag>;
 /// An offer an empire made and what became of it (GDD §8, NC-056). One id covers the offer and the contract because
 /// they are one row: an offer that was taken is a contract, and one that was not is still the thing the board showed.
 using ContractId = Neuron::Id<ContractTag>;
+
+/// An admiral's record: his traits, his fights and his tenure (GDD §8, NC-060). Separate from `CharacterId` because
+/// a character is a person and this is a command -- and GDD §8 refreshes the roster, so the two do not live or end
+/// together.
+using AdmiralId = Neuron::Id<AdmiralTag>;
 
 } // namespace Nomad

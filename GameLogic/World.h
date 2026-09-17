@@ -14,6 +14,7 @@
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
+#include "Admiral.h"
 #include "Contract.h"
 #include "WreckAnalysis.h"
 
@@ -76,7 +77,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 12;
+  static constexpr std::uint16_t SCHEMA_VERSION = 13;
 
   explicit World(std::uint64_t _seed);
 
@@ -220,6 +221,20 @@ public:
     return m_wreckAnalyses;
   }
 
+  /// Every command an empire has given an admiral, and what he did with it (GDD §8, NC-060).
+  ///
+  /// **Reality**: what an admiral *is* is a fact, and only what anybody believes about him is belief (ADR-021). The
+  /// player's dossier is built from receipts and reports, never from this.
+  [[nodiscard]] Table<AdmiralRecord, AdmiralId>& Admirals() noexcept
+  {
+    return m_admirals;
+  }
+
+  [[nodiscard]] const Table<AdmiralRecord, AdmiralId>& Admirals() const noexcept
+  {
+    return m_admirals;
+  }
+
   /// Every offer an empire has made and what became of it (GDD §8, NC-056).
   ///
   /// **An offer is reality**: the empire made it, at a price, with a deadline. What the player *believes* about
@@ -325,6 +340,7 @@ private:
   std::vector<CourierId> m_couriersInFlight;
   Table<WreckAnalysis, WreckAnalysisId> m_wreckAnalyses;
   Table<Contract, ContractId> m_contracts;
+  Table<AdmiralRecord, AdmiralId> m_admirals;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

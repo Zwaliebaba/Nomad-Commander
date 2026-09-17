@@ -94,6 +94,8 @@
     <ClCompile Include="Answers.cpp" />
     <ClCompile Include="CovertRaid.cpp" />
     <ClCompile Include="Contracts.cpp" />
+    <ClCompile Include="TemplateSelection.cpp" />
+    <ClCompile Include="Admirals.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -140,6 +142,10 @@
     <ClInclude Include="Cargo.h" />
     <ClInclude Include="CovertRaid.h" />
     <ClInclude Include="Contracts.h" />
+    <ClInclude Include="TemplateSelection.h" />
+    <ClInclude Include="Admirals.h" />
+    <ClInclude Include="Admiral.h" />
+    <ClInclude Include="BattleTemplate.h" />
     <ClInclude Include="WireContract.h" />
     <ClInclude Include="Contract.h" />
     <ClInclude Include="WreckAnalysis.h" />

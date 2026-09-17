@@ -23,10 +23,11 @@ constexpr std::uint32_t EMPIRES = 3;
   Nomad::World world{_seed};
   const Nomad::UniverseGenerator::Desc desc{SYSTEMS, EMPIRES};
   Assert::IsTrue(Nomad::UniverseGenerator::Generate(desc, world), L"the world could not be generated");
-  // **The generator makes one person per empire and no more**: NC-056 seeds each empire's leader beside its goals,
-  // because an offer is made by somebody and a refusal lowers *their* opinion. The admirals GDD §15 asks for are
-  // NC-060's, and until it lands a test that wants one adds it -- which is what the helper below is for.
-  Assert::AreEqual(EMPIRES, world.Characters().Count(), L"the generator grew people beyond the empires' own leaders");
+  // **The generator makes two people per empire and no more**: a leader, seeded beside the goals because an offer is
+  // made by somebody and a refusal lowers *their* opinion (NC-056), and an admiral, because GDD §8 makes the
+  // opponents the content (NC-060). The helper below still exists so a test can add an admiral of its own without
+  // depending on which one the generator drew.
+  Assert::AreEqual(2 * EMPIRES, world.Characters().Count(), L"the generator grew people beyond a leader and an admiral per empire");
   return world;
 }
 

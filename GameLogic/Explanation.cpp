@@ -139,6 +139,14 @@ namespace
     return "you sold the cargo you were hired to escort";
   case ReasonCode::TheCrewFoundWork:
     return "the crew found work that needs no fleet";
+  case ReasonCode::TheAdmiralFoughtLikeHimself:
+    return "the admiral fought the way he fights";
+  case ReasonCode::TheAdmiralRetired:
+    return "the admiral's command ended and somebody else has it";
+  case ReasonCode::TheAdmiralDeviatedFromDoctrine:
+    return "the admiral fought his own way once too often and was replaced";
+  case ReasonCode::TheAdmiralWasPromoted:
+    return "the admiral was promoted out of the field";
   }
   return "something happened that nobody recorded a reason for";
 }
