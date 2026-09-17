@@ -35,7 +35,10 @@ public:
   /// a taste one: `NomadSimulation` only clears its events when something drains them, so a headless year that never
   /// drains hands this a vector that grows all year. Scanning it per tick made a simulated year quadratic and cost a
   /// measured 2.7x (NC-050's report).
-  static void ResolveDetection(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick);
+  /// `_outEvents` is where the couriers it dispatches announce themselves: a sighting beyond the observer's own
+  /// system rides a real courier since NC-053, and a courier being sent is a consequence like any other (R19).
+  static void ResolveDetection(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick,
+                               std::vector<Event>& _outEvents);
 
   /// The furthest this fleet can see, in jumps: the best sensor among the hulls it actually holds (GDD §12, and
   /// `ShipStats::sensorRangeJumps`). A fleet with no hulls sees nothing, not its own system.

@@ -2,11 +2,13 @@
 #include "pch.h"
 #include "Sensor.h"
 
+#include "Couriers.h"
 #include "Mobility.h"
 #include "Tuning.h"
 
 #include "IntegerMath.h"
 
+#include <iterator>
 #include <variant>
 
 namespace Nomad
@@ -211,16 +213,21 @@ void Sensor::DeliveredTo(const Knowledge& _knowledge, const Observer& _observer,
   }
 }
 
-void Sensor::ResolveDetection(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick)
+void Sensor::ResolveDetection(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick, std::vector<Event>& _outEvents)
 {
   const Neuron::Tick now = _world.CurrentTick();
 
+  // **The span and `_outEvents` are the same vector**, because the resolver hands this tick's own events back to the
+  // phase that reads them. So the span is consumed here, once, into `movers`, and nothing below touches it again;
+  // the couriers this dispatches append to a local list that is spliced on at the end. An append while the span was
+  // still live would reallocate the vector out from under it, which is a dangling read rather than a wrong answer.
   std::vector<FleetId> movers;
   MoversThisTick(_world, _eventsThisTick, movers);
   if (movers.empty())
   {
     return;
   }
+  std::vector<Event> dispatched;
 
   // Every observer in the world, empires before companies and each in table order, which is what makes the reports a
   // seed writes reproduce row for row (R16).
@@ -332,14 +339,22 @@ void Sensor::ResolveDetection(World& _world, Knowledge& _knowledge, std::span<co
       report.checked = false;
 
       // Intelligence travels (GDD §4). A sighting in the observer's own system is on the desk at once; anything
-      // further away waits for a courier. NC-053 replaces the arithmetic with a courier that can be intercepted.
-      const std::uint32_t toDesk = desk.IsValid() ? _world.JumpsBetween(seenAt, desk) : 0;
-      const Neuron::Tick carried = toDesk == World::UNREACHABLE ? 0 : static_cast<Neuron::Tick>(toDesk) * Tuning::COURIER_TICKS_PER_JUMP;
-      report.deliveredAtTick = now + carried;
+      // further away **rides a real courier** since NC-053, so the delivery tick is that courier's arrival and the
+      // report can be lost on the way rather than merely delayed.
+      const bool atTheDesk = !desk.IsValid() || desk == seenAt;
+      report.deliveredAtTick = atTheDesk ? now : Couriers::ArrivalTick(_world, seenAt, desk, now);
 
-      (void)_knowledge.Reports().Add(report);
+      const ReportId written = _knowledge.Reports().Add(report);
+      if (!atTheDesk)
+      {
+        const FleetOwner sender =
+          std::holds_alternative<EmpireId>(observer) ? FleetOwner{std::get<EmpireId>(observer)} : FleetOwner{std::get<CompanyId>(observer)};
+        (void)Couriers::Send(_world, sender, seenAt, desk, CourierReport{written}, dispatched);
+      }
     }
   }
+
+  _outEvents.insert(_outEvents.end(), std::make_move_iterator(dispatched.begin()), std::make_move_iterator(dispatched.end()));
 }
 
 } // namespace Nomad

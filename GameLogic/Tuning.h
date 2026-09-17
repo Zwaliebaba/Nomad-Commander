@@ -157,6 +157,12 @@ inline constexpr std::uint32_t DRIFTING_ARRIVAL_MULTIPLIER_HUNDREDTHS = 150;
 /// is what spends this.
 inline constexpr std::uint32_t COURIER_SPEED_MULTIPLIER_HUNDREDTHS = 60;
 
+/// **What a courier risks when it passes a fleet that wants to engage** (GDD §9: couriers are interceptable, and by
+/// everyone). Not a number the design states, so it is a lever: high enough that routing a message through a war zone
+/// is a decision, low enough that intelligence still moves. One draw per hostile system entered, from the pinned
+/// `Courier` stream (R16).
+inline constexpr std::uint32_t COURIER_CAPTURE_CHANCE_HUNDREDTHS = 25;
+
 /// GDD §12's interdiction "pins a fleet in a system for a stated time". The bounds an empire may state.
 inline constexpr Neuron::Tick INTERDICTION_MIN_TICKS = 2 * Neuron::TICKS_PER_HOUR;
 inline constexpr Neuron::Tick INTERDICTION_MAX_TICKS = 12 * Neuron::TICKS_PER_HOUR;

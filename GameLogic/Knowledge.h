@@ -155,7 +155,7 @@ public:
 
   /// Bumped when the layout changes in a way an older store could not be read as. Separate from `World`'s, because
   /// the two halves change for different reasons.
-  static constexpr std::uint16_t SCHEMA_VERSION = 2;
+  static constexpr std::uint16_t SCHEMA_VERSION = 3;
 
 private:
   Table<Report, ReportId> m_reports;

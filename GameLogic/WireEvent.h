@@ -48,10 +48,13 @@ enum class EventKind : std::uint8_t
   ThreatStepChanged,
   OpinionInherited,
   AccusationIssued,
-  ClaimRevoked
+  ClaimRevoked,
+  CourierSent,
+  CourierArrived,
+  CourierCaptured
 };
 
-inline constexpr std::uint8_t EVENT_KIND_COUNT = 32;
+inline constexpr std::uint8_t EVENT_KIND_COUNT = 35;
 
 /// One consequence, as the client is told it (ADR-018).
 ///

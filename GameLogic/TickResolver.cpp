@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "TickResolver.h"
 
+#include "Couriers.h"
 #include "Economy.h"
 #include "Fabricator.h"
 #include "Inference.h"
@@ -26,6 +27,42 @@ namespace
 ///
 /// Order matters and is the receipt order: two inputs for one tick apply in the order the player made them, because
 /// that is the order the receipt will explain them in and the order a replay reproduces (GDD §4, R16).
+/// GDD §4: "Orders to a fleet in the mothership's own system are instant; beyond it they travel." Both halves are
+/// here, because the difference between them is one comparison and putting it anywhere else would make the instant
+/// case a special path somebody has to remember.
+void SendAnOrder(World& _world, const Input& _input, std::vector<Event>& _outEvents)
+{
+  if (!_world.Companies().Holds(_input.company) || !_world.Fleets().Holds(_input.fleet))
+  {
+    return;
+  }
+  const SystemId desk = _world.Companies().Get(_input.company).mothership.location;
+  const SystemId fleetAt = Mobility::LocationOf(_world.Fleets().Get(_input.fleet));
+  const bool recall = _input.route.empty();
+
+  if (desk == fleetAt)
+  {
+    Fleet& fleet = _world.Fleets().Get(_input.fleet);
+    if (recall)
+    {
+      fleet.route.clear();
+      return;
+    }
+    if (Mobility::CanBeOrdered(_world, fleet) && Mobility::IsContiguousRoute(_world, fleet, _input.route) &&
+        Mobility::CanFuelRoute(_world, fleet, _input.route))
+    {
+      fleet.route = _input.route;
+    }
+    return;
+  }
+
+  CourierOrder order{};
+  order.fleet = _input.fleet;
+  order.route = _input.route;
+  order.recall = recall;
+  (void)Couriers::Send(_world, FleetOwner{_input.company}, desk, fleetAt, CourierPayload{std::move(order)}, _outEvents);
+}
+
 void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents, LogSink* _log)
 {
   const Neuron::Tick tick = _world.CurrentTick();
@@ -53,6 +90,10 @@ void ResolveInputs(World& _world, std::span<const Input> _inputs, std::vector<Ev
     case InputKind::Refuel:
     case InputKind::SetEngageIntent:
       Mobility::ApplyOrder(_world, input, _outEvents);
+      break;
+
+    case InputKind::SendCourier:
+      SendAnOrder(_world, input, _outEvents);
       break;
 
     case InputKind::SetActiveWindow:
@@ -93,15 +134,18 @@ void ResolveMovement(World& _world, std::vector<Event>& _outEvents)
 ///
 /// **After movement on purpose**: it reads the arrivals and departures that phase just wrote and reports on those,
 /// so a sighting is a record of a change rather than a sample of the clock (NC-050, `Sensor.h`).
-void ResolveDetection(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick)
+void ResolveDetection(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick, std::vector<Event>& _outEvents)
 {
-  Sensor::ResolveDetection(_world, _knowledge, _eventsThisTick);
+  Sensor::ResolveDetection(_world, _knowledge, _eventsThisTick, _outEvents);
 }
 
 /// Phase 4 -- couriers. Orders, denials and rumours moving physically along the lanes (GDD §9).
-void ResolveCouriers([[maybe_unused]] World& _world, [[maybe_unused]] std::vector<Event>& _outEvents)
+///
+/// **After detection on purpose**: a courier dispatched by this tick's detection is in flight from the moment it is
+/// written, so a sighting and the courier carrying it are one tick's worth of consequence rather than two.
+void ResolveCouriers(World& _world, Knowledge& _knowledge, std::vector<Event>& _outEvents)
 {
-  // NC-053.
+  Couriers::ResolveCouriers(_world, _knowledge, _outEvents);
 }
 
 /// Phase 5 -- encounters. Interception and battle, fought by doctrine when they happen (GDD §7, §8).
@@ -182,8 +226,8 @@ void TickResolver::Advance(World& _world, Knowledge& _knowledge, std::span<const
 
   ResolveInputs(_world, _inputs, _outEvents, _log);
   ResolveMovement(_world, _outEvents);
-  ResolveDetection(_world, _knowledge, std::span<const Event>{_outEvents}.subspan(firstEventOfTick));
-  ResolveCouriers(_world, _outEvents);
+  ResolveDetection(_world, _knowledge, std::span<const Event>{_outEvents}.subspan(firstEventOfTick), _outEvents);
+  ResolveCouriers(_world, _knowledge, _outEvents);
   ResolveEncounters(_world, _outEvents);
   if (IsDailyTick(_world.CurrentTick()))
   {

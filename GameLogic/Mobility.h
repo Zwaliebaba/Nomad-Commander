@@ -45,6 +45,10 @@ public:
   /// Where a fleet is now, whatever it is doing: the system it sits at, the one it left, or the one it drifts in.
   [[nodiscard]] static SystemId LocationOf(const Fleet& _fleet) noexcept;
 
+  /// The same answer for a bare position, because a `Courier` is at a place in exactly the way a fleet is and reuses
+  /// the type to say so (NC-053, `Courier.h`). The fleet overload is this one with the field already picked out.
+  [[nodiscard]] static SystemId LocationOf(const FleetPosition& _position) noexcept;
+
   /// Whether a fleet can be given an order at all. A fleet that is drifting, dead, pinned or already in a lane is
   /// not: the first three by rule, the last because a lane is a commitment.
   [[nodiscard]] static bool CanBeOrdered(const World& _world, const Fleet& _fleet) noexcept;

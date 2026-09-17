@@ -19,6 +19,7 @@
     <ClCompile Include="OpinionTests.cpp" />
     <ClCompile Include="ThreatAssessmentTests.cpp" />
     <ClCompile Include="InferenceTests.cpp" />
+    <ClCompile Include="CourierTests.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -12,6 +12,7 @@
     <ClCompile Include="Memory.cpp" />
     <ClCompile Include="Accusation.cpp" />
     <ClCompile Include="Inference.cpp" />
+    <ClCompile Include="Couriers.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -53,6 +54,8 @@
     <ClInclude Include="Accusation.h" />
     <ClInclude Include="Evidence.h" />
     <ClInclude Include="Inference.h" />
+    <ClInclude Include="Courier.h" />
+    <ClInclude Include="Couriers.h" />
     <ClInclude Include="WireAccusation.h" />
     <ClInclude Include="Opinion.h" />
     <ClInclude Include="ThreatAssessment.h" />

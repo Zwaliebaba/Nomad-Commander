@@ -35,10 +35,15 @@ enum class InputKind : std::uint8_t
   // GDD §10's constrained arbitrage. A trade is made by a fleet at a market, because cargo has to go somewhere and
   // "capital tied up in cargo" is a real stake (GDD §4).
   Buy,
-  Sell
+  Sell,
+
+  /// GDD §4's "orders travel": an order for a fleet that is not at the mothership, carried by a courier that can be
+  /// intercepted on the way. An empty `laneRoute` is a **recall**. An order to a fleet in the mothership's own system
+  /// is applied on the spot with no courier at all, which is the same sentence in §4 read the other way round.
+  SendCourier
 };
 
-inline constexpr std::uint8_t INPUT_KIND_COUNT = 10;
+inline constexpr std::uint8_t INPUT_KIND_COUNT = 11;
 
 /// The four ship classes, as the wire counts them. A wire header sees only NeuronCore (ADR-001), so it cannot include
 /// the enumerator; `Mobility.cpp` static_asserts that this and `SHIP_CLASS_COUNT` are the same number, which is where

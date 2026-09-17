@@ -112,6 +112,7 @@ void WriteReport(Neuron::ByteWriter& _writer, const Report& _report)
   _writer.WriteBool(_report.sighting.inTransit);
   _writer.WriteHundredths(_report.reliabilityWhenWritten);
   _writer.WriteBool(_report.checked);
+  _writer.WriteBool(_report.lost);
 }
 
 [[nodiscard]] bool ReadReport(Neuron::ByteReader& _reader, Report& _outReport)
@@ -123,7 +124,7 @@ void WriteReport(Neuron::ByteWriter& _writer, const Report& _report)
          ReadShipCounts(_reader, _outReport.sighting.countsSeen) && _reader.ReadId(_outReport.sighting.atSystem) &&
          _reader.ReadBool(_outReport.sighting.identityKnown) && _reader.ReadBool(_outReport.sighting.marked) &&
          _reader.ReadBool(_outReport.sighting.inTransit) && _reader.ReadHundredths(_outReport.reliabilityWhenWritten) &&
-         _reader.ReadBool(_outReport.checked);
+         _reader.ReadBool(_outReport.checked) && _reader.ReadBool(_outReport.lost);
 }
 
 void WriteBelief(Neuron::ByteWriter& _writer, const Belief& _belief)

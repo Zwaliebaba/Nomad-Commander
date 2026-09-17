@@ -139,6 +139,12 @@ struct Report
   /// Whether a later, closer sighting has been compared against this one yet. A report is checked at most once, so
   /// one bad long-range guess costs its source one mark rather than one a tick.
   bool checked;
+
+  /// **The courier carrying it was taken, so it will never land** (NC-053). A report in flight and a report that was
+  /// intercepted are both undelivered, and a reader cannot act on either; the difference is that one of them has a
+  /// delivery tick that will arrive. Without this the capture would have to be spelled as a delivery tick nobody
+  /// reaches, which is a sentinel pretending to be a time.
+  bool lost;
 };
 
 /// How old a report is at a given tick, from the moment of observation and not from delivery (GDD §3).
@@ -147,10 +153,11 @@ struct Report
   return _now > _report.observedAtTick ? _now - _report.observedAtTick : 0;
 }
 
-/// Whether the observer may act on this yet. A report in flight exists in the world but has reached nobody.
+/// Whether the observer may act on this yet. A report in flight exists in the world but has reached nobody, and one
+/// whose courier was intercepted never will (NC-053).
 [[nodiscard]] constexpr bool IsDelivered(const Report& _report, Neuron::Tick _now) noexcept
 {
-  return _report.deliveredAtTick <= _now;
+  return !_report.lost && _report.deliveredAtTick <= _now;
 }
 
 /// One report as the client is told it (ADR-018). **The conversion lives here and not in `WireReport.h`**, because a

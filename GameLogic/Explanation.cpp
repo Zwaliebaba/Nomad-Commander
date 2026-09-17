@@ -93,6 +93,12 @@ namespace
     return "a successor took over, and inherited what was on file";
   case ReasonCode::TheEvidencePointsAtYou:
     return "you raided them";
+  case ReasonCode::ACourierWasSent:
+    return "orders went out by courier";
+  case ReasonCode::ACourierArrived:
+    return "a courier reached its destination";
+  case ReasonCode::ACourierWasTaken:
+    return "a courier was intercepted, and what it carried is in somebody else's hands";
   }
   return "something happened that nobody recorded a reason for";
 }

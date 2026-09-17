@@ -3,6 +3,7 @@
 
 #include "Character.h"
 #include "Company.h"
+#include "Courier.h"
 #include "Empire.h"
 #include "Fleet.h"
 #include "Incident.h"
@@ -72,7 +73,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 8;
+  static constexpr std::uint16_t SCHEMA_VERSION = 9;
 
   explicit World(std::uint64_t _seed);
 
@@ -188,6 +189,40 @@ public:
     return m_incidents;
   }
 
+  /// Orders and messages physically crossing the lanes (GDD §4, §9; NC-053). **Reality**: a courier is at a place and
+  /// a fleet can take it off somebody. What it carries is named by id and never held by value, so a routine with a
+  /// `World&` still cannot read a report through one (`Courier.h`, ADR-021).
+  ///
+  /// Rows stay after delivery or capture, like every other table: a courier that was taken is a thing that happened,
+  /// and the receipt refers back to it.
+  [[nodiscard]] Table<Courier, CourierId>& Couriers() noexcept
+  {
+    return m_couriers;
+  }
+
+  [[nodiscard]] const Table<Courier, CourierId>& Couriers() const noexcept
+  {
+    return m_couriers;
+  }
+
+  /// The couriers still in the air, in dispatch order (NC-053).
+  ///
+  /// **Derived state, and it exists for a measured reason.** Rows are never erased from any table here, so the
+  /// courier table grows for the whole run; walking all of it twice a tick cost a measured 1.7x over a simulated
+  /// year for 273 couriers that had all long since landed. This is the working set, and `Deserialize` rebuilds it
+  /// from the rows rather than carrying it in the store, so there is nothing a save can disagree with.
+  ///
+  /// Dispatch order is load-bearing: it is the order the resolver moves them in, and removal keeps it (R16).
+  [[nodiscard]] std::vector<CourierId>& CouriersInFlight() noexcept
+  {
+    return m_couriersInFlight;
+  }
+
+  [[nodiscard]] const std::vector<CourierId>& CouriersInFlight() const noexcept
+  {
+    return m_couriersInFlight;
+  }
+
   /// What JumpsBetween answers when there is no route at all. A disconnected map is a generator bug (NC-041 asserts
   /// connectivity), but a route to a system that does not exist is an ordinary caller error and gets an answer.
   static constexpr std::uint32_t UNREACHABLE = 0xFFFFFFFFu;
@@ -257,6 +292,8 @@ private:
   Table<MothballedHull, MothballId> m_mothballs;
   Table<Relation, RelationId> m_relations;
   Table<Incident, IncidentId> m_incidents;
+  Table<Courier, CourierId> m_couriers;
+  std::vector<CourierId> m_couriersInFlight;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

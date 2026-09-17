@@ -84,6 +84,17 @@ namespace
     break;
   }
 
+  case InputKind::SendCourier:
+    // **Lighter than MoveFleet's check, on purpose.** A courier's order is validated against where the fleet will be
+    // when it lands, which nobody knows yet -- GDD §4 puts the delay there precisely so an order can be overtaken by
+    // events. So this refuses only what can never be right (somebody else's fleet, a lane that does not exist, which
+    // the route loop above already did) and `Couriers` drops the order on arrival if the world has moved on.
+    if (!ownsTheFleet)
+    {
+      return false;
+    }
+    break;
+
   case InputKind::EmergencyJump:
     // The one order that may be given with too little fuel: it still has to be one lane the fleet is standing on.
     if (!ownsTheFleet || route.size() != 1 || !Mobility::CanBeOrdered(_world, _world.Fleets().Get(fleet)) ||

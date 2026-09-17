@@ -400,6 +400,74 @@ void WriteFleetPosition(Neuron::ByteWriter& _writer, const FleetPosition& _posit
   return false;
 }
 
+/// A courier's payload: the variant's arm index, then the arm. Reordering `CourierPayload` renumbers every save
+/// (ADR-004), which is why `Courier.h` says append and never insert.
+void WriteCourierPayload(Neuron::ByteWriter& _writer, const CourierPayload& _payload)
+{
+  _writer.Write(static_cast<std::uint8_t>(_payload.index()));
+  if (const auto* order = std::get_if<CourierOrder>(&_payload); order != nullptr)
+  {
+    _writer.WriteId(order->fleet);
+    WriteIds(_writer, order->route);
+    _writer.WriteBool(order->recall);
+    return;
+  }
+  _writer.WriteId(std::get<CourierReport>(_payload).report);
+}
+
+[[nodiscard]] bool ReadCourierPayload(Neuron::ByteReader& _reader, CourierPayload& _outPayload)
+{
+  std::uint8_t which = 0;
+  if (!_reader.Read(which))
+  {
+    return false;
+  }
+  if (which == 0)
+  {
+    CourierOrder order;
+    if (!_reader.ReadId(order.fleet) || !ReadIds(_reader, order.route) || !_reader.ReadBool(order.recall))
+    {
+      return false;
+    }
+    _outPayload = std::move(order);
+    return true;
+  }
+  if (which == 1)
+  {
+    CourierReport report;
+    if (!_reader.ReadId(report.report))
+    {
+      return false;
+    }
+    _outPayload = report;
+    return true;
+  }
+  return false;
+}
+
+void WriteCourier(Neuron::ByteWriter& _writer, const Courier& _courier)
+{
+  WriteFleetOwner(_writer, _courier.sender);
+  _writer.WriteId(_courier.origin);
+  _writer.WriteId(_courier.destination);
+  WriteIds(_writer, _courier.route);
+  WriteFleetPosition(_writer, _courier.position);
+  WriteCourierPayload(_writer, _courier.payload);
+  _writer.WriteTick(_courier.sentAtTick);
+  _writer.WriteTick(_courier.arrivesAtTick);
+  WriteEnum(_writer, _courier.state);
+  _writer.WriteId(_courier.capturedBy);
+}
+
+[[nodiscard]] bool ReadCourier(Neuron::ByteReader& _reader, Courier& _outCourier)
+{
+  return ReadFleetOwner(_reader, _outCourier.sender) && _reader.ReadId(_outCourier.origin) && _reader.ReadId(_outCourier.destination) &&
+         ReadIds(_reader, _outCourier.route) && ReadFleetPosition(_reader, _outCourier.position) &&
+         ReadCourierPayload(_reader, _outCourier.payload) && _reader.ReadTick(_outCourier.sentAtTick) &&
+         _reader.ReadTick(_outCourier.arrivesAtTick) && ReadEnum(_reader, _outCourier.state, COURIER_STATE_COUNT) &&
+         _reader.ReadId(_outCourier.capturedBy);
+}
+
 void WriteFleet(Neuron::ByteWriter& _writer, const Fleet& _fleet)
 {
   _writer.WriteString(_fleet.name);
@@ -631,6 +699,7 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_mothballs, WriteMothballedHull);
   WriteTable(_writer, m_relations, WriteRelation);
   WriteTable(_writer, m_incidents, WriteIncident);
+  WriteTable(_writer, m_couriers, WriteCourier);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -659,7 +728,7 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
       !ReadTable(_reader, loaded.m_outposts, ReadOutpost) || !ReadTable(_reader, loaded.m_systems, ReadStarSystem) ||
       !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket) ||
       !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull) || !ReadTable(_reader, loaded.m_relations, ReadRelation) ||
-      !ReadTable(_reader, loaded.m_incidents, ReadIncident))
+      !ReadTable(_reader, loaded.m_incidents, ReadIncident) || !ReadTable(_reader, loaded.m_couriers, ReadCourier))
   {
     return false;
   }
@@ -674,6 +743,18 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
     if (!stream.ReadState(_reader))
     {
       return false;
+    }
+  }
+
+  // The in-flight index is derived, so it is rebuilt from the rows rather than read: a store cannot disagree with
+  // the table it was written beside, and an older save that never had one still loads (`World.h`, NC-053).
+  loaded.m_couriersInFlight.clear();
+  for (std::uint32_t index = 0; index < loaded.m_couriers.Count(); ++index)
+  {
+    const auto courierId = CourierId::FromIndex(index);
+    if (loaded.m_couriers.Get(courierId).state == CourierState::InFlight)
+    {
+      loaded.m_couriersInFlight.push_back(courierId);
     }
   }
 

@@ -87,7 +87,7 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Evidence and its weight | §6 | `Evidence`, `EvidenceKind`, `Tuning::EVIDENCE_WEIGHT` | `Evidence.h` | NC-052 |
 | The inference rule and its thresholds | §6 | `Inference` | `Inference.h` | NC-052 |
 | Accusation and the answers to it | §6 | `Accusation`, `AccusationId`, `WireAccusation`, `AccusationAnswer` | `Accusation.h`, `WireAccusation.h` | NC-052, NC-054 |
-| Courier | §4, §9 | `Courier`, `CourierId`, `CourierPayload` | `Courier.h` | NC-053 |
+| Courier | §4, §9 | `Courier`, `CourierId`, `CourierPayload`, `CourierState`, `Couriers` | `Courier.h`, `Couriers.h` | NC-053 |
 | Covert raid by an empire | §6 | `CovertRaid` | `CovertRaid.h` | NC-055 |
 | Marked goods, the loot trail, fencing | §5 | `CargoMark` | `Cargo.h` | NC-055 |
 | Contract, offer, payout by attribution | §4, §8 | `Contract`, `ContractKind`, `ContractOffer` | `Contract.h` | NC-056 |

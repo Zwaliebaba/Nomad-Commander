@@ -322,6 +322,7 @@ void Inference::CollectEvidence(const World& _world, Knowledge& _knowledge, Inci
   ReportId matchingHulls{};
   ReportId testimony{};
   ReportId alibi{};
+  ReportId capturedOrders{};
 
   for (std::uint32_t index = 0; index < _knowledge.Reports().Count(); ++index)
   {
@@ -336,6 +337,23 @@ void Inference::CollectEvidence(const World& _world, Knowledge& _knowledge, Inci
       report.observedAtTick > incident.tick ? report.observedAtTick - incident.tick : incident.tick - report.observedAtTick;
     if (gap > Tuning::EVIDENCE_WINDOW_TICKS)
     {
+      continue;
+    }
+
+    // **The strongest single item in §6's table, and the only one that is not about a position.** A captured courier
+    // names its fleet outright (GDD §4: "the player's own orders are evidence in someone else's hands"), so what
+    // makes it evidence is that it was read.
+    //
+    // It scores that row **and none of the sighting rows**, which is not a shortcut: an order says where a fleet was
+    // told to go, not where it was. Letting it reach the rows below would have it corroborate a detection nobody
+    // made — or, worse, supply an *alibi*, because an order to somewhere far away would read as the suspect having
+    // been far away.
+    if (report.source == ReportSource::CapturedCourier)
+    {
+      if (!capturedOrders.IsValid())
+      {
+        capturedOrders = reportId;
+      }
       continue;
     }
 
@@ -371,6 +389,11 @@ void Inference::CollectEvidence(const World& _world, Knowledge& _knowledge, Inci
     Add(_knowledge, _outEvidence, EvidenceKind::DetectedWithinTwoJumps, _incident, _suspectCompany, _suspectEmpire,
         Decayed(Tuning::EVIDENCE_WEIGHT[static_cast<std::uint32_t>(EvidenceKind::DetectedWithinTwoJumps)], nearestJumps), nearestReport,
         now);
+  }
+  if (capturedOrders.IsValid())
+  {
+    Add(_knowledge, _outEvidence, EvidenceKind::CapturedOrders, _incident, _suspectCompany, _suspectEmpire,
+        Tuning::EVIDENCE_WEIGHT[static_cast<std::uint32_t>(EvidenceKind::CapturedOrders)], capturedOrders, now);
   }
   if (matchingHulls.IsValid())
   {

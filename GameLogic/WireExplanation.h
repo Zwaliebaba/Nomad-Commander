@@ -61,10 +61,13 @@ enum class ReasonCode : std::uint16_t
   AMonthPassedWithNothingAttributed,
   AContractWasCompleted,
   ASuccessorTookOver,
-  TheEvidencePointsAtYou
+  TheEvidencePointsAtYou,
+  ACourierWasSent,
+  ACourierArrived,
+  ACourierWasTaken
 };
 
-inline constexpr std::uint16_t REASON_CODE_COUNT = 40;
+inline constexpr std::uint16_t REASON_CODE_COUNT = 43;
 
 /// One item of evidence as the player reads it: what it is, and what it was worth (GDD §6's weights, as a fraction of
 /// a full attribution in integer hundredths).
