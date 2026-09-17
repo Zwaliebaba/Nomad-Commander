@@ -173,6 +173,14 @@ namespace
     return "the grace on a revoked claim ran out";
   case ReasonCode::ARivalSawAnOpening:
     return "a rival saw an opening in what you lost";
+  case ReasonCode::TwoFleetsFoughtIt:
+    return "two fleets shared a system and one of them meant it";
+  case ReasonCode::ItStoppedBeingAFightingForce:
+    return "it lost too much to go on and the field went to the other side";
+  case ReasonCode::ItLeftUnderItsOwnRules:
+    return "it disengaged at the threshold its orders set";
+  case ReasonCode::TheAdmiralDiedInBattle:
+    return "the admiral did not come back";
   }
   return "something happened that nobody recorded a reason for";
 }

@@ -41,7 +41,9 @@ namespace
                                                                  Nomad::BattleTemplate::Ambush,
                                                                  true});
 
-  Nomad::Company first;
+  // Braced, for the reason the outpost below is: these records carry sub-structs of scalars now, and
+  // default-initializing one makes a round-trip test pass or fail on what the stack happened to hold.
+  Nomad::Company first{};
   first.name = "Sedu Compact";
   first.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(1), Nomad::MothershipState::Healthy, 4, Nomad::ShipClass::Scout, 0};
   first.treasury = 12345;
@@ -61,7 +63,7 @@ namespace
   second.alive = false;
   world.Companies().Add(second);
 
-  Nomad::Fleet convoy;
+  Nomad::Fleet convoy{};
   convoy.name = "Kessel Convoy";
   convoy.owner = varn;
   convoy.role = Nomad::FleetRole::Convoy;
@@ -74,6 +76,24 @@ namespace
   convoy.veterancy = Neuron::Hundredths::FromRaw(62);
   convoy.history = {Nomad::EventId::FromIndex(1)};
   convoy.alive = true;
+
+  // **The standing orders go over the wire too** (NC-062), so the round trip has to carry a plan with something in
+  // it rather than an empty one: every branch of `ReadPlan` is reached only by a plan that used it.
+  convoy.plan.base.objective = Nomad::BattleObjective::ProtectConvoy;
+  convoy.plan.base.priority = Nomad::Priority::PreserveFleet;
+  convoy.plan.base.engageIfEscortAtOrBelow = Nomad::ShipCounts{{0, 0, 2, 0}};
+  convoy.plan.base.withdrawAtLossesPercent = Neuron::Hundredths::FromRaw(25);
+  convoy.plan.base.pursuit = Nomad::Pursuit::Never;
+  convoy.plan.base.reserve = Nomad::Reserve{Nomad::ShipClass::Warship, 1};
+  convoy.plan.overrides.push_back(
+    Nomad::Override{Nomad::Trigger::CommanderIdentified, Nomad::Action::TreatAsBait, Neuron::Hundredths::FromRaw(0), varik, 0});
+  convoy.plan.overrides.push_back(
+    Nomad::Override{Nomad::Trigger::LossesExceed, Nomad::Action::Withdraw, Neuron::Hundredths::FromRaw(40), Nomad::CharacterId{}, 12});
+  convoy.plan.assumptions.assumedEscort = Nomad::ShipCounts{{0, 0, 3, 0}};
+  convoy.plan.assumptions.assumedCommander = varik;
+  convoy.plan.assumptions.assumedTiming = 7 * Neuron::TICKS_PER_HOUR;
+  convoy.plan.assumptions.bound = true;
+  convoy.plan.reserveCommitted = false;
   world.Fleets().Add(convoy);
 
   // A drifting fleet owned by a company, so both variant alternatives of the owner and two of the three of the

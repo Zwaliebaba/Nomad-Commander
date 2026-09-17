@@ -99,6 +99,11 @@ inline constexpr std::string_view OPERATION = "operation";
 inline constexpr std::string_view READING = "reading";
 inline constexpr std::string_view ASSUMPTION = "assumption";
 inline constexpr std::string_view OUTCOME = "outcome";
+
+/// GDD §4's battle line (NC-062): where it was fought and how long it ran. The rounds are what makes "did the
+/// withdrawal have time to work" countable after the fact rather than argued about.
+inline constexpr std::string_view SYSTEM = "system";
+inline constexpr std::string_view ROUNDS = "rounds";
 } // namespace Field
 
 } // namespace LogEvent

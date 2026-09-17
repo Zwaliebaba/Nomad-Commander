@@ -4,6 +4,7 @@
 
 #include "Admirals.h"
 #include "Answers.h"
+#include "Battle.h"
 #include "Contracts.h"
 #include "Couriers.h"
 #include "CovertRaid.h"
@@ -179,9 +180,15 @@ void ResolveCouriers(World& _world, Knowledge& _knowledge, std::vector<Event>& _
 }
 
 /// Phase 5 -- encounters. Interception and battle, fought by doctrine when they happen (GDD §7, §8).
-void ResolveEncounters([[maybe_unused]] World& _world, [[maybe_unused]] std::vector<Event>& _outEvents)
+///
+/// **It reads this tick's events rather than the fleet table.** `Mobility::ResolveMovement` already worked out who
+/// is sharing a system with intent and wrote an `EncounterBegan` for each pair; walking the fleets again every tick
+/// is the cost NC-055 measured and removed. The span is every event so far this tick, which is what the movement
+/// phase left in it.
+void ResolveEncounters(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick, std::vector<Event>& _outEvents,
+                       LogSink* _log)
 {
-  // NC-062.
+  Battle::ResolveEncounters(_world, _knowledge, _eventsThisTick, _outEvents, _log);
 }
 
 /// Phase 5b -- the outpost clocks (GDD §7, §11; NC-066).
@@ -264,7 +271,7 @@ void TickResolver::Advance(World& _world, Knowledge& _knowledge, std::span<const
   // Six hours of a scout's time on a wreck runs on the tick and not on the day (GDD §3's 3:00 to 9:00), so it sits
   // beside the couriers rather than in the daily block.
   Answers::ResolveWreckAnalyses(_world, _outEvents);
-  ResolveEncounters(_world, _outEvents);
+  ResolveEncounters(_world, _knowledge, std::span<const Event>{_outEvents}.subspan(firstEventOfTick), _outEvents, _log);
   ResolveOutpostTimers(_world, _knowledge, _outEvents);
   if (IsDailyTick(_world.CurrentTick()))
   {

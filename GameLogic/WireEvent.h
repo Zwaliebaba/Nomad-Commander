@@ -82,10 +82,16 @@ enum class EventKind : std::uint8_t
   OutpostDefended,
   OutpostEvacuated,
   OutpostSeized,
-  OutpostDestroyed
+  OutpostDestroyed,
+
+  /// GDD §4's execution and §8's templates (NC-062). A fight is one event and its consequences are their own, so a
+  /// board can show "you fought" without unpicking who broke and who left.
+  BattleFought,
+  FleetBroken,
+  FleetWithdrew
 };
 
-inline constexpr std::uint8_t EVENT_KIND_COUNT = 63;
+inline constexpr std::uint8_t EVENT_KIND_COUNT = 66;
 
 /// One consequence, as the client is told it (ADR-018).
 ///

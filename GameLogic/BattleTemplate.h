@@ -1,6 +1,8 @@
 // GameLogic/BattleTemplate.h
 #pragma once
 
+#include "Hundredths.h"
+
 #include <cstdint>
 #include <string>
 
@@ -46,6 +48,27 @@ enum class BattleObjective : std::uint8_t
 };
 
 inline constexpr std::uint8_t OBJECTIVE_COUNT = 4;
+
+/// **How a template fights, in one round of one phase** (ADR-022). Three numbers and no more: what it puts into
+/// hurting the enemy, what it keeps back to avoid being hurt, and how much of its effort goes past the escort to the
+/// thing it was sent for.
+///
+/// Every value is a modifier around `Neuron::HUNDREDTHS_UNITY`, so 100 is "as the hulls would do it unaided" and a
+/// template is a way of spending a fleet rather than a bonus on top of one. **The values live in `Tuning.h`** and
+/// only the shape is here, exactly as `ShipStats` sits beside `ShipClass` (R20: one table a tuner edits).
+struct Posture
+{
+  Neuron::Hundredths strike;
+  Neuron::Hundredths defence;
+
+  /// How much of the strike is spent reaching the haulers rather than trading with the warships. Zero fights the
+  /// escort; a hundred goes through it (GDD §3's "objective, destroy haulers").
+  Neuron::Hundredths objectiveFocus;
+};
+
+/// A battle runs in three phases -- opening, middle, closing -- and a template's posture differs in each. That is
+/// what makes an ambush an ambush: it is not a stronger fleet, it is a fleet that spends itself early.
+inline constexpr std::uint32_t BATTLE_PHASE_COUNT = 3;
 
 /// The words GDD §8 uses, for the receipt and the dossier (§8: "every receipt names the template the admiral used").
 ///

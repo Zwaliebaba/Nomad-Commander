@@ -13,7 +13,7 @@ Cite the GDD by section as *GDD §n*, an ADR by number as *ADR-nnn*, and the UI 
 
 ## ADR format
 
-`Design/ADR/` holds twenty-one decisions, `ADR-001` to `ADR-021`. Every file in it has this shape and nothing optional is left out:
+`Design/ADR/` holds twenty-two decisions, `ADR-001` to `ADR-022`. Every file in it has this shape and nothing optional is left out:
 
 ```markdown
 # ADR-nnn — <the decision, as a noun phrase>

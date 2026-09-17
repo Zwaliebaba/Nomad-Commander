@@ -5,6 +5,7 @@
     <ClCompile Include="UniverseGeneratorTests.cpp" />
     <ClCompile Include="NomadSimulationTests.cpp" />
     <ClCompile Include="DeterminismTests.cpp" />
+    <ClCompile Include="BattleTests.cpp" />
     <ClCompile Include="MobilityTests.cpp" />
     <ClCompile Include="OutpostTests.cpp" />
     <ClCompile Include="PoliticsTests.cpp" />

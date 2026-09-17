@@ -5,6 +5,7 @@
     <ClCompile Include="UniverseGenerator.cpp" />
     <ClCompile Include="Explanation.cpp" />
     <ClCompile Include="NomadSimulation.cpp" />
+    <ClCompile Include="Battle.cpp" />
     <ClCompile Include="Mobility.cpp" />
     <ClCompile Include="Outposts.cpp" />
     <ClCompile Include="Politics.cpp" />
@@ -37,7 +38,10 @@
     <ClInclude Include="EntityIds.h" />
     <ClInclude Include="Fleet.h" />
     <ClInclude Include="Mothership.h" />
+    <ClInclude Include="Battle.h" />
+    <ClInclude Include="BattleRecord.h" />
     <ClInclude Include="Outpost.h" />
+    <ClInclude Include="WireBattleRecord.h" />
     <ClInclude Include="Outposts.h" />
     <ClInclude Include="WireOutpost.h" />
     <ClInclude Include="ShipClass.h" />

@@ -98,6 +98,24 @@ public:
     return id;
   }
 
+  /// A company fleet that can actually stand and fight, which four haulers cannot. Since NC-062 a hostile fleet in
+  /// the system is a battle rather than a staring contest, so "defended" needs something that survives one.
+  [[nodiscard]] Nomad::FleetId AddDefender(std::uint32_t _warships = 5)
+  {
+    Nomad::Fleet guard{};
+    guard.name = "Guard";
+    guard.owner = m_company;
+    guard.role = Nomad::FleetRole::Picket;
+    guard.ships.Add(Nomad::ShipClass::Warship, _warships);
+    guard.position = Nomad::AtSystem{m_system};
+    guard.cargoByGood.assign(Nomad::GOOD_COUNT, 0);
+    guard.alive = true;
+    const Nomad::FleetId id = m_world.Fleets().Add(guard);
+    m_world.Fleets().Get(id).fuel = Nomad::Mobility::FuelCapacity(m_world.Fleets().Get(id));
+    m_world.Companies().Get(m_company).fleets.push_back(id);
+    return id;
+  }
+
   /// A force of an empire's at the outpost's system, with intent. `_raider` is GDD §7's other attacker.
   [[nodiscard]] Nomad::FleetId AddAttacker(bool _raider)
   {
@@ -352,6 +370,14 @@ public:
       const Nomad::FleetId carrier = depot.AddHauler();
       const Nomad::FleetId hostile = depot.AddAttacker(false);
 
+      // **One jump away, not in the system.** The governor's rule is about *contacts appearing in the reports*
+      // (GDD §11), not about a fight: a hostile fleet standing at the outpost with intent is an encounter, and
+      // since NC-062 an encounter is a battle. Parking it next door tests the policy rather than the combat.
+      std::vector<Nomad::SystemId> neighbors;
+      depot.World().Adjacent(depot.System(), neighbors);
+      Assert::IsFalse(neighbors.empty(), L"the fixture's system has no neighbour to put a contact in");
+      depot.World().Fleets().Get(hostile).position = Nomad::AtSystem{neighbors.front()};
+
       // A sighting the company was told about, which is the only way the governor can know anything.
       Nomad::Report report{};
       report.observedAtTick = depot.World().CurrentTick();
@@ -359,7 +385,7 @@ public:
       report.source = Nomad::ReportSource::OwnSensors;
       report.observer = Nomad::Observer{depot.Company()};
       report.sighting.subject = hostile;
-      report.sighting.atSystem = depot.System();
+      report.sighting.atSystem = neighbors.front();
       report.sighting.countsSeen.Add(Nomad::ShipClass::Warship, 3);
       report.sighting.identityKnown = true;
       report.sighting.ownerEmpire = Nomad::EmpireId::FromIndex(0);
@@ -508,7 +534,7 @@ public:
     // GDD §7 expires a timer "undefended"; somebody standing in the system is the whole of what defended means here,
     // because the fight itself is the encounter phase's and does not wait for anybody's window.
     Depot depot{11};
-    (void)depot.AddHauler();
+    (void)depot.AddDefender();
     depot.RunTo(1);
     (void)depot.AddAttacker(false);
     depot.RunTo(2);
@@ -516,13 +542,14 @@ public:
     depot.RunTo(expiry);
 
     Assert::IsTrue(depot.Post().owningCompany == depot.Company(), L"a defended outpost changed hands anyway");
-    Assert::AreEqual(std::size_t{1}, depot.CountOf(Nomad::EventKind::OutpostDefended));
-    Assert::AreEqual(std::size_t{0}, depot.CountOf(Nomad::EventKind::OutpostSeized));
+    Assert::AreEqual(std::size_t{1}, depot.CountOf(Nomad::EventKind::OutpostDefended), L"the clock was not answered exactly once");
+    Assert::AreEqual(std::size_t{0}, depot.CountOf(Nomad::EventKind::OutpostSeized), L"a defended outpost was seized anyway");
 
-    // **And the siege goes on.** The force is still standing in the system with intent, so the same tick that
-    // answers one clock starts the next: a foothold under attack stays under attack until somebody leaves. What
-    // answering bought is the expiry, not the peace, and the new one is a window further out.
-    Assert::IsTrue(depot.Post().timer.running, L"the attacker was still standing there and no new clock started");
+    // **And the siege goes on**, which is the distinction NC-062's cooldown exists to keep. A battle puts both
+    // fleets on `reorganisingUntilTick` so they cannot immediately re-fight, but it does **not** take away the
+    // attacker's intent -- it still means to have the place. So the same tick that answers one clock starts the
+    // next, and what answering bought is the expiry rather than the peace.
+    Assert::IsTrue(depot.Post().timer.running, L"the attacker still meant it and no new clock started");
     Assert::IsTrue(depot.Post().timer.expiresAtTick > expiry, L"the new clock expires no later than the one just answered");
   }
 

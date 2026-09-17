@@ -96,20 +96,25 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | A covert raider, drawn from the pool for one raid | §5, §6 | `FleetRole::Raider` | `Fleet.h` | NC-055 |
 | Admiral traits and desperation | §8 | `AdmiralTraits`, `Desperation`, `Engagement`, `AdmiralRecord`, `AdmiralId` | `Admiral.h` | NC-060 |
 | The eight templates, and what a fleet was sent to do | §8, §3 | `BattleTemplate`, `BattleObjective`, `TemplateName` | `BattleTemplate.h` | NC-060 |
+| How a template spends a fleet in one round of one phase (the shape; the values are `Tuning`'s, R20) | §8, §4 | `Posture`, `BATTLE_PHASE_COUNT`, `TEMPLATE_POSTURE`, `TEMPLATE_WITHDRAW_AT_LOSSES` | `BattleTemplate.h`, `Tuning.h` | NC-062 |
 | Template selection from belief | §8 | `TemplateSelection`, `BelievedSituation` | `TemplateSelection.h` | NC-060 |
 | The roster refreshes | §8 | `Admirals` | `Admirals.h` | NC-060 |
 | An empire's doctrine, and deviation from it | §8 | `Empire::doctrine` | `Empire.h` | NC-060 |
 | Plan: base rules, overrides, branch budget — and the offline doctrine, which is the same document | §4 | `Plan`, `BaseRules`, `Override`, `Trigger`, `Action`, `Priority`, `Pursuit`, `Reserve`, `Assumptions`, `WirePlan` | `Plan.h`, `WirePlan.h` | NC-061 |
 | What a plan is refused or warned for | §4, §7 | `PlanValidation`, `PlanFault`, `PlanReason` | `PlanValidation.h` | NC-061 |
 | Command capacity (an officer's) | §11 | `Character::commandCapacity` | `Character.h` | NC-061 |
-| Battle and its record (the replay) | §4, §8 | `Battle`, `BattleRecord`, `BattleRound` | `Battle.h`, `BattleRecord.h` | NC-062 |
+| Battle and its record (the replay) | §4, §8 | `Battle`, `BattleRecord`, `BattleRound`, `BattleSide`, `BattleOutcome`, `WireBattleRecord` | `Battle.h`, `BattleRecord.h`, `WireBattleRecord.h` | NC-062 |
+| The standing orders a fleet is flying — the same document as its plan (§4: "the offline doctrine is the same plan read as standing orders") | §4 | `Fleet::plan` | `Fleet.h` | NC-062 |
+| A battle happens once, and re-engaging is a new decision (ADR-022) | §7, §12 | `Fleet::reorganisingUntilTick`, `BATTLE_REORGANISING_TICKS` | `Fleet.h`, `Tuning.h` | NC-062 |
 | Hypothesis as selection; a reading, and whether it held | §4, §3 | `Hypothesis`, `Hypotheses`, `Reading`, `ReadingKind`, `AssumptionKind`, `Outcome`, `ObservedOutcome`, `WireReading`, `WireHypothesis` | `Hypothesis.h`, `WireHypothesis.h` | NC-063 |
 | The dossier: what a company watched an admiral do (belief; ADR-021) | §8 | `DossierEntry`, `DossierId` | `Dossier.h` | NC-063 |
 | One thing the player set in motion, from the plan to the receipt | §4, §3 | `OperationId` | `EntityIds.h` | NC-063, NC-064 |
 | Operation and its projection | §3, §4 | `Operation`, `Projection` | `Operation.h` | NC-064 |
 | The receipt | §4 | `Receipt` | `Receipt.h`, `ReceiptText.h` | NC-064 |
 | Officer market, recruitment, leaving | §11 | `OfficerMarket` | `OfficerMarket.h` | NC-065 |
-| Outpost, claim, governor policy | §11 | `Outpost`, `Claim`, `GovernorPolicy` | `Outpost.h` | NC-066 |
+| Outpost, claim, governor policy | §11 | `Outpost`, `Claim`, `ClaimState`, `GovernorPolicy`, `ThreatResponse` | `Outpost.h` | NC-066 |
+| The four things an outpost does, and the governor that runs it | §11 | `Outposts`, `WireOutpost` | `Outposts.h`, `WireOutpost.h` | NC-066 |
+| Marks on what a warehouse holds, so storing loot does not launder it (§5) | §5, §11 | `Outpost::stockMark` | `Outpost.h` | NC-066 |
 | Reinforcement timer and the active window | §7 | `ReinforcementTimer` (NC-066); `ActiveWindow` (NC-040) | `Outpost.h`, `Company.h` | NC-040, NC-066 |
 | Situation board item | §3 | `BoardItem`, `BoardItemKind` | `BoardItem.h` | NC-067 |
 | Intelligence purchase | §2, §4 | `IntelligenceOffer` | `BoardItem.h` | NC-067 |
@@ -137,3 +142,4 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 - **Nomad** (the entity) is `Company`, because `namespace Nomad` already exists and a type of the same name inside it would shadow the namespace for every qualified name written in game code. The GDD's "nomad" and the code's "company" are one thing; say so in a comment where it helps.
 - **The player** is never a type (R22). Anything the GDD attributes to "the player" hangs off a `CompanyId`.
 - **The truth** is `World`. Nothing outside `GameLogic` holds one, and inside it only the resolver and the battle mutate one (R18).
+- **Hull condition** has no type yet. GDD §11 says an outpost "docks and repairs hulls", but a v0.1 hull has no condition — a battle removes hulls, it does not damage them — so there is nothing for a repair to restore. The owner decided on 2026-09-17 that hulls gain one and that NC-062 owns the model; it is not built until GDD §5's sink list names repair and §15's scope list names hull condition, because a scope enlargement is the owner's document to make (AGENTS.md §6) and until it is there R23 says a later reader deletes it. When it lands it is **counts per class** beside `Fleet::ships`, never a per-hull state, because GDD §12 makes ships counts and never individual hulls.
