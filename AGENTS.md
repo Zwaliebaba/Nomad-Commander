@@ -8,7 +8,7 @@ Operating instructions for every agent (and human) writing code in this reposito
 
 1. **This file** — conformance: naming, style, build, and how to work here.
 2. **[Design/GameDesign.md](Design/GameDesign.md)** — the game design document (v1.7): what the game is, how every system serves the core loop, what v0.1 contains and what waits, and, in its appendix, what is settled and what is open. It is the owner's document. Read the sections your task touches before you start, and cite them by number (this file writes them as *GDD §n*).
-3. **`Design/ADR/`** — engineering decisions taken while building, one file per decision (§6). Eighteen of them so far; it is the register, and `Plan/Roadmap.md`'s table of expected decisions is only a set of predictions against it.
+3. **`Design/ADR/`** — engineering decisions taken while building, one file per decision (§6). Nineteen of them so far; it is the register, and `Plan/Roadmap.md`'s table of expected decisions is only a set of predictions against it.
 4. **The surrounding code** — for anything none of the above covers, match the file you are editing.
 
 **[`Plan/`](Plan/README.md) is deliberately not on that list.** It is the implementation plan — what to build next and in what order, derived from the three documents above — and it is authoritative on nothing: when a task file and the GDD, an ADR or this file disagree, the task file is wrong. `Plan/README.md` says how an agent picks up, works and hands back a task; `Plan/Roadmap.md` says what the tasks are and what each phase proves; `Plan/Glossary.md` fixes the name of every design term in code, so read it before you name a type.

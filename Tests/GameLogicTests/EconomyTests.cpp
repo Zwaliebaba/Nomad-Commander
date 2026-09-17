@@ -94,6 +94,112 @@ public:
     }
   }
 
+  TEST_METHOD(TheMapBalancesPerGoodAndNotOnlyInAggregate)
+  {
+    // **The two are different statements, and only the first was ever true** (NC-049). `Tuning.h`'s `static_assert`
+    // balances a system's total production against its total consumption; per good, with `U` owned systems and `n(g)`
+    // of them carrying good `g`'s role bonus, the empires' daily balance is `4 * n(g) - U`, which is zero only at
+    // `n(g) = U / 4` -- and nine is what the generator makes. Every map used to run a permanent deficit in at least
+    // one good. `BalanceOwnedSystems` is what closes it, and this is the test that keeps it closed.
+    //
+    // Several seeds and several map shapes, because a balance that holds on one map is a coincidence and the property
+    // is about the rules. The shapes span v0.1's ten systems and three empires and Milestone 2's twenty and five.
+    struct Shape
+    {
+      std::uint32_t systems;
+      std::uint32_t empires;
+    };
+    constexpr Shape SHAPES[] = {{10, 3}, {12, 3}, {16, 4}, {20, 5}};
+    constexpr std::uint32_t SEEDS = 8;
+
+    for (const Shape& shape : SHAPES)
+    {
+      for (std::uint32_t seed = 1; seed <= SEEDS; ++seed)
+      {
+        Nomad::World world{seed * 104729ull};
+        const Nomad::UniverseGenerator::Desc desc{shape.systems, shape.empires};
+        Assert::IsTrue(Nomad::UniverseGenerator::Generate(desc, world), L"the world could not be generated");
+
+        for (std::uint32_t good = 0; good < Nomad::GOOD_COUNT; ++good)
+        {
+          std::uint32_t produced = 0;
+          std::uint32_t consumed = 0;
+          for (const Nomad::Market& market : world.Markets().Rows())
+          {
+            produced += market.producedPerDay.byGood[good];
+            consumed += market.consumedPerDay.byGood[good];
+          }
+          Assert::AreEqual(consumed, produced,
+                           (L"on a " + std::to_wstring(shape.systems) + L"-system map of seed " + std::to_wstring(seed) + L", good " +
+                            std::to_wstring(good) + L" is made " + std::to_wstring(produced) + L" a day and eaten " +
+                            std::to_wstring(consumed))
+                             .c_str());
+        }
+      }
+    }
+  }
+
+  TEST_METHOD(AConvoyLeavesTheDeepestSurplusForTheDeepestDeficit)
+  {
+    // The planner's own header promised "from its deepest surplus to its deepest deficit" and the code took the first
+    // of each it found (NC-049). What that cost was not subtle: a warehouse standing at its cap destroys its own
+    // production every day it is not emptied, and a system the scan never reached stayed dry for two simulated years
+    // beside it. This asserts the rule the comment always claimed.
+    Nomad::World world = Generated(11);
+
+    // A deliberate spread: one system far past its surplus threshold and another with nothing at all, with a middling
+    // pair on either side so that "first found" and "deepest" are different answers.
+    const auto deepSurplus = Nomad::SystemId::FromIndex(SYSTEMS - 1);
+    const auto deepDeficit = Nomad::SystemId::FromIndex(SYSTEMS - 2);
+    constexpr auto GOOD = Nomad::Good::Metals;
+    const auto goodIndex = static_cast<std::uint32_t>(GOOD);
+
+    for (std::uint32_t index = 0; index < SYSTEMS; ++index)
+    {
+      Nomad::Market& market = world.Markets().Get(Nomad::SystemId::FromIndex(index));
+      // Everything starts just past the surplus line, so every system is a candidate source and a lower index would
+      // win on "first found".
+      market.stock.byGood[goodIndex] = market.consumedPerDay.byGood[goodIndex] * Nomad::Tuning::CONVOY_SURPLUS_DAYS;
+    }
+    Nomad::Market& source = world.Markets().Get(deepSurplus);
+    source.stock.byGood[goodIndex] = source.consumedPerDay.byGood[goodIndex] * Nomad::Tuning::STOCK_CAPACITY_DAYS;
+    world.Markets().Get(deepDeficit).stock.byGood[goodIndex] = 0;
+
+    // The empire that holds the deepest surplus is the one that can ship it, because a convoy is its own goods.
+    const Nomad::EmpireId shipper = world.Systems().Get(deepSurplus).owner;
+    Assert::IsTrue(shipper.IsValid(), L"the deepest surplus landed on a harbour, so no empire could ship it");
+
+    std::vector<Nomad::Event> events;
+    RunDays(world, events, 1);
+
+    bool dispatched = false;
+    for (const Nomad::Event& event : events)
+    {
+      if (event.kind != Nomad::EventKind::ConvoyDispatched || event.subjects.empire != shipper)
+      {
+        continue;
+      }
+      const Nomad::Fleet& convoy = world.Fleets().Get(event.subjects.fleet);
+      if (convoy.cargoByGood[goodIndex] == 0)
+      {
+        continue;
+      }
+      Assert::IsTrue(event.subjects.system == deepSurplus,
+                     L"the convoy left a system other than the deepest surplus, so a full warehouse stays full");
+      dispatched = true;
+    }
+    Assert::IsTrue(dispatched, L"the empire holding a warehouse at its cap sent no convoy out of it");
+
+    // And the dry system is the one that was served: its stock is no longer zero once the convoy lands.
+    std::uint32_t day = 0;
+    while (world.Markets().Get(deepDeficit).stock.byGood[goodIndex] == 0 && day < 30)
+    {
+      RunDays(world, events, 1);
+      ++day;
+    }
+    Assert::IsTrue(day < 30, L"the driest market on the map was never the destination of anything");
+  }
+
   TEST_METHOD(StocksStayBoundedOverASimulatedYearWithNoPlayer)
   {
     // The acceptance criterion. No stock may sit pinned at zero or at its cap for long: the first is a starving
@@ -191,9 +297,15 @@ public:
 
     // Find a convoy that has *arrived* and put a raider on top of it with engage intent.
     Nomad::FleetId convoy{};
-    // A convoy in a lane on the tick this test first looked is not a failure of the economy, so it looks again for a
-    // day rather than asserting on a coin flip.
-    for (std::uint32_t attempt = 0; attempt < Neuron::TICKS_PER_DAY && !convoy.IsValid(); ++attempt)
+    // A convoy in a lane on the tick this test first looked is not a failure of the economy, so it looks again rather
+    // than asserting on a coin flip -- and **a day was not long enough to stop being one**. Measured over a simulated
+    // year, an arrived convoy is standing at a system on only 73 days in 365: the economy dispatches about 0.7 a day
+    // and unloads them on the next daily tick, so four days in five have no window at all. Scanning one day passed
+    // here by landing on a good one, and NC-049 moved the schedule by a day and it stopped. A month of ticks is not
+    // a probability -- the simulation is deterministic (R16) -- it is a window wide enough that the answer is about
+    // the economy rather than about which tick the test started on.
+    constexpr std::uint32_t LOOK_FOR_TICKS = 30 * static_cast<std::uint32_t>(Neuron::TICKS_PER_DAY);
+    for (std::uint32_t attempt = 0; attempt < LOOK_FOR_TICKS && !convoy.IsValid(); ++attempt)
     {
       Nomad::TickResolver::Advance(world, {}, events);
       for (std::uint32_t index = 0; index < world.Fleets().Count(); ++index)
