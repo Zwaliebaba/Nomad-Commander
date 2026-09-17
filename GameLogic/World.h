@@ -5,11 +5,11 @@
 #include "Company.h"
 #include "Empire.h"
 #include "Fleet.h"
+#include "Incident.h"
 #include "Lane.h"
 #include "Market.h"
 #include "MothballedHull.h"
 #include "Relation.h"
-#include "Report.h"
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
@@ -51,10 +51,17 @@ inline constexpr std::uint32_t RANDOM_STREAM_COUNT = 8;
 /// Reality: the whole world state, and the only thing in this tree that holds the truth (`Plan/Glossary.md`).
 ///
 /// **What is not here is as fixed as what is.** No belief, no report, no opinion, no evidence and no confidence: those
-/// are NC-050's, NC-051's and NC-052's types, and they are held beside a World rather than inside one. R18 is why --
+/// are `Knowledge`'s (NC-050 to NC-052), and they are held beside a World rather than inside one. R18 is why --
 /// "an admiral plans against reports about the player's fleet, not against its true position and strength" -- and the
 /// way that rule is kept structural is that a decision routine takes belief and there is no path from belief to here.
 /// Nothing outside GameLogic holds a World at all.
+///
+/// **NC-050 broke that paragraph and NC-051 put it back.** Detection landed its `Reports` table here, which compiled,
+/// passed every test and quietly made the sentence above false. If a later task finds itself adding something anyone
+/// merely *believes* to this class, the answer is `Knowledge` and the reason is this note.
+///
+/// `Incident` is the case that looks like an exception and is not: an incident **happened**, and `Incident::culprit`
+/// is ground truth. What an empire makes of it is a `Suspicion`, and that is in `Knowledge`.
 ///
 /// **No presentation either**, with one named exception: Empire::colorSlot, which the simulation never reads.
 ///
@@ -65,7 +72,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 7;
+  static constexpr std::uint16_t SCHEMA_VERSION = 8;
 
   explicit World(std::uint64_t _seed);
 
@@ -169,17 +176,16 @@ public:
     return m_relations;
   }
 
-  /// Everything anybody was ever told (GDD §4, NC-050). **Reality is the tables above; this is what is known of
-  /// it**, and the two are never the same thing (R18). Rows stay after delivery like every other row, because the
-  /// board, the dossiers and NC-052's evidence all refer back to them.
-  [[nodiscard]] Table<Report, ReportId>& Reports() noexcept
+  /// What has been done to the empires (GDD §6, NC-051). **Reality, culprit included** -- what anyone *believes*
+  /// about who did it is a `Suspicion` in `Knowledge`, and the two are joined by an `IncidentId` and nothing else.
+  [[nodiscard]] Table<Incident, IncidentId>& Incidents() noexcept
   {
-    return m_reports;
+    return m_incidents;
   }
 
-  [[nodiscard]] const Table<Report, ReportId>& Reports() const noexcept
+  [[nodiscard]] const Table<Incident, IncidentId>& Incidents() const noexcept
   {
-    return m_reports;
+    return m_incidents;
   }
 
   /// What JumpsBetween answers when there is no route at all. A disconnected map is a generator bug (NC-041 asserts
@@ -250,7 +256,7 @@ private:
   Table<Market, SystemId> m_markets;
   Table<MothballedHull, MothballId> m_mothballs;
   Table<Relation, RelationId> m_relations;
-  Table<Report, ReportId> m_reports;
+  Table<Incident, IncidentId> m_incidents;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

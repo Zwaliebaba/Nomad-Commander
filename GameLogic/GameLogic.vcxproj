@@ -86,6 +86,8 @@
     <ClCompile Include="Mobility.cpp" />
     <ClCompile Include="Politics.cpp" />
     <ClCompile Include="Sensor.cpp" />
+    <ClCompile Include="Knowledge.cpp" />
+    <ClCompile Include="Memory.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -119,6 +121,12 @@
     <ClInclude Include="Relation.h" />
     <ClInclude Include="Report.h" />
     <ClInclude Include="Sensor.h" />
+    <ClInclude Include="Belief.h" />
+    <ClInclude Include="Incident.h" />
+    <ClInclude Include="Knowledge.h" />
+    <ClInclude Include="Memory.h" />
+    <ClInclude Include="Opinion.h" />
+    <ClInclude Include="ThreatAssessment.h" />
     <ClInclude Include="WireReport.h" />
     <ClInclude Include="Economy.h" />
     <ClInclude Include="Fabricator.h" />

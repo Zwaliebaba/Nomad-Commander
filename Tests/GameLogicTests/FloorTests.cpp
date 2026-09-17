@@ -31,12 +31,12 @@ constexpr std::uint32_t EMPIRES = 3;
   return world;
 }
 
-void RunDays(Nomad::World& _world, std::vector<Nomad::Event>& _events, std::uint32_t _days)
+void RunDays(Nomad::World& _world, Nomad::Knowledge& _knowledge, std::vector<Nomad::Event>& _events, std::uint32_t _days)
 {
   const Neuron::Tick until = _world.CurrentTick() + _days * Neuron::TICKS_PER_DAY;
   while (_world.CurrentTick() < until)
   {
-    Nomad::TickResolver::Advance(_world, {}, _events);
+    Nomad::TickResolver::Advance(_world, _knowledge, {}, _events);
   }
 }
 
@@ -69,6 +69,7 @@ public:
     // held by an empire that has revoked the company.
     Nomad::World world = Generated(1);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     const Nomad::SystemId hostile = AnOwnedSystem(world);
     Assert::IsTrue(hostile.IsValid(), L"the generated map has no owned system to be unwelcome in");
@@ -87,7 +88,7 @@ public:
     Assert::AreEqual(Nomad::Credits{0}, world.Companies().Get(id).treasury);
 
     // Where it is, nobody will pay it: the floor's income needs somewhere that tolerates it.
-    RunDays(world, events, 1);
+    RunDays(world, knowledge, events, 1);
     Assert::IsTrue(world.Companies().Get(id).treasury < 0, L"a revoked company was paid anyway");
 
     // **The way out.** One jump on reserve fuel, to the nearest harbour. It is always available.
@@ -100,7 +101,7 @@ public:
     // From there the standing income accumulates, and the fabricator turns it into hulls.
     for (std::uint32_t day = 0; day < Nomad::Tuning::REBUILD_DAYS_TARGET; ++day)
     {
-      RunDays(world, events, 1);
+      RunDays(world, knowledge, events, 1);
     }
     Assert::IsTrue(world.Companies().Get(id).treasury > 0, L"the floor's income never dug the company out");
     Assert::IsTrue(NumberOf(events, Nomad::EventKind::FloorIncomePaid) > 0, L"the floor paid nothing at a harbour");
@@ -112,6 +113,7 @@ public:
     // like a new chapter". The target is named in Tuning so it can be argued with.
     Nomad::World world = Generated(2);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     Nomad::Company company{};
     company.name = "Sedu Compact";
@@ -134,7 +136,7 @@ public:
       {
         (void)Nomad::Fabricator::Begin(world, id, Nomad::ShipClass::Raider, events);
       }
-      RunDays(world, events, 1);
+      RunDays(world, knowledge, events, 1);
 
       haveScout = false;
       haveRaider = false;
@@ -165,6 +167,7 @@ public:
 
     Nomad::World world = Generated(3);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     Nomad::Company company{};
     company.treasury = 100000;
     company.mothership.location = Nomad::SystemId::FromIndex(0);
@@ -181,6 +184,7 @@ public:
   {
     Nomad::World world = Generated(4);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     Nomad::Company company{};
     company.mothership.location = AnOwnedSystem(world);
     company.mothership.reserveFuel = 1;
@@ -199,13 +203,14 @@ public:
     // upkeep does not, and the hull just built is mothballed the next day -- which is what this test found.
     Nomad::World world = Generated(5);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     Nomad::Company company{};
     company.treasury = 100000;
     company.mothership.location = Nomad::SystemId::FromIndex(0);
     company.alive = true;
     const Nomad::CompanyId id = world.Companies().Add(company);
 
-    RunDays(world, events, 1);
+    RunDays(world, knowledge, events, 1);
     const std::size_t withoutAFleet = NumberOf(events, Nomad::EventKind::FloorIncomePaid);
     Assert::IsTrue(withoutAFleet > 0, L"a fleetless company was paid nothing");
 
@@ -217,14 +222,14 @@ public:
     half.alive = true;
     const Nomad::FleetId fleetId = world.Fleets().Add(half);
 
-    RunDays(world, events, 1);
+    RunDays(world, knowledge, events, 1);
     Assert::AreEqual(withoutAFleet + 1, NumberOf(events, Nomad::EventKind::FloorIncomePaid),
                      L"a company half way through its rebuild stopped being paid");
 
     // The second hull finishes it, and the floor stops.
     world.Fleets().Get(fleetId).ships.Add(Nomad::ShipClass::Raider, 1);
     const std::size_t beforeTheLastDay = NumberOf(events, Nomad::EventKind::FloorIncomePaid);
-    RunDays(world, events, 1);
+    RunDays(world, knowledge, events, 1);
     Assert::AreEqual(beforeTheLastDay, NumberOf(events, Nomad::EventKind::FloorIncomePaid),
                      L"a rebuilt company was still drawing the floor's income");
   }

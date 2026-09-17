@@ -78,10 +78,12 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Report: source, age, reliability | §4 | `Report`, `ReportSource`, `SourceRecord`, `SightedFleet`, `Observer` | `Report.h` | NC-050 |
 | A report as the client is told it | §4 | `WireReport` | `WireReport.h` | NC-050 |
 | Sensor range and detection | §12 | `Sensor` | `Sensor.h` | NC-050 |
-| Incident (a raid or attack an empire suffered) | §6 | `Incident`, `IncidentId` | `Incident.h` | NC-051 |
-| Belief: one per empire about events | §6, §9 | `Belief`, `Suspicion` | `Belief.h` | NC-051 |
+| Incident (a raid or attack an empire suffered) | §6 | `Incident`, `IncidentId`, `IncidentKind` | `Incident.h` | NC-051 |
+| Belief: one per empire about events | §6, §9 | `Belief`, `Suspicion`, `BeliefStage` | `Belief.h` | NC-051 |
 | Opinion: one per character about a company | §8, §9 | `Opinion` | `Opinion.h` | NC-051 |
-| Institutional threat assessment and the overwrite rule | §9, §11 | `ThreatAssessment` | `ThreatAssessment.h` | NC-051 |
+| Institutional threat assessment and the overwrite rule | §9, §11 | `ThreatAssessment`, `Tuning::ThreatStep` | `ThreatAssessment.h` | NC-051 |
+| **Everything anybody knows, held beside reality** (R18, ADR-021) | §4, §9 | `Knowledge`, `ObserverRecord` | `Knowledge.h` | NC-051 |
+| The overwrite rule and successor inheritance | §8, §9 | `Memory` | `Memory.h` | NC-051 |
 | Evidence and its weight | §6 | `Evidence`, `EvidenceKind` | `Evidence.h` | NC-052 |
 | The inference rule and its thresholds | §6 | `Inference` | `Inference.h` | NC-052 |
 | Accusation and the answers to it | §6 | `Accusation`, `AccusationAnswer` | `Accusation.h` | NC-052, NC-054 |

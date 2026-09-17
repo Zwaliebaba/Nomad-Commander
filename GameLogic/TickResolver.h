@@ -3,6 +3,7 @@
 
 #include "Event.h"
 #include "Input.h"
+#include "Knowledge.h"
 #include "LogSink.h"
 #include "World.h"
 
@@ -27,8 +28,9 @@ namespace Nomad
 ///   5. encounters        interception and battle                (NC-062)
 ///   6. daily             on tick % TICKS_PER_DAY == 0:
 ///                          economy   (NC-045)  upkeep    (NC-046)
-///                          empires   (NC-047)  inference (NC-052)
-///                          contracts (NC-056)  outposts  (NC-066)
+///                          empires   (NC-047)  memory    (NC-051)
+///                          inference (NC-052)  contracts (NC-056)
+///                          outposts  (NC-066)
 ///   7. board             what the player is shown on return     (NC-067)
 /// ```
 ///
@@ -44,7 +46,12 @@ public:
   /// a replay reproduce (R16).
   /// `_log` may be null, and usually is: a test that is not measuring anything passes nothing, and the cost of the
   /// instrumentation is then a null check a tick (R24).
-  static void Advance(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents, LogSink* _log = nullptr);
+  ///
+  /// **Reality and belief arrive as two parameters and stay two things.** Detection is the only phase handed both,
+  /// and it reads the first to write the second (`Sensor.h`); every phase downstream of it takes the `Knowledge&`
+  /// and cannot reach the world through it (R18, `Knowledge.h`).
+  static void Advance(World& _world, Knowledge& _knowledge, std::span<const Input> _inputs, std::vector<Event>& _outEvents,
+                      LogSink* _log = nullptr);
 
   /// Whether the daily systems run on this tick. Public so a test can say what it is checking rather than compute it.
   [[nodiscard]] static constexpr bool IsDailyTick(Neuron::Tick _tick) noexcept

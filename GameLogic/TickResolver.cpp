@@ -5,6 +5,7 @@
 #include "Economy.h"
 #include "Fabricator.h"
 #include "LogEvent.h"
+#include "Memory.h"
 #include "Mobility.h"
 #include "Politics.h"
 #include "Sensor.h"
@@ -91,9 +92,9 @@ void ResolveMovement(World& _world, std::vector<Event>& _outEvents)
 ///
 /// **After movement on purpose**: it reads the arrivals and departures that phase just wrote and reports on those,
 /// so a sighting is a record of a change rather than a sample of the clock (NC-050, `Sensor.h`).
-void ResolveDetection(World& _world, std::span<const Event> _eventsThisTick)
+void ResolveDetection(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick)
 {
-  Sensor::ResolveDetection(_world, _eventsThisTick);
+  Sensor::ResolveDetection(_world, _knowledge, _eventsThisTick);
 }
 
 /// Phase 4 -- couriers. Orders, denials and rumours moving physically along the lanes (GDD §9).
@@ -109,30 +110,43 @@ void ResolveEncounters([[maybe_unused]] World& _world, [[maybe_unused]] std::vec
 }
 
 /// Phase 6 -- the daily systems, on tick multiples of a day so that a store saved at any tick replays identically.
-void ResolveDaily(World& _world, [[maybe_unused]] std::vector<Event>& _outEvents, LogSink* _log)
+void ResolveDaily(World& _world, Knowledge& _knowledge, [[maybe_unused]] std::vector<Event>& _outEvents, LogSink* _log)
 {
-  // Economy NC-045, then upkeep NC-046, empires NC-047, inference NC-052, contracts NC-056, outposts NC-066, in
-  // that order, because inference reads what the economy and the empires did today.
+  // Economy NC-045, then upkeep NC-046, empires NC-047, memory NC-051, inference NC-052, contracts NC-056, outposts
+  // NC-066, in that order, because inference reads what the economy and the empires did today, and memory runs
+  // before it so that a month's forgetting is applied before today's evidence is weighed rather than after it.
   Economy::ResolveDaily(_world, _outEvents);
   Upkeep::ResolveDaily(_world, _outEvents);
-  Politics::ResolveDaily(_world, _outEvents);
+  Politics::ResolveDaily(_world, _knowledge, _outEvents);
+  Memory::ResolveDailyMemory(_world, _knowledge, _outEvents);
   Fabricator::ResolveDaily(_world, _outEvents);
 
   // GDD §15 requires "at least two willing employers after two months", which is a series and not a reading, so it
-  // is written every day from the first. **This count is a placeholder**: nothing models tolerance yet, so it counts
-  // the empires that are alive. NC-051 gives it its real meaning and NC-101 reads the same name either way.
+  // is written every day from the first. **One line per company**: the metric is about a nomad, and a count that did
+  // not say whose would answer nothing (R22, R24). NC-051 gave it its meaning -- it is the empires whose threat
+  // assessment of that company has not reached `Revoked` -- and NC-101 reads the same name it always did.
   if (_log != nullptr)
   {
-    std::uint32_t willing = 0;
-    for (const Empire& empire : _world.Empires().Rows())
+    for (std::uint32_t companyIndex = 0; companyIndex < _world.Companies().Count(); ++companyIndex)
     {
-      if (empire.alive)
+      const auto companyId = CompanyId::FromIndex(companyIndex);
+      if (!_world.Companies().Get(companyId).alive)
       {
-        ++willing;
+        continue;
       }
+      std::uint32_t willing = 0;
+      for (std::uint32_t empireIndex = 0; empireIndex < _world.Empires().Count(); ++empireIndex)
+      {
+        const auto empireId = EmpireId::FromIndex(empireIndex);
+        if (_world.Empires().Get(empireId).alive && Memory::IsWillingToEmploy(_knowledge, empireId, companyId))
+        {
+          ++willing;
+        }
+      }
+      const std::array<LogField, 2> fields = {LogField{LogEvent::Field::COMPANY, std::to_string(companyIndex)},
+                                              LogField{LogEvent::Field::COUNT, std::to_string(willing)}};
+      _log->Write(_world.CurrentTick(), LogEvent::EMPLOYERS_WILLING, fields);
     }
-    const std::array<LogField, 1> fields = {LogField{LogEvent::Field::COUNT, std::to_string(willing)}};
-    _log->Write(_world.CurrentTick(), LogEvent::EMPLOYERS_WILLING, fields);
   }
 }
 
@@ -144,8 +158,15 @@ void ResolveBoard([[maybe_unused]] World& _world, [[maybe_unused]] std::vector<E
 
 } // namespace
 
-void TickResolver::Advance(World& _world, std::span<const Input> _inputs, std::vector<Event>& _outEvents, LogSink* _log)
+void TickResolver::Advance(World& _world, Knowledge& _knowledge, std::span<const Input> _inputs, std::vector<Event>& _outEvents,
+                           LogSink* _log)
 {
+  // Every empire gets somewhere to put a suspicion before anything can produce one. It is here rather than in the
+  // generator because the generator takes a `World&` and knows nothing about belief, and a `Knowledge` built beside
+  // a world somebody else generated is the common case -- every test does it. Seeding to the empire count rather
+  // than to "is it empty" means a world that grew an empire is covered too, and costs one compare a tick.
+  Knowledge::Seed(_world, _knowledge);
+
   // The clock moves first, so that everything below happens *at* this tick rather than at the one before it: an
   // input scheduled for tick N applies when the world says N, and an event carries the tick it happened on.
   _world.AdvanceTick();
@@ -159,12 +180,12 @@ void TickResolver::Advance(World& _world, std::span<const Input> _inputs, std::v
 
   ResolveInputs(_world, _inputs, _outEvents, _log);
   ResolveMovement(_world, _outEvents);
-  ResolveDetection(_world, std::span<const Event>{_outEvents}.subspan(firstEventOfTick));
+  ResolveDetection(_world, _knowledge, std::span<const Event>{_outEvents}.subspan(firstEventOfTick));
   ResolveCouriers(_world, _outEvents);
   ResolveEncounters(_world, _outEvents);
   if (IsDailyTick(_world.CurrentTick()))
   {
-    ResolveDaily(_world, _outEvents, _log);
+    ResolveDaily(_world, _knowledge, _outEvents, _log);
   }
   ResolveBoard(_world, _outEvents);
 }

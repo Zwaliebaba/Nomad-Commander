@@ -30,12 +30,12 @@ constexpr std::uint32_t YEAR_DAYS = 365;
   return world;
 }
 
-void RunDays(Nomad::World& _world, std::vector<Nomad::Event>& _events, std::uint32_t _days)
+void RunDays(Nomad::World& _world, Nomad::Knowledge& _knowledge, std::vector<Nomad::Event>& _events, std::uint32_t _days)
 {
   const Neuron::Tick until = _world.CurrentTick() + _days * Neuron::TICKS_PER_DAY;
   while (_world.CurrentTick() < until)
   {
-    Nomad::TickResolver::Advance(_world, {}, _events);
+    Nomad::TickResolver::Advance(_world, _knowledge, {}, _events);
   }
 }
 
@@ -68,7 +68,8 @@ public:
 
     // And the believed situation itself holds nothing about anybody else's fleets.
     Nomad::World world = Generated(1);
-    const Nomad::BelievedSituation situation = Nomad::Politics::Believe(world, Nomad::EmpireId::FromIndex(0));
+    const Nomad::Knowledge knowledge;
+    const Nomad::BelievedSituation situation = Nomad::Politics::Believe(world, knowledge, Nomad::EmpireId::FromIndex(0));
     Assert::IsTrue(situation.self == Nomad::EmpireId::FromIndex(0));
     Assert::AreEqual(static_cast<std::size_t>(EMPIRES), situation.grudgeByEmpire.size());
   }
@@ -80,12 +81,13 @@ public:
     // day fails and names itself.
     Nomad::World world = Generated(2);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     std::uint32_t quietDays = 0;
     std::uint32_t firstQuietDay = 0;
     for (std::uint32_t day = 1; day <= YEAR_DAYS; ++day)
     {
-      RunDays(world, events, 1);
+      RunDays(world, knowledge, events, 1);
       if (!Nomad::Politics::AnyWarActive(world))
       {
         if (quietDays == 0)
@@ -113,12 +115,13 @@ public:
     // NC-103 is where they get argued with.
     Nomad::World world = Generated(3);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     // Wars per relation, sampled daily: the mean length is the war-days divided by the number of wars started.
     std::uint32_t warDays = 0;
     for (std::uint32_t day = 0; day < YEAR_DAYS; ++day)
     {
-      RunDays(world, events, 1);
+      RunDays(world, knowledge, events, 1);
       for (const Nomad::Relation& relation : world.Relations().Rows())
       {
         if (relation.state == Nomad::RelationState::War)
@@ -151,7 +154,8 @@ public:
     // accusation panel cannot draw.
     Nomad::World world = Generated(4);
     std::vector<Nomad::Event> events;
-    RunDays(world, events, 120);
+    Nomad::Knowledge knowledge;
+    RunDays(world, knowledge, events, 120);
 
     std::size_t political = 0;
     for (const Nomad::Event& event : events)
@@ -178,6 +182,7 @@ public:
     // resumes the war."
     Nomad::World world = Generated(5);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     Nomad::Relation& relation = world.Relations().Get(Nomad::RelationId::FromIndex(0));
     relation.state = Nomad::RelationState::Truce;
@@ -189,7 +194,7 @@ public:
     // The other two pairs are held at war so the "never quiet" rule does not muddy the result.
     world.Relations().Get(Nomad::RelationId::FromIndex(1)).state = Nomad::RelationState::War;
 
-    RunDays(world, events, 3);
+    RunDays(world, knowledge, events, 3);
     Assert::IsTrue(world.Relations().Get(Nomad::RelationId::FromIndex(0)).state == Nomad::RelationState::War,
                    L"a truce expired with a high grudge and did not resume the war");
   }
@@ -198,6 +203,7 @@ public:
   {
     Nomad::World world = Generated(6);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     Nomad::Relation& relation = world.Relations().Get(Nomad::RelationId::FromIndex(0));
     relation.state = Nomad::RelationState::Truce;
@@ -206,7 +212,7 @@ public:
     world.Relations().Get(Nomad::RelationId::FromIndex(1)).state = Nomad::RelationState::War;
     world.Relations().Get(Nomad::RelationId::FromIndex(1)).warStartedAtTick = world.CurrentTick();
 
-    RunDays(world, events, 2);
+    RunDays(world, knowledge, events, 2);
     Assert::IsTrue(world.Relations().Get(Nomad::RelationId::FromIndex(0)).state == Nomad::RelationState::Peace,
                    L"a truce expired with no grudge left and the war came back anyway");
     Assert::IsTrue(NumberOf(events, Nomad::EventKind::PeaceSettled) > 0, L"a settlement passed without an event");
@@ -216,13 +222,14 @@ public:
   {
     Nomad::World world = Generated(7);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     Nomad::Relation& relation = world.Relations().Get(Nomad::RelationId::FromIndex(0));
     relation.state = Nomad::RelationState::War;
     relation.warStartedAtTick = world.CurrentTick();
     relation.lossesSinceWarStarted = Nomad::Tuning::WAR_EXHAUSTION;
 
-    RunDays(world, events, 1);
+    RunDays(world, knowledge, events, 1);
     const Nomad::Relation& after = world.Relations().Get(Nomad::RelationId::FromIndex(0));
     Assert::IsTrue(after.state == Nomad::RelationState::Truce, L"an exhausted war did not end");
 
@@ -248,6 +255,7 @@ public:
     // met." NC-056 reads the flag; this is what sets it.
     Nomad::World world = Generated(8);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     Nomad::Empire& empire = world.Empires().Get(Nomad::EmpireId::FromIndex(0));
     Assert::IsTrue(empire.goals.size() >= 2, L"an empire was seeded with no goals");
@@ -264,7 +272,7 @@ public:
 
     // Give it what it wanted.
     world.Systems().Get(wanted).owner = Nomad::EmpireId::FromIndex(0);
-    RunDays(world, events, 1);
+    RunDays(world, knowledge, events, 1);
 
     bool satisfied = false;
     for (const Nomad::EmpireGoal& goal : world.Empires().Get(Nomad::EmpireId::FromIndex(0)).goals)
@@ -298,7 +306,8 @@ public:
   {
     Nomad::World world = Generated(10);
     std::vector<Nomad::Event> events;
-    RunDays(world, events, 90);
+    Nomad::Knowledge knowledge;
+    RunDays(world, knowledge, events, 90);
 
     Neuron::ByteWriter writer;
     world.Serialize(writer);

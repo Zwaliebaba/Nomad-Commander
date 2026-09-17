@@ -15,6 +15,9 @@
     <ClCompile Include="WireTests.cpp" />
     <ClCompile Include="SoakTests.cpp" />
     <ClCompile Include="SensorTests.cpp" />
+    <ClCompile Include="BeliefTests.cpp" />
+    <ClCompile Include="OpinionTests.cpp" />
+    <ClCompile Include="ThreatAssessmentTests.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>

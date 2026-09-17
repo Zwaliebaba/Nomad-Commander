@@ -34,12 +34,12 @@ constexpr Neuron::Tick YEAR_DAYS = 365;
 }
 
 /// Runs whole days through the resolver, which is the only way the daily phase ever runs.
-void RunDays(Nomad::World& _world, std::vector<Nomad::Event>& _events, std::uint32_t _days)
+void RunDays(Nomad::World& _world, Nomad::Knowledge& _knowledge, std::vector<Nomad::Event>& _events, std::uint32_t _days)
 {
   const Neuron::Tick until = _world.CurrentTick() + _days * Neuron::TICKS_PER_DAY;
   while (_world.CurrentTick() < until)
   {
-    Nomad::TickResolver::Advance(_world, {}, _events);
+    Nomad::TickResolver::Advance(_world, _knowledge, {}, _events);
   }
 }
 
@@ -170,7 +170,8 @@ public:
     Assert::IsTrue(shipper.IsValid(), L"the deepest surplus landed on a harbour, so no empire could ship it");
 
     std::vector<Nomad::Event> events;
-    RunDays(world, events, 1);
+    Nomad::Knowledge knowledge;
+    RunDays(world, knowledge, events, 1);
 
     bool dispatched = false;
     for (const Nomad::Event& event : events)
@@ -194,7 +195,7 @@ public:
     std::uint32_t day = 0;
     while (world.Markets().Get(deepDeficit).stock.byGood[goodIndex] == 0 && day < 30)
     {
-      RunDays(world, events, 1);
+      RunDays(world, knowledge, events, 1);
       ++day;
     }
     Assert::IsTrue(day < 30, L"the driest market on the map was never the destination of anything");
@@ -209,6 +210,7 @@ public:
 
     Nomad::World world = Generated(2);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     constexpr std::size_t SLOTS = static_cast<std::size_t>(SYSTEMS) * Nomad::GOOD_COUNT;
     std::vector<std::uint32_t> daysAtZero(SLOTS, 0);
@@ -218,7 +220,7 @@ public:
 
     for (std::uint32_t day = 0; day < YEAR_DAYS; ++day)
     {
-      RunDays(world, events, 1);
+      RunDays(world, knowledge, events, 1);
       for (std::uint32_t system = 0; system < SYSTEMS; ++system)
       {
         const Nomad::Market& market = world.Markets().Get(Nomad::SystemId::FromIndex(system));
@@ -264,7 +266,8 @@ public:
     // game (GDD §10).
     Nomad::World world = Generated(3);
     std::vector<Nomad::Event> events;
-    RunDays(world, events, 60);
+    Nomad::Knowledge knowledge;
+    RunDays(world, knowledge, events, 60);
 
     std::size_t dispatched = 0;
     for (const Nomad::Event& event : events)
@@ -293,7 +296,8 @@ public:
   {
     Nomad::World world = Generated(4);
     std::vector<Nomad::Event> events;
-    RunDays(world, events, 60);
+    Nomad::Knowledge knowledge;
+    RunDays(world, knowledge, events, 60);
 
     // Find a convoy that has *arrived* and put a raider on top of it with engage intent.
     Nomad::FleetId convoy{};
@@ -307,7 +311,7 @@ public:
     constexpr std::uint32_t LOOK_FOR_TICKS = 30 * static_cast<std::uint32_t>(Neuron::TICKS_PER_DAY);
     for (std::uint32_t attempt = 0; attempt < LOOK_FOR_TICKS && !convoy.IsValid(); ++attempt)
     {
-      Nomad::TickResolver::Advance(world, {}, events);
+      Nomad::TickResolver::Advance(world, knowledge, {}, events);
       for (std::uint32_t index = 0; index < world.Fleets().Count(); ++index)
       {
         const Nomad::Fleet& fleet = world.Fleets().Get(Nomad::FleetId::FromIndex(index));
@@ -336,7 +340,7 @@ public:
     Assert::IsTrue(raiderFleet.IsValid());
 
     const std::size_t before = events.size();
-    Nomad::TickResolver::Advance(world, {}, events);
+    Nomad::TickResolver::Advance(world, knowledge, {}, events);
 
     bool encountered = false;
     for (std::size_t index = before; index < events.size(); ++index)
@@ -355,6 +359,7 @@ public:
     // and letting it run has to move its price, or a shortage is a label rather than a consequence.
     Nomad::World world = Generated(5);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     // Isolate a system by emptying its lane list: nothing can reach it, so no convoy can feed it.
     constexpr std::uint32_t ISOLATED = 3;
@@ -387,7 +392,7 @@ public:
     }
 
     const Nomad::Credits before = world.Markets().Get(isolated).priceByGood[static_cast<std::uint32_t>(shortOf)];
-    RunDays(world, events, 60);
+    RunDays(world, knowledge, events, 60);
     const Nomad::Credits after = world.Markets().Get(isolated).priceByGood[static_cast<std::uint32_t>(shortOf)];
 
     Assert::IsTrue(after > before,
@@ -398,6 +403,7 @@ public:
   {
     Nomad::World world = Generated(6);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
 
     // The equivalent of a lost convoy: the warehouse is emptied and nothing is coming.
     constexpr std::uint32_t STARVED = 2;
@@ -417,7 +423,7 @@ public:
       world.Markets().Get(starved).stock.byGood[good] = 1;
     }
 
-    RunDays(world, events, 2);
+    RunDays(world, knowledge, events, 2);
     const Nomad::Market& market = world.Markets().Get(starved);
     bool anyShortage = false;
     for (std::uint32_t good = 0; good < Nomad::GOOD_COUNT; ++good)
@@ -451,6 +457,7 @@ public:
     // true rather than aspirational.
     Nomad::World world = Generated(7);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     Nomad::FleetId trader{};
     const Nomad::CompanyId company = AddTrader(world, Nomad::SystemId::FromIndex(0), 1000000, trader);
 
@@ -462,7 +469,7 @@ public:
     Assert::IsFalse(Nomad::Economy::Buy(world, company, trader, Nomad::Good::Metals, 1, events), L"the day's liquidity did not run out");
 
     // And it comes back tomorrow.
-    RunDays(world, events, 1);
+    RunDays(world, knowledge, events, 1);
     Assert::IsTrue(Nomad::Economy::Buy(world, company, trader, Nomad::Good::Metals, 1, events),
                    L"the liquidity did not reset with the day");
   }
@@ -487,6 +494,7 @@ public:
 
     // And the trade itself moves the market, not only the quote.
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     Nomad::FleetId trader{};
     const Nomad::CompanyId company = AddTrader(world, Nomad::SystemId::FromIndex(0), 1000000, trader);
     const Nomad::Credits priceBefore = market.priceByGood[static_cast<std::uint32_t>(Nomad::Good::Components)];
@@ -502,6 +510,7 @@ public:
     // of a trade rather than of a screen.
     Nomad::World world = Generated(9);
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     Nomad::FleetId trader{};
     const Nomad::CompanyId company = AddTrader(world, Nomad::SystemId::FromIndex(0), 1000000, trader);
 
@@ -524,7 +533,8 @@ public:
   {
     Nomad::World world = Generated(10);
     std::vector<Nomad::Event> events;
-    RunDays(world, events, 20);
+    Nomad::Knowledge knowledge;
+    RunDays(world, knowledge, events, 20);
 
     Neuron::ByteWriter writer;
     world.Serialize(writer);

@@ -83,6 +83,14 @@ namespace
     return "an empire traded a costly war for one it would rather fight";
   case ReasonCode::ATreatyWasBroken:
     return "an empire broke its truce, and the region will remember";
+  case ReasonCode::AnIncidentWasAttributed:
+    return "an incident was laid at your door";
+  case ReasonCode::AMonthPassedWithNothingAttributed:
+    return "a month passed with nothing laid at your door";
+  case ReasonCode::AContractWasCompleted:
+    return "you finished what you were hired to do";
+  case ReasonCode::ASuccessorTookOver:
+    return "a successor took over, and inherited what was on file";
   }
   return "something happened that nobody recorded a reason for";
 }

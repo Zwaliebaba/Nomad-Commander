@@ -3,6 +3,7 @@
 
 #include "EmpireGoal.h"
 #include "Event.h"
+#include "Knowledge.h"
 #include "Relation.h"
 #include "World.h"
 
@@ -61,10 +62,14 @@ public:
 
   /// The daily phase: goals conflict into wars, losses and quiet move grudges, wars exhaust into truces, truces
   /// expire back into wars, strained empires swap a costly war for a cheaper one, and **the region is never quiet**.
-  static void ResolveDaily(World& _world, std::vector<Event>& _outEvents);
+  static void ResolveDaily(World& _world, const Knowledge& _knowledge, std::vector<Event>& _outEvents);
 
   /// What an empire believes it is looking at. The only input a decision routine gets.
-  [[nodiscard]] static BelievedSituation Believe(const World& _world, EmpireId _empire);
+  ///
+  /// It takes both halves because an empire genuinely knows its own holdings, its own hulls and its own grudges --
+  /// that is `World` -- and knows about everybody else only what it was told, which is `Knowledge`. The `const` on
+  /// the second is not decoration: believing is reading.
+  [[nodiscard]] static BelievedSituation Believe(const World& _world, const Knowledge& _knowledge, EmpireId _empire);
 
   /// Whom this empire would rather fight, given only what it believes. **Takes no `World`** (R18).
   [[nodiscard]] static EmpireId ChooseAnEnemy(const BelievedSituation& _situation);

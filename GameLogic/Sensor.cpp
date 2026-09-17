@@ -33,28 +33,6 @@ namespace
   return company != nullptr && owner != nullptr && *owner == *company;
 }
 
-/// An observer's track record with a source, for reading and for writing. Null when the id names nothing, which a
-/// caller treats as an unproven source rather than as an error.
-[[nodiscard]] SourceRecord* RecordFor(World& _world, const Observer& _observer, ReportSource _source)
-{
-  const auto index = static_cast<std::uint32_t>(_source);
-  if (const auto* empire = std::get_if<EmpireId>(&_observer); empire != nullptr)
-  {
-    return _world.Empires().Holds(*empire) ? &_world.Empires().Get(*empire).recordBySource[index] : nullptr;
-  }
-  const auto* company = std::get_if<CompanyId>(&_observer);
-  if (company == nullptr || !_world.Companies().Holds(*company))
-  {
-    return nullptr;
-  }
-  return &_world.Companies().Get(*company).recordBySource[index];
-}
-
-[[nodiscard]] const SourceRecord* RecordFor(const World& _world, const Observer& _observer, ReportSource _source)
-{
-  return RecordFor(const_cast<World&>(_world), _observer, _source);
-}
-
 /// Where an observer reads its post (GDD §4: within the mothership's own system, orders and reports are instant). An
 /// empire reads at its capital; a company reads wherever its mothership is.
 [[nodiscard]] SystemId DeskOf(const World& _world, const Observer& _observer)
@@ -145,12 +123,12 @@ void MoversThisTick(const World& _world, std::span<const Event> _eventsThisTick,
 
 /// The most recent delivered report this observer holds about this subject, or an invalid id. Walks the table
 /// backwards, which is newest first because rows are only ever appended (Table.h).
-[[nodiscard]] ReportId LatestAbout(const World& _world, const Observer& _observer, FleetId _subject, bool _unCheckedOnly)
+[[nodiscard]] ReportId LatestAbout(const Knowledge& _knowledge, const Observer& _observer, FleetId _subject, bool _unCheckedOnly)
 {
-  for (std::uint32_t behind = _world.Reports().Count(); behind > 0; --behind)
+  for (std::uint32_t behind = _knowledge.Reports().Count(); behind > 0; --behind)
   {
     const auto reportId = ReportId::FromIndex(behind - 1);
-    const Report& report = _world.Reports().Get(reportId);
+    const Report& report = _knowledge.Reports().Get(reportId);
     if (report.sighting.subject != _subject || report.observer != _observer)
     {
       continue;
@@ -192,55 +170,48 @@ std::uint32_t Sensor::SensorRangeJumps(const Fleet& _fleet) noexcept
   return best;
 }
 
-Neuron::Hundredths Sensor::ReliabilityOf(const World& _world, const Observer& _observer, ReportSource _source)
+void Sensor::RecordOutcome(Knowledge& _knowledge, ReportId _report, bool _confirmed)
 {
-  const SourceRecord* record = RecordFor(_world, _observer, _source);
-  return record != nullptr ? record->Reliability() : Neuron::Hundredths::FromRaw(UNPROVEN_RELIABILITY_HUNDREDTHS);
-}
+  if (!_knowledge.Reports().Holds(_report))
+  {
+    return;
+  }
+  // The observer and the source are copied out before the record is asked for: `RecordFor` may append a row, and a
+  // reference into a growing table is a reference that moved (Table.h).
+  const Observer observer = _knowledge.Reports().Get(_report).observer;
+  const ReportSource source = _knowledge.Reports().Get(_report).source;
+  if (_knowledge.Reports().Get(_report).checked)
+  {
+    return;
+  }
+  _knowledge.Reports().Get(_report).checked = true;
 
-void Sensor::RecordOutcome(World& _world, ReportId _report, bool _confirmed)
-{
-  if (!_world.Reports().Holds(_report))
-  {
-    return;
-  }
-  Report& report = _world.Reports().Get(_report);
-  if (report.checked)
-  {
-    return;
-  }
-  report.checked = true;
-  SourceRecord* record = RecordFor(_world, report.observer, report.source);
-  if (record == nullptr)
-  {
-    return;
-  }
+  SourceRecord& record = _knowledge.RecordFor(observer, source);
   if (_confirmed)
   {
-    ++record->confirmed;
+    ++record.confirmed;
   }
   else
   {
-    ++record->contradicted;
+    ++record.contradicted;
   }
 }
 
-void Sensor::DeliveredTo(const World& _world, const Observer& _observer, std::vector<ReportId>& _outReports)
+void Sensor::DeliveredTo(const Knowledge& _knowledge, const Observer& _observer, Neuron::Tick _now, std::vector<ReportId>& _outReports)
 {
   _outReports.clear();
-  const Neuron::Tick now = _world.CurrentTick();
-  for (std::uint32_t index = 0; index < _world.Reports().Count(); ++index)
+  for (std::uint32_t index = 0; index < _knowledge.Reports().Count(); ++index)
   {
     const auto reportId = ReportId::FromIndex(index);
-    const Report& report = _world.Reports().Get(reportId);
-    if (report.observer == _observer && IsDelivered(report, now))
+    const Report& report = _knowledge.Reports().Get(reportId);
+    if (report.observer == _observer && IsDelivered(report, _now))
     {
       _outReports.push_back(reportId);
     }
   }
 }
 
-void Sensor::ResolveDetection(World& _world, std::span<const Event> _eventsThisTick)
+void Sensor::ResolveDetection(World& _world, Knowledge& _knowledge, std::span<const Event> _eventsThisTick)
 {
   const Neuron::Tick now = _world.CurrentTick();
 
@@ -321,11 +292,11 @@ void Sensor::ResolveDetection(World& _world, std::span<const Event> _eventsThisT
       // by (GDD §4's "a battle contact reveals counts").
       if (bestJumps == 0)
       {
-        const ReportId earlier = LatestAbout(_world, observer, subjectId, true);
+        const ReportId earlier = LatestAbout(_knowledge, observer, subjectId, true);
         if (earlier.IsValid())
         {
-          const bool agreed = _world.Reports().Get(earlier).sighting.countsSeen == subject.ships;
-          Sensor::RecordOutcome(_world, earlier, agreed);
+          const bool agreed = _knowledge.Reports().Get(earlier).sighting.countsSeen == subject.ships;
+          Sensor::RecordOutcome(_knowledge, earlier, agreed);
         }
       }
 
@@ -344,7 +315,7 @@ void Sensor::ResolveDetection(World& _world, std::span<const Event> _eventsThisT
       report.sighting.identityKnown = subject.marked || bestJumps == 0;
       report.sighting.marked = subject.marked;
       report.sighting.inTransit = std::holds_alternative<InLane>(subject.position);
-      report.reliabilityWhenWritten = Sensor::ReliabilityOf(_world, observer, report.source);
+      report.reliabilityWhenWritten = _knowledge.ReliabilityOf(observer, report.source);
       report.checked = false;
 
       // Intelligence travels (GDD §4). A sighting in the observer's own system is on the desk at once; anything
@@ -353,7 +324,7 @@ void Sensor::ResolveDetection(World& _world, std::span<const Event> _eventsThisT
       const Neuron::Tick carried = toDesk == World::UNREACHABLE ? 0 : static_cast<Neuron::Tick>(toDesk) * Tuning::COURIER_TICKS_PER_JUMP;
       report.deliveredAtTick = now + carried;
 
-      (void)_world.Reports().Add(report);
+      (void)_knowledge.Reports().Add(report);
     }
   }
 }

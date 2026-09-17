@@ -121,7 +121,7 @@ std::uint32_t Politics::EscortStrengthFor(const World& _world, EmpireId _empire)
   return Tuning::CONVOY_ESCORT_WARSHIPS;
 }
 
-BelievedSituation Politics::Believe(const World& _world, EmpireId _empire)
+BelievedSituation Politics::Believe(const World& _world, const Knowledge& _knowledge, EmpireId _empire)
 {
   BelievedSituation situation{};
   situation.self = _empire;
@@ -168,7 +168,7 @@ BelievedSituation Politics::Believe(const World& _world, EmpireId _empire)
   // The counts added up here are the ones its observers wrote down -- spread by distance and never checked against
   // the world -- so two empires looking at one fleet believe different things about it, which is the point.
   const Neuron::Tick now = _world.CurrentTick();
-  for (const Report& report : _world.Reports().Rows())
+  for (const Report& report : _knowledge.Reports().Rows())
   {
     const auto* observer = std::get_if<EmpireId>(&report.observer);
     if (observer == nullptr || *observer != _empire || !IsDelivered(report, now))
@@ -267,7 +267,7 @@ void Politics::Seed(World& _world)
   }
 }
 
-void Politics::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
+void Politics::ResolveDaily(World& _world, const Knowledge& _knowledge, std::vector<Event>& _outEvents)
 {
   const Neuron::Tick now = _world.CurrentTick();
 
@@ -448,7 +448,7 @@ void Politics::ResolveDaily(World& _world, std::vector<Event>& _outEvents)
   for (std::uint32_t index = 0; index < _world.Empires().Count(); ++index)
   {
     const auto empireId = EmpireId::FromIndex(index);
-    const BelievedSituation situation = Believe(_world, empireId);
+    const BelievedSituation situation = Believe(_world, _knowledge, empireId);
     if (situation.warsFought < Tuning::INSTABILITY_WAR_COUNT)
     {
       continue;

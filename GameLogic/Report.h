@@ -92,6 +92,18 @@ struct SightedFleet
 /// exactly one of these and the variant makes the other case unrepresentable rather than merely wrong.
 using Observer = std::variant<EmpireId, CompanyId>;
 
+/// Every source record one observer holds, as one row (NC-051).
+///
+/// **It lives in `Knowledge` and not on the `Company` or the `Empire`.** A track record is something an observer has
+/// worked out, which makes it belief; `World.h` says belief is held beside a world and not inside one, and NC-050
+/// put it on the entities before that was noticed. The move is what makes a routine holding a `World&` unable to
+/// read it.
+struct ObserverRecord
+{
+  Observer observer;
+  SourceRecord bySource[REPORT_SOURCE_COUNT];
+};
+
 /// One thing somebody was told (GDD §4).
 ///
 /// **Source, age and reliability, and no truth field.** `observedAtTick` is what the age on a board is measured from

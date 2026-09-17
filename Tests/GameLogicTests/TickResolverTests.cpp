@@ -46,9 +46,10 @@ public:
     // nothing to do, would make every timer in the game wrong in a way no single system would own.
     Nomad::World world{1};
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     for (Neuron::Tick expected = 1; expected <= 3 * Neuron::TICKS_PER_DAY; ++expected)
     {
-      Nomad::TickResolver::Advance(world, {}, events);
+      Nomad::TickResolver::Advance(world, knowledge, {}, events);
       Assert::AreEqual(expected, world.CurrentTick(), L"a tick did not advance by exactly one");
     }
   }
@@ -60,9 +61,10 @@ public:
     const Nomad::Input inputs[] = {Window(3, company, 100), Window(7, company, 200)};
 
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     for (Neuron::Tick tick = 1; tick <= 10; ++tick)
     {
-      Nomad::TickResolver::Advance(world, inputs, events);
+      Nomad::TickResolver::Advance(world, knowledge, inputs, events);
       const Neuron::Tick start = world.Companies().Get(company).activeWindow.startTickOfDay;
       if (tick < 3)
       {
@@ -89,9 +91,10 @@ public:
     const Nomad::Input inputs[] = {Window(2, company, 60), Window(4, company, 120), Window(4, company, 180)};
 
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     for (Neuron::Tick tick = 1; tick <= 5; ++tick)
     {
-      Nomad::TickResolver::Advance(world, inputs, events);
+      Nomad::TickResolver::Advance(world, knowledge, inputs, events);
     }
 
     Assert::AreEqual(std::size_t{3}, events.size());
@@ -117,7 +120,8 @@ public:
     Nomad::World world{4};
     const Nomad::Input inputs[] = {Window(1, Nomad::CompanyId::FromIndex(9), 60)};
     std::vector<Nomad::Event> events;
-    Nomad::TickResolver::Advance(world, inputs, events);
+    Nomad::Knowledge knowledge;
+    Nomad::TickResolver::Advance(world, knowledge, inputs, events);
     Assert::AreEqual(std::size_t{0}, events.size(), L"an input naming no company produced an event");
     Assert::AreEqual(Neuron::Tick{1}, world.CurrentTick());
   }
@@ -137,11 +141,18 @@ public:
 
     std::vector<Nomad::Event> leftEvents;
     std::vector<Nomad::Event> rightEvents;
+    Nomad::Knowledge leftKnowledge;
+    Nomad::Knowledge rightKnowledge;
     for (Neuron::Tick tick = 1; tick <= 2 * Neuron::TICKS_PER_DAY; ++tick)
     {
-      Nomad::TickResolver::Advance(left, inputs, leftEvents);
-      Nomad::TickResolver::Advance(right, inputs, rightEvents);
+      Nomad::TickResolver::Advance(left, leftKnowledge, inputs, leftEvents);
+      Nomad::TickResolver::Advance(right, rightKnowledge, inputs, rightEvents);
       Assert::AreEqual(left.Hash(), right.Hash(), (L"the two worlds diverged at tick " + std::to_wstring(tick)).c_str());
+      // **Both halves, since NC-051.** Reports and beliefs left `World` for `Knowledge`, and a comparison of the
+      // world alone would no longer see a detection phase that drew from the PRNG differently in two runs -- which
+      // is exactly the defect NC-050 shipped and R16 caught (`SensorTests`, NC-050's report).
+      Assert::AreEqual(leftKnowledge.Hash(), rightKnowledge.Hash(),
+                       (L"the two knowledge halves diverged at tick " + std::to_wstring(tick)).c_str());
     }
     Assert::AreEqual(leftEvents.size(), rightEvents.size());
     Assert::AreEqual(std::size_t{3}, leftEvents.size(), L"the three decisions did not all fire across two days");

@@ -3,6 +3,7 @@
 
 #include "Event.h"
 #include "Input.h"
+#include "Knowledge.h"
 #include "LogSink.h"
 #include "World.h"
 
@@ -48,6 +49,19 @@ public:
     return m_world;
   }
 
+  /// **Everything anybody knows, which is never the world** (R18, `Knowledge.h`). The simulation owns both halves
+  /// and hands both to the resolver; they are two objects rather than two members of one so that a routine given
+  /// belief has no member to reach reality through.
+  [[nodiscard]] Knowledge& MutableKnowledge() noexcept
+  {
+    return m_knowledge;
+  }
+
+  [[nodiscard]] const Knowledge& CurrentKnowledge() const noexcept
+  {
+    return m_knowledge;
+  }
+
   /// Where GDD §15's measured outcomes are written (R24). Null until something connects one, which the executable
   /// does in its composition root (NC-070) and a test does with a recording sink. The simulation does not own it:
   /// the file outlives a reload and the simulation does not.
@@ -64,6 +78,7 @@ public:
 
 private:
   World m_world;
+  Knowledge m_knowledge;
 
   /// Every input ever accepted, kept rather than consumed: ADR-014 makes a store a seed and a journal of inputs, so
   /// the list *is* the save, and `Advance` picks out the ones whose tick has come (R16).

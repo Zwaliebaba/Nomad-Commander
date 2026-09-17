@@ -227,7 +227,7 @@ NomadSimulation::NomadSimulation(std::uint64_t _seed)
 
 void NomadSimulation::Advance()
 {
-  TickResolver::Advance(m_world, PendingInputs(), m_events, m_log);
+  TickResolver::Advance(m_world, m_knowledge, PendingInputs(), m_events, m_log);
 }
 
 Neuron::Tick NomadSimulation::CurrentTick() const
@@ -273,6 +273,10 @@ void NomadSimulation::WriteState(Neuron::ByteWriter& _writer) const
 {
   m_world.Serialize(_writer);
 
+  // Belief after reality, with its own schema version: the two halves change for different reasons and a store that
+  // carried one number for both would refuse a save every time either moved (`Knowledge.h`).
+  m_knowledge.Serialize(_writer);
+
   // The journal goes with the world. ADR-014 makes a store a seed and the inputs, replayed; a snapshot taken mid-run
   // still has to carry the inputs whose tick has not come, or the run continues into a different future.
   _writer.Write(static_cast<std::uint32_t>(m_inputs.size()));
@@ -285,7 +289,8 @@ void NomadSimulation::WriteState(Neuron::ByteWriter& _writer) const
 bool NomadSimulation::ReadState(Neuron::ByteReader& _reader)
 {
   World loaded{0};
-  if (!loaded.Deserialize(_reader))
+  Knowledge loadedKnowledge;
+  if (!loaded.Deserialize(_reader) || !loadedKnowledge.Deserialize(_reader))
   {
     return false;
   }
@@ -309,6 +314,7 @@ bool NomadSimulation::ReadState(Neuron::ByteReader& _reader)
   // Nothing is moved into place until every part has been read, so a truncated state leaves the simulation as it was
   // rather than half replaced.
   m_world = std::move(loaded);
+  m_knowledge = std::move(loadedKnowledge);
   m_inputs = std::move(inputs);
   m_events.clear();
   return true;

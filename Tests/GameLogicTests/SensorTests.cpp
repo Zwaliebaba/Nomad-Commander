@@ -79,9 +79,9 @@ constexpr std::uint32_t EMPIRES = 3;
 }
 
 /// Runs one tick through the whole resolver, which is the only way detection ever runs.
-void Tick(Nomad::World& _world, std::vector<Nomad::Event>& _events)
+void Tick(Nomad::World& _world, Nomad::Knowledge& _knowledge, std::vector<Nomad::Event>& _events)
 {
-  Nomad::TickResolver::Advance(_world, {}, _events);
+  Nomad::TickResolver::Advance(_world, _knowledge, {}, _events);
 }
 
 /// Makes a fleet look as though it just arrived, so that the movement phase writes the event detection reads. A
@@ -157,14 +157,15 @@ public:
     SendOneLane(world, subject);
 
     std::vector<Nomad::Event> events;
-    for (std::uint32_t attempt = 0; attempt < 8 * Neuron::TICKS_PER_HOUR && world.Reports().Count() == 0; ++attempt)
+    Nomad::Knowledge knowledge;
+    for (std::uint32_t attempt = 0; attempt < 8 * Neuron::TICKS_PER_HOUR && knowledge.Reports().Count() == 0; ++attempt)
     {
-      Tick(world, events);
+      Tick(world, knowledge, events);
     }
-    Assert::IsTrue(world.Reports().Count() > 0, L"a fleet departing one jump from a scout produced no report at all");
+    Assert::IsTrue(knowledge.Reports().Count() > 0, L"a fleet departing one jump from a scout produced no report at all");
 
     bool sawTheSubject = false;
-    for (const Nomad::Report& report : world.Reports().Rows())
+    for (const Nomad::Report& report : knowledge.Reports().Rows())
     {
       const auto* observer = std::get_if<Nomad::CompanyId>(&report.observer);
       if (observer == nullptr || *observer != company || report.sighting.subject != subject)
@@ -207,12 +208,13 @@ public:
     SendOneLane(world, subject);
 
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     for (std::uint32_t attempt = 0; attempt < 8 * Neuron::TICKS_PER_HOUR; ++attempt)
     {
-      Tick(world, events);
+      Tick(world, knowledge, events);
     }
 
-    for (const Nomad::Report& report : world.Reports().Rows())
+    for (const Nomad::Report& report : knowledge.Reports().Rows())
     {
       const auto* observer = std::get_if<Nomad::CompanyId>(&report.observer);
       Assert::IsTrue(observer == nullptr || *observer != blind,
@@ -240,14 +242,15 @@ public:
     SendOneLane(world, distant);
 
     std::vector<Nomad::Event> events;
+    Nomad::Knowledge knowledge;
     for (std::uint32_t attempt = 0; attempt < 8 * Neuron::TICKS_PER_HOUR; ++attempt)
     {
-      Tick(world, events);
+      Tick(world, knowledge, events);
     }
 
     const auto warship = static_cast<std::uint32_t>(Nomad::ShipClass::Warship);
     bool sawNear = false;
-    for (const Nomad::Report& report : world.Reports().Rows())
+    for (const Nomad::Report& report : knowledge.Reports().Rows())
     {
       const auto* observer = std::get_if<Nomad::CompanyId>(&report.observer);
       if (observer == nullptr || *observer != company || report.sighting.subject != nearby)
@@ -272,7 +275,7 @@ public:
     // least one of its sightings differs from the truth, which is what SIGHTING_NOISE_HUNDREDTHS_PER_JUMP buys.
     bool sawDistant = false;
     bool anyNoise = false;
-    for (const Nomad::Report& report : world.Reports().Rows())
+    for (const Nomad::Report& report : knowledge.Reports().Rows())
     {
       const auto* observer = std::get_if<Nomad::CompanyId>(&report.observer);
       if (observer == nullptr || *observer != company || report.sighting.subject != distant || report.sighting.atSystem == home)
@@ -292,12 +295,12 @@ public:
     // contact revealed the real one, and the source's record carries the difference from then on. The check is on
     // **counts**, not position -- a fleet that moved is not a source that lied.
     Nomad::World world = Generated(24);
+    Nomad::Knowledge knowledge;
     const auto home = Nomad::SystemId::FromIndex(0);
     const Nomad::CompanyId company = AddCompany(world, home);
     const auto observer = Nomad::Observer{company};
 
-    Assert::AreEqual(Nomad::UNPROVEN_RELIABILITY_HUNDREDTHS,
-                     Nomad::Sensor::ReliabilityOf(world, observer, Nomad::ReportSource::Picket).Raw(),
+    Assert::AreEqual(Nomad::UNPROVEN_RELIABILITY_HUNDREDTHS, knowledge.ReliabilityOf(observer, Nomad::ReportSource::Picket).Raw(),
                      L"an observer starts with no record of any source");
 
     // A report that got it wrong, and the contradiction that follows.
@@ -307,23 +310,22 @@ public:
     wrong.source = Nomad::ReportSource::Picket;
     wrong.observer = observer;
     wrong.sighting.subject = Nomad::FleetId::FromIndex(0);
-    const Nomad::ReportId wrongId = world.Reports().Add(wrong);
-    Nomad::Sensor::RecordOutcome(world, wrongId, false);
+    const Nomad::ReportId wrongId = knowledge.Reports().Add(wrong);
+    Nomad::Sensor::RecordOutcome(knowledge, wrongId, false);
 
-    Assert::AreEqual(0, Nomad::Sensor::ReliabilityOf(world, observer, Nomad::ReportSource::Picket).Raw(),
+    Assert::AreEqual(0, knowledge.ReliabilityOf(observer, Nomad::ReportSource::Picket).Raw(),
                      L"one contradiction and no confirmations is a record of nothing right");
-    Assert::IsTrue(world.Reports().Get(wrongId).checked, L"a checked report is marked, so one bad guess costs its source once");
+    Assert::IsTrue(knowledge.Reports().Get(wrongId).checked, L"a checked report is marked, so one bad guess costs its source once");
 
     // Checking it twice does not cost twice.
-    Nomad::Sensor::RecordOutcome(world, wrongId, false);
-    Assert::AreEqual(1u,
-                     world.Companies().Get(company).recordBySource[static_cast<std::uint32_t>(Nomad::ReportSource::Picket)].contradicted,
+    Nomad::Sensor::RecordOutcome(knowledge, wrongId, false);
+    Assert::AreEqual(1u, knowledge.RecordFor(observer, Nomad::ReportSource::Picket).contradicted,
                      L"a report was checked twice and its source paid twice");
 
     // A confirmation moves it back toward the middle, and only the record decides.
-    const Nomad::ReportId rightId = world.Reports().Add(wrong);
-    Nomad::Sensor::RecordOutcome(world, rightId, true);
-    Assert::AreEqual(50, Nomad::Sensor::ReliabilityOf(world, observer, Nomad::ReportSource::Picket).Raw(),
+    const Nomad::ReportId rightId = knowledge.Reports().Add(wrong);
+    Nomad::Sensor::RecordOutcome(knowledge, rightId, true);
+    Assert::AreEqual(50, knowledge.ReliabilityOf(observer, Nomad::ReportSource::Picket).Raw(),
                      L"one right and one wrong is half, computed from the record alone");
   }
 
@@ -332,9 +334,10 @@ public:
     // R18 made observable: `BelievedSituation` counts foreign hulls from delivered reports, so an empire that has
     // looked at nothing believes nothing is out there however much is.
     Nomad::World world = Generated(25);
+    Nomad::Knowledge knowledge;
     const auto empire = Nomad::EmpireId::FromIndex(0);
 
-    const Nomad::BelievedSituation blind = Nomad::Politics::Believe(world, empire);
+    const Nomad::BelievedSituation blind = Nomad::Politics::Believe(world, knowledge, empire);
     Assert::AreEqual(0u, blind.reportsRead, L"a freshly generated empire has been told nothing");
     Assert::AreEqual(0u, blind.sightedForeignHulls, L"an empire that has read nothing believes it has seen nothing");
 
@@ -346,15 +349,15 @@ public:
     told.observer = Nomad::Observer{empire};
     told.sighting.subject = Nomad::FleetId::FromIndex(0);
     told.sighting.countsSeen.Add(Nomad::ShipClass::Warship, 5);
-    (void)world.Reports().Add(told);
+    (void)knowledge.Reports().Add(told);
 
     // And one that has not arrived yet, which must not count for anything.
     Nomad::Report inThePost = told;
     inThePost.deliveredAtTick = world.CurrentTick() + Neuron::TICKS_PER_DAY;
     inThePost.sighting.countsSeen.Add(Nomad::ShipClass::Warship, 100);
-    (void)world.Reports().Add(inThePost);
+    (void)knowledge.Reports().Add(inThePost);
 
-    const Nomad::BelievedSituation informed = Nomad::Politics::Believe(world, empire);
+    const Nomad::BelievedSituation informed = Nomad::Politics::Believe(world, knowledge, empire);
     Assert::AreEqual(1u, informed.reportsRead, L"a report still in a courier's hold was counted as read");
     Assert::AreEqual(5u, informed.sightedForeignHulls, L"the belief is the report's counts and nothing else");
   }
@@ -362,8 +365,13 @@ public:
   TEST_METHOD(AReportAndATrackRecordSurviveTheStore)
   {
     // `WorldTests::EveryFieldReachesTheStore` proves a field reaches the bytes by mutating it and watching the hash;
-    // the two things NC-050 added to the world are checked the same way here, beside the code that writes them.
+    // the two things NC-050 added are checked the same way here, beside the code that writes them.
+    //
+    // **They are hashed out of `Knowledge` and not out of `World`.** NC-050 put both in the world and NC-051 moved
+    // them where `World.h` always said they belonged (`Knowledge.h`), so this test moved with them -- which is the
+    // whole point of the two halves carrying their own schema version and their own hash.
     Nomad::World world = Generated(26);
+    Nomad::Knowledge knowledge;
     const auto home = Nomad::SystemId::FromIndex(0);
     const Nomad::CompanyId company = AddCompany(world, home);
 
@@ -379,34 +387,35 @@ public:
     report.sighting.marked = true;
     report.sighting.inTransit = true;
     report.reliabilityWhenWritten = Neuron::Hundredths::FromRaw(37);
-    const Nomad::ReportId reportId = world.Reports().Add(report);
+    const Nomad::ReportId reportId = knowledge.Reports().Add(report);
+    knowledge.RecordFor(Nomad::Observer{company}, Nomad::ReportSource::Scout).confirmed = 2;
 
-    const std::uint64_t withReport = world.Hash();
+    const std::uint64_t withReport = knowledge.Hash();
 
     // Every field the report carries moves the hash, so none of them was forgotten by Serialize.
-    Nomad::World mutated = world;
+    Nomad::Knowledge mutated = knowledge;
     mutated.Reports().Get(reportId).observedAtTick += 1;
     Assert::AreNotEqual(withReport, mutated.Hash(), L"a report's observation tick does not reach the store");
 
-    mutated = world;
+    mutated = knowledge;
     mutated.Reports().Get(reportId).sighting.identityKnown = false;
     Assert::AreNotEqual(withReport, mutated.Hash(), L"whether an identity was known does not reach the store");
 
-    mutated = world;
+    mutated = knowledge;
     mutated.Reports().Get(reportId).reliabilityWhenWritten = Neuron::Hundredths::FromRaw(38);
     Assert::AreNotEqual(withReport, mutated.Hash(), L"the reliability a report was written with does not reach the store");
 
-    mutated = world;
-    mutated.Companies().Get(company).recordBySource[static_cast<std::uint32_t>(Nomad::ReportSource::Scout)].confirmed += 1;
+    mutated = knowledge;
+    mutated.RecordFor(Nomad::Observer{company}, Nomad::ReportSource::Scout).confirmed += 1;
     Assert::AreNotEqual(withReport, mutated.Hash(), L"an observer's track record does not reach the store");
 
     // And the whole thing comes back as it went in, the observer's variant arm included.
     Neuron::ByteWriter writer;
-    world.Serialize(writer);
-    Nomad::World restored{0};
+    knowledge.Serialize(writer);
+    Nomad::Knowledge restored;
     Neuron::ByteReader reader{writer.Bytes()};
-    Assert::IsTrue(restored.Deserialize(reader), L"a world holding a report could not be read back");
-    Assert::AreEqual(withReport, restored.Hash(), L"a world holding a report did not survive its own store");
+    Assert::IsTrue(restored.Deserialize(reader), L"a knowledge holding a report could not be read back");
+    Assert::AreEqual(withReport, restored.Hash(), L"a knowledge holding a report did not survive its own store");
 
     const Nomad::Report& back = restored.Reports().Get(reportId);
     Assert::IsTrue(std::holds_alternative<Nomad::CompanyId>(back.observer), L"the observer came back as the wrong kind");

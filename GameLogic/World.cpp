@@ -113,28 +113,6 @@ void WriteCounts(Neuron::ByteWriter& _writer, const std::vector<std::uint32_t>& 
   return true;
 }
 
-/// An observer's track record with each source (NC-050). Fixed length, so the count is the schema and not a field.
-void WriteSourceRecords(Neuron::ByteWriter& _writer, const SourceRecord (&_records)[REPORT_SOURCE_COUNT])
-{
-  for (const SourceRecord& record : _records)
-  {
-    _writer.Write(record.confirmed);
-    _writer.Write(record.contradicted);
-  }
-}
-
-[[nodiscard]] bool ReadSourceRecords(Neuron::ByteReader& _reader, SourceRecord (&_outRecords)[REPORT_SOURCE_COUNT])
-{
-  for (SourceRecord& record : _outRecords)
-  {
-    if (!_reader.Read(record.confirmed) || !_reader.Read(record.contradicted))
-    {
-      return false;
-    }
-  }
-  return true;
-}
-
 void WriteShipCounts(Neuron::ByteWriter& _writer, const ShipCounts& _counts)
 {
   for (std::uint32_t index = 0; index < SHIP_CLASS_COUNT; ++index)
@@ -203,7 +181,6 @@ void WriteCompany(Neuron::ByteWriter& _writer, const Company& _company)
   WriteIds(_writer, _company.record);
   _writer.WriteTick(_company.activeWindow.startTickOfDay);
   _writer.WriteTick(_company.activeWindow.lengthTicks);
-  WriteSourceRecords(_writer, _company.recordBySource);
   _writer.WriteBool(_company.alive);
 }
 
@@ -212,8 +189,7 @@ void WriteCompany(Neuron::ByteWriter& _writer, const Company& _company)
   return _reader.ReadString(_outCompany.name) && ReadMothership(_reader, _outCompany.mothership) && _reader.Read(_outCompany.treasury) &&
          ReadIds(_reader, _outCompany.officers) && ReadIds(_reader, _outCompany.fleets) && ReadIds(_reader, _outCompany.outposts) &&
          ReadIds(_reader, _outCompany.record) && _reader.ReadTick(_outCompany.activeWindow.startTickOfDay) &&
-         _reader.ReadTick(_outCompany.activeWindow.lengthTicks) && ReadSourceRecords(_reader, _outCompany.recordBySource) &&
-         _reader.ReadBool(_outCompany.alive);
+         _reader.ReadTick(_outCompany.activeWindow.lengthTicks) && _reader.ReadBool(_outCompany.alive);
 }
 
 void WriteGoal(Neuron::ByteWriter& _writer, const EmpireGoal& _goal)
@@ -261,63 +237,25 @@ void WriteGoals(Neuron::ByteWriter& _writer, const std::vector<EmpireGoal>& _goa
   return true;
 }
 
-/// One report (NC-050). The observer is a variant, so its alternative index is written first exactly as a fleet's
-/// position is -- reordering the alternatives renumbers every save (ADR-004).
-void WriteReport(Neuron::ByteWriter& _writer, const Report& _report)
+/// One incident (NC-051). `culprit` is written like any other field: the store is reality's, and reality includes
+/// who did it. Nothing on the belief side ever reads it.
+void WriteIncident(Neuron::ByteWriter& _writer, const Incident& _incident)
 {
-  _writer.WriteTick(_report.observedAtTick);
-  _writer.WriteTick(_report.deliveredAtTick);
-  WriteEnum(_writer, _report.source);
-  _writer.Write(static_cast<std::uint8_t>(_report.observer.index()));
-  if (const auto* empire = std::get_if<EmpireId>(&_report.observer); empire != nullptr)
-  {
-    _writer.WriteId(*empire);
-  }
-  else
-  {
-    _writer.WriteId(std::get<CompanyId>(_report.observer));
-  }
-  _writer.WriteId(_report.sighting.subject);
-  WriteShipCounts(_writer, _report.sighting.countsSeen);
-  _writer.WriteId(_report.sighting.atSystem);
-  _writer.WriteBool(_report.sighting.identityKnown);
-  _writer.WriteBool(_report.sighting.marked);
-  _writer.WriteBool(_report.sighting.inTransit);
-  _writer.WriteHundredths(_report.reliabilityWhenWritten);
-  _writer.WriteBool(_report.checked);
+  _writer.WriteTick(_incident.tick);
+  _writer.WriteId(_incident.system);
+  _writer.WriteId(_incident.victim);
+  WriteEnum(_writer, _incident.kind);
+  WriteShipCounts(_writer, _incident.hullsObserved);
+  _writer.WriteId(_incident.markedAs);
+  _writer.WriteId(_incident.culprit);
+  _writer.WriteId(_incident.culpritEmpire);
 }
 
-[[nodiscard]] bool ReadReport(Neuron::ByteReader& _reader, Report& _outReport)
+[[nodiscard]] bool ReadIncident(Neuron::ByteReader& _reader, Incident& _outIncident)
 {
-  std::uint8_t observerKind = 0;
-  if (!_reader.ReadTick(_outReport.observedAtTick) || !_reader.ReadTick(_outReport.deliveredAtTick) ||
-      !ReadEnum(_reader, _outReport.source, static_cast<std::uint8_t>(REPORT_SOURCE_COUNT)) || !_reader.Read(observerKind) ||
-      observerKind > 1)
-  {
-    return false;
-  }
-  if (observerKind == 0)
-  {
-    EmpireId empire{};
-    if (!_reader.ReadId(empire))
-    {
-      return false;
-    }
-    _outReport.observer = empire;
-  }
-  else
-  {
-    CompanyId company{};
-    if (!_reader.ReadId(company))
-    {
-      return false;
-    }
-    _outReport.observer = company;
-  }
-  return _reader.ReadId(_outReport.sighting.subject) && ReadShipCounts(_reader, _outReport.sighting.countsSeen) &&
-         _reader.ReadId(_outReport.sighting.atSystem) && _reader.ReadBool(_outReport.sighting.identityKnown) &&
-         _reader.ReadBool(_outReport.sighting.marked) && _reader.ReadBool(_outReport.sighting.inTransit) &&
-         _reader.ReadHundredths(_outReport.reliabilityWhenWritten) && _reader.ReadBool(_outReport.checked);
+  return _reader.ReadTick(_outIncident.tick) && _reader.ReadId(_outIncident.system) && _reader.ReadId(_outIncident.victim) &&
+         ReadEnum(_reader, _outIncident.kind, INCIDENT_KIND_COUNT) && ReadShipCounts(_reader, _outIncident.hullsObserved) &&
+         _reader.ReadId(_outIncident.markedAs) && _reader.ReadId(_outIncident.culprit) && _reader.ReadId(_outIncident.culpritEmpire);
 }
 
 void WriteRelation(Neuron::ByteWriter& _writer, const Relation& _relation)
@@ -349,7 +287,6 @@ void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
   WriteIds(_writer, _empire.fleets);
   WriteGoals(_writer, _empire.goals);
   WriteIds(_writer, _empire.revokedCompanies);
-  WriteSourceRecords(_writer, _empire.recordBySource);
   _writer.WriteBool(_empire.alive);
 }
 
@@ -357,8 +294,7 @@ void WriteEmpire(Neuron::ByteWriter& _writer, const Empire& _empire)
 {
   return _reader.ReadString(_outEmpire.name) && _reader.ReadId(_outEmpire.leader) && _reader.ReadId(_outEmpire.homeSystem) &&
          _reader.Read(_outEmpire.colorSlot) && ReadIds(_reader, _outEmpire.systemsHeld) && ReadIds(_reader, _outEmpire.fleets) &&
-         ReadGoals(_reader, _outEmpire.goals) && ReadIds(_reader, _outEmpire.revokedCompanies) &&
-         ReadSourceRecords(_reader, _outEmpire.recordBySource) && _reader.ReadBool(_outEmpire.alive);
+         ReadGoals(_reader, _outEmpire.goals) && ReadIds(_reader, _outEmpire.revokedCompanies) && _reader.ReadBool(_outEmpire.alive);
 }
 
 /// The variant's alternative index, then its payload. The index is the schema: appending an alternative is safe and
@@ -694,7 +630,7 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_markets, WriteMarket);
   WriteTable(_writer, m_mothballs, WriteMothballedHull);
   WriteTable(_writer, m_relations, WriteRelation);
-  WriteTable(_writer, m_reports, WriteReport);
+  WriteTable(_writer, m_incidents, WriteIncident);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -723,7 +659,7 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
       !ReadTable(_reader, loaded.m_outposts, ReadOutpost) || !ReadTable(_reader, loaded.m_systems, ReadStarSystem) ||
       !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket) ||
       !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull) || !ReadTable(_reader, loaded.m_relations, ReadRelation) ||
-      !ReadTable(_reader, loaded.m_reports, ReadReport))
+      !ReadTable(_reader, loaded.m_incidents, ReadIncident))
   {
     return false;
   }

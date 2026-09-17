@@ -205,6 +205,45 @@ inline constexpr Neuron::Hundredths EVIDENCE_EXPOSED_FALSE_DENIAL = Neuron::Hund
 inline constexpr Neuron::Hundredths ACCUSE_THRESHOLD = Neuron::Hundredths::FromRaw(40);
 inline constexpr Neuron::Hundredths ACT_THRESHOLD = Neuron::Hundredths::FromRaw(70);
 
+// --- GDD §9 and §11: memory, and what an empire makes of a company -----------------------------------------------
+
+/// **The steps an empire's threat assessment moves through**, as the consequence each one carries. A step and not a
+/// number, because everything the design hangs off this is discrete and a player has to be able to be told which one
+/// they are on (GDD §9, §11).
+///
+/// `Hunted` is **declared and inert in v0.1**: GDD §15 puts the hunt in the full game, and a step nothing can reach
+/// is better than a threshold invented later by whichever task first needs one (R23).
+enum class ThreatStep : std::uint8_t
+{
+  Ignored,
+  Watched,
+  Surcharged,
+  Revoked,
+  Hunted
+};
+
+inline constexpr std::uint32_t THREAT_STEP_COUNT = 5;
+
+/// The highest step v0.1 may reach. NC-052's action takes a company to `Revoked`; nothing takes it past.
+inline constexpr std::uint32_t THREAT_STEP_MAX_IN_V0_1 = static_cast<std::uint32_t>(ThreatStep::Revoked);
+
+/// What each step costs the company, as hundredths added to what an empire's yards and fees ask. `Revoked` is not a
+/// price at all -- GDD §5 has a revoked empire selling nothing -- and is here so the table has one row per step.
+inline constexpr Neuron::Hundredths THREAT_SURCHARGE_HUNDREDTHS[THREAT_STEP_COUNT] = {
+  Neuron::HUNDREDTHS_ZERO, Neuron::HUNDREDTHS_ZERO, Neuron::Hundredths::FromRaw(40), Neuron::HUNDREDTHS_ZERO, Neuron::HUNDREDTHS_ZERO};
+
+/// **The overwrite rule** (GDD §9): "each completed contract for an empire, and each month without an incident it
+/// attributes to the player, moves its threat assessment down a step." This is the month.
+inline constexpr Neuron::Tick CLEAN_PERIOD_TICKS = 30 * Neuron::TICKS_PER_DAY;
+
+/// What a successor inherits of a predecessor's opinion (GDD §9: "successors inherit part of a predecessor's opinion
+/// and all of the record"). The record is all of it and is not a fraction, so it has no constant.
+inline constexpr Neuron::Hundredths INHERITANCE_HUNDREDTHS = Neuron::Hundredths::FromRaw(50);
+
+/// Where a character's regard starts before anything has happened. Neutral, and named so that "nobody has an opinion
+/// yet" is one number in one place rather than a zero somebody has to interpret.
+inline constexpr Neuron::Hundredths OPINION_NEUTRAL = Neuron::Hundredths::FromRaw(50);
+
 // --- GDD §10: the economy ------------------------------------------------------------------------------------------
 //
 // **The map balances by construction**, which is what keeps stocks bounded over a year without anyone watching them.

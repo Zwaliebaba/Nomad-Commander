@@ -26,6 +26,11 @@ struct EventTag;
 struct MothballTag;
 struct RelationTag;
 struct ReportTag;
+struct IncidentTag;
+struct OpinionTag;
+struct ThreatTag;
+struct EvidenceTag;
+struct ObserverRecordTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -52,5 +57,19 @@ using RelationId = Neuron::Id<RelationTag>;
 /// One thing somebody was told, with its source, its age and its reliability (GDD §4, NC-050). Everything the AI and
 /// the client ever reason from is one of these; reality is `World` and nothing outside `GameLogic` holds one.
 using ReportId = Neuron::Id<ReportTag>;
+
+/// A raid or an attack an empire suffered (GDD §6, NC-051). **Reality**, and the only place the culprit is written.
+using IncidentId = Neuron::Id<IncidentTag>;
+
+/// What one character thinks of one company (GDD §9), and how dangerous one empire finds one company (§11).
+using OpinionId = Neuron::Id<OpinionTag>;
+using ThreatId = Neuron::Id<ThreatTag>;
+
+/// One item of GDD §6's evidence table, with what it weighed (NC-052). Declared here because NC-051's `Suspicion`
+/// holds a list of them: a belief that could not say what it was built from would fail R19 on the first accusation.
+using EvidenceId = Neuron::Id<EvidenceTag>;
+
+/// What one observer has found out about its sources (GDD §4's track record, NC-050).
+using ObserverRecordId = Neuron::Id<ObserverRecordTag>;
 
 } // namespace Nomad
