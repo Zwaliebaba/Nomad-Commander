@@ -2,7 +2,7 @@
 
 | Phase | Project(s) | Size | Desktop run | Owner-visible | Status |
 |---|---|---|---|---|---|
-| 2 | GameLogic | S | no | no | Done (65f2618) |
+| 2 | GameLogic | S | no | no | Done (PR #6) |
 
 **Depends on:** NC-048
 **Read first:** GDD §10 whole ("so stocks neither run away nor drain to zero"), §8 (*contraction*: the harbours nobody holds); AGENTS.md R20, R23; `Plan/Tasks/NC-048-one-year-soak.md` *Report*; `Design/ADR/ADR-019-where-the-maps-balancing-term-lives.md`
