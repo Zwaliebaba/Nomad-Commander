@@ -96,6 +96,7 @@
     <ClCompile Include="Contracts.cpp" />
     <ClCompile Include="TemplateSelection.cpp" />
     <ClCompile Include="Admirals.cpp" />
+    <ClCompile Include="PlanValidation.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -144,6 +145,9 @@
     <ClInclude Include="Contracts.h" />
     <ClInclude Include="TemplateSelection.h" />
     <ClInclude Include="Admirals.h" />
+    <ClInclude Include="PlanValidation.h" />
+    <ClInclude Include="WirePlan.h" />
+    <ClInclude Include="Plan.h" />
     <ClInclude Include="Admiral.h" />
     <ClInclude Include="BattleTemplate.h" />
     <ClInclude Include="WireContract.h" />

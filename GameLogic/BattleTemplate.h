@@ -31,14 +31,18 @@ inline constexpr std::uint8_t TEMPLATE_COUNT = 8;
 
 /// What a fleet was sent to do, which is the other half of what a template is chosen for.
 ///
-/// **Four, because GDD §3's plan names them**: "objective, destroy haulers; priority, preserve fleet over
-/// objective", against an escort that may hold or break. NC-061's plan is what sets one; this is the type it sets.
+/// **One vocabulary for both sides, and that is deliberate.** GDD §4 resolves a fight "against the enemy admiral's
+/// own plan, chosen by the rule in section 8" -- so the admiral has an objective in exactly the sense the player's
+/// plan does, and two enums for it would be two names for one thing (`Plan/Glossary.md`). These are the four GDD §3
+/// authors at 19:00: "objective, destroy haulers", against an escort that may hold or break.
+///
+/// The order is the store's schema and the wire's (ADR-004). Append, never insert.
 enum class BattleObjective : std::uint8_t
 {
-  Destroy,
-  Protect,
-  Hold,
-  Withdraw
+  DestroyHaulers,
+  ProtectConvoy,
+  DestroyFleet,
+  Scout
 };
 
 inline constexpr std::uint8_t OBJECTIVE_COUNT = 4;

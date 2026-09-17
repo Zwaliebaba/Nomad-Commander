@@ -435,10 +435,60 @@ inline constexpr std::int32_t TEMPLATE_TRAIT_AFFINITY[8][5] = {
 inline constexpr std::int32_t TEMPLATE_ODDS_AFFINITY[8] = {100, -20, 40, 20, -80, 60, 0, -50};
 
 /// What each objective argues for, rows indexed by `BattleObjective` and columns by `BattleTemplate`.
-inline constexpr std::int32_t TEMPLATE_OBJECTIVE_AFFINITY[4][8] = {{80, 20, 70, 50, -40, 90, -60, 40},    // Destroy
-                                                                   {-40, 40, -10, 70, 20, -30, 100, 10},  // Protect
-                                                                   {10, 90, 20, 60, -20, 0, 30, 50},      // Hold
-                                                                   {-80, 50, -30, 20, 100, -60, 10, 60}}; // Withdraw
+///
+/// **These rows need not sum alike**, unlike the trait table above: an objective is one number applied to every
+/// admiral in the same fight, so it shifts the whole field rather than favouring one officer over another. It is
+/// what makes the same admiral fight a convoy differently from a battle line -- §4's "the objective" doing its job
+/// -- and at `SITUATION_WEIGHT` against `TRAIT_WEIGHT` it shifts the odds without deciding them.
+inline constexpr std::int32_t TEMPLATE_OBJECTIVE_AFFINITY[4][8] = {
+  {80, 20, 70, 50, -40, 90, -60, 40},    // DestroyHaulers: get past the escort to the cargo
+  {-40, 40, -10, 70, 20, -30, 100, 10},  // ProtectConvoy: the objective is the cargo, not the enemy
+  {60, 60, 40, 40, -30, 70, -50, 20},    // DestroyFleet: a fight he means to win
+  {-80, 50, -30, 20, 100, -60, 10, 60}}; // Scout: see them without being fought
+
+// --- GDD §4: the plan, and what a trigger is actually worth ------------------------------------------------------
+//
+// "Triggers are recognised with delay and executed imperfectly." Both halves are levers, and both exist to keep
+// §16's "battle plans become programming" from being the winning strategy: a conditional that fired instantly and
+// always would make the budget a currency to hoard rather than a trade to think about.
+
+/// How many rounds pass between a trigger's condition becoming true and the fleet acting on it, per trigger kind,
+/// indexed by `Trigger`. **A thing seen from a distance in a fight is not a thing acted on**, and the delays differ
+/// because the conditions differ: an escort breaking is obvious, a commander being identified is not.
+inline constexpr std::uint32_t TRIGGER_RECOGNITION_DELAY_ROUNDS[7] = {
+  1, // HeaviesAppear: hulls on a screen, quickly
+  1, // EscortBreaks: obvious from where he is standing
+  2, // CarriersAppear: nothing fires it in v0.1 (Plan.h says why); the row is here so the table is total
+  3, // CommanderIdentified: somebody has to recognise a flag
+  1, // LossesExceed: he is counting his own
+  2, // ConvoyPassed: an absence takes longer to notice than a presence
+  2  // ReserveSpotted: something that was hidden, being hidden
+};
+
+/// The chance per trigger that it is simply not executed -- "executed imperfectly" (GDD §4), in hundredths. A plan
+/// is intent and not a program, and this is the number that says so.
+inline constexpr Neuron::Hundredths TRIGGER_FAILURE_CHANCE_HUNDREDTHS[7] = {
+  Neuron::Hundredths::FromRaw(10), // HeaviesAppear
+  Neuron::Hundredths::FromRaw(10), // EscortBreaks
+  Neuron::Hundredths::FromRaw(15), // CarriersAppear
+  Neuron::Hundredths::FromRaw(25), // CommanderIdentified: the hardest to be sure of, and the costliest to get wrong
+  Neuron::Hundredths::FromRaw(5),  // LossesExceed: his own losses, and he is already withdrawing
+  Neuron::Hundredths::FromRaw(20), // ConvoyPassed
+  Neuron::Hundredths::FromRaw(20)  // ReserveSpotted
+};
+
+/// What a fleet with no officer commanding it may plan. **Zero, and deliberately**: GDD §11 makes command capacity
+/// "the branch budget of a plan, set by the officer commanding the fleet", so a fleet nobody commands flies its base
+/// rules and nothing else -- which is what makes §11's "progression is horizontal, and its source is officers" a
+/// progression rather than a label.
+inline constexpr std::uint32_t COMMAND_CAPACITY_WITH_NO_OFFICER = 0;
+
+/// What GDD §3's officer supports: "this fleet's commander supports two". A starting officer, and the number the
+/// §3 session's third dilemma is measured against.
+inline constexpr std::uint32_t COMMAND_CAPACITY_DEFAULT = 2;
+
+/// GDD §3's own plan, at 19:00: "withdraw at twenty-five percent losses".
+inline constexpr Neuron::Hundredths PLAN_DEFAULT_WITHDRAW_AT_LOSSES = Neuron::Hundredths::FromRaw(25);
 
 /// **The roster refreshes** (GDD §8: "Admirals are promoted, dismissed for deviation, killed in battle, or retire
 /// ... An admiral is never permanent"). How long a command lasts before retirement becomes possible, and the daily

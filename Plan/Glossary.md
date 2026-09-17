@@ -99,7 +99,8 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Template selection from belief | §8 | `TemplateSelection`, `BelievedSituation` | `TemplateSelection.h` | NC-060 |
 | The roster refreshes | §8 | `Admirals` | `Admirals.h` | NC-060 |
 | An empire's doctrine, and deviation from it | §8 | `Empire::doctrine` | `Empire.h` | NC-060 |
-| Plan: base rules, overrides, branch budget | §4 | `Plan`, `BaseRules`, `Override`, `Trigger` | `Plan.h` | NC-061 |
+| Plan: base rules, overrides, branch budget — and the offline doctrine, which is the same document | §4 | `Plan`, `BaseRules`, `Override`, `Trigger`, `Action`, `Priority`, `Pursuit`, `Reserve`, `Assumptions`, `WirePlan` | `Plan.h`, `WirePlan.h` | NC-061 |
+| What a plan is refused or warned for | §4, §7 | `PlanValidation`, `PlanFault`, `PlanReason` | `PlanValidation.h` | NC-061 |
 | Command capacity (an officer's) | §11 | `Character::commandCapacity` | `Character.h` | NC-061 |
 | Battle and its record (the replay) | §4, §8 | `Battle`, `BattleRecord`, `BattleRound` | `Battle.h`, `BattleRecord.h` | NC-062 |
 | Hypothesis as selection; a reading | §4 | `Hypothesis`, `Reading` | `Hypothesis.h` | NC-063 |

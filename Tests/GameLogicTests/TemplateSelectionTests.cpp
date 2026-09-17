@@ -108,7 +108,8 @@ public:
     for (std::uint32_t index = 0; index < ADMIRALS; ++index)
     {
       const Nomad::AdmiralTraits traits = Nomad::Admirals::DrawTraits(random);
-      chosen.push_back(Nomad::TemplateSelection::Select(traits, Nomad::Desperation{}, situation, Nomad::BattleObjective::Destroy, random));
+      chosen.push_back(
+        Nomad::TemplateSelection::Select(traits, Nomad::Desperation{}, situation, Nomad::BattleObjective::DestroyHaulers, random));
     }
 
     std::uint32_t pairs = 0;
@@ -191,7 +192,7 @@ public:
     {
       Nomad::Desperation desperation{};
       desperation.recentLosses = Neuron::Hundredths::FromRaw(_level);
-      return Nomad::TemplateSelection::Select(varik, desperation, situation, Nomad::BattleObjective::Destroy, random);
+      return Nomad::TemplateSelection::Select(varik, desperation, situation, Nomad::BattleObjective::DestroyHaulers, random);
     };
 
     Assert::IsTrue(pressed(0) == Nomad::BattleTemplate::Ambush, L"Varik did not ambush when nothing was pressing him");
@@ -233,9 +234,9 @@ public:
     {
       const Nomad::AdmiralTraits traits = Nomad::Admirals::DrawTraits(random);
       const Nomad::BattleTemplate calm =
-        Nomad::TemplateSelection::Select(traits, Nomad::Desperation{}, situation, Nomad::BattleObjective::Destroy, random);
+        Nomad::TemplateSelection::Select(traits, Nomad::Desperation{}, situation, Nomad::BattleObjective::DestroyHaulers, random);
       const Nomad::BattleTemplate desperate =
-        Nomad::TemplateSelection::Select(traits, spent, situation, Nomad::BattleObjective::Destroy, random);
+        Nomad::TemplateSelection::Select(traits, spent, situation, Nomad::BattleObjective::DestroyHaulers, random);
       bent += desperate != calm ? 1u : 0u;
       held += desperate == calm ? 1u : 0u;
     }
@@ -267,8 +268,8 @@ public:
     {
       Nomad::AdmiralTraits traits = Nomad::Admirals::DrawTraits(random);
       traits.preferredTemplates[static_cast<std::uint32_t>(Nomad::BattleTemplate::Ambush)] = Neuron::HUNDREDTHS_UNITY;
-      ambushes += Nomad::TemplateSelection::Select(traits, Nomad::Desperation{}, situation, Nomad::BattleObjective::Destroy, random) ==
-                      Nomad::BattleTemplate::Ambush
+      ambushes += Nomad::TemplateSelection::Select(traits, Nomad::Desperation{}, situation, Nomad::BattleObjective::DestroyHaulers,
+                                                   random) == Nomad::BattleTemplate::Ambush
                     ? 1u
                     : 0u;
     }
@@ -288,8 +289,8 @@ public:
     impatient.initiative = Neuron::HUNDREDTHS_UNITY;
     impatient.preferredTemplates.assign(Nomad::TEMPLATE_COUNT, Neuron::HUNDREDTHS_ZERO);
     impatient.preferredTemplates[static_cast<std::uint32_t>(Nomad::BattleTemplate::Ambush)] = Neuron::HUNDREDTHS_UNITY;
-    Assert::IsTrue(Nomad::TemplateSelection::Select(impatient, Nomad::Desperation{}, situation, Nomad::BattleObjective::Destroy, random) !=
-                     Nomad::BattleTemplate::Ambush,
+    Assert::IsTrue(Nomad::TemplateSelection::Select(impatient, Nomad::Desperation{}, situation, Nomad::BattleObjective::DestroyHaulers,
+                                                    random) != Nomad::BattleTemplate::Ambush,
                    L"an officer with no patience and no guile still laid an ambush, so his traits are decorative");
   }
 
@@ -307,7 +308,7 @@ public:
     const Nomad::CharacterId character = world.Admirals().Get(admiral).character;
 
     const Nomad::BattleTemplate chosen =
-      Nomad::TemplateSelection::Choose(world, knowledge, character, Nomad::BattleObjective::Destroy, events, &sink);
+      Nomad::TemplateSelection::Choose(world, knowledge, character, Nomad::BattleObjective::DestroyHaulers, events, &sink);
 
     Assert::AreEqual(std::size_t{1}, sink.CountOf(Nomad::LogEvent::TEMPLATE_CHOSEN), L"a template was chosen and nothing was logged");
     Assert::IsTrue(sink.SawField(Nomad::LogEvent::Field::SITUATION),
@@ -340,14 +341,14 @@ public:
     const Nomad::BelievedSituation same = ASituation(40, 40);
     const Nomad::BelievedSituation other = ASituation(40, 41);
 
-    Assert::AreEqual(Nomad::TemplateSelection::SituationHash(one, Nomad::BattleObjective::Destroy),
-                     Nomad::TemplateSelection::SituationHash(same, Nomad::BattleObjective::Destroy),
+    Assert::AreEqual(Nomad::TemplateSelection::SituationHash(one, Nomad::BattleObjective::DestroyHaulers),
+                     Nomad::TemplateSelection::SituationHash(same, Nomad::BattleObjective::DestroyHaulers),
                      L"two identical situations hashed differently, so NC-101 would never group them");
-    Assert::AreNotEqual(Nomad::TemplateSelection::SituationHash(one, Nomad::BattleObjective::Destroy),
-                        Nomad::TemplateSelection::SituationHash(other, Nomad::BattleObjective::Destroy),
+    Assert::AreNotEqual(Nomad::TemplateSelection::SituationHash(one, Nomad::BattleObjective::DestroyHaulers),
+                        Nomad::TemplateSelection::SituationHash(other, Nomad::BattleObjective::DestroyHaulers),
                         L"one more sighted hull hashed the same, so the grouping is too coarse to mean anything");
-    Assert::AreNotEqual(Nomad::TemplateSelection::SituationHash(one, Nomad::BattleObjective::Destroy),
-                        Nomad::TemplateSelection::SituationHash(one, Nomad::BattleObjective::Protect),
+    Assert::AreNotEqual(Nomad::TemplateSelection::SituationHash(one, Nomad::BattleObjective::DestroyHaulers),
+                        Nomad::TemplateSelection::SituationHash(one, Nomad::BattleObjective::ProtectConvoy),
                         L"the objective is part of what makes a situation, and the hash ignored it");
   }
 
@@ -454,7 +455,7 @@ public:
 
     const Nomad::AdmiralId admiral = Nomad::Admirals::ServingFor(world, Nomad::EmpireId::FromIndex(0));
     const Nomad::CharacterId character = world.Admirals().Get(admiral).character;
-    (void)Nomad::TemplateSelection::Choose(world, knowledge, character, Nomad::BattleObjective::Hold, events, nullptr);
+    (void)Nomad::TemplateSelection::Choose(world, knowledge, character, Nomad::BattleObjective::DestroyFleet, events, nullptr);
     world.Admirals().Get(admiral).engagements.front().hullsLost = 7;
     world.Admirals().Get(admiral).engagements.front().won = true;
 
