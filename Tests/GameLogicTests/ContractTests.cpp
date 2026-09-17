@@ -364,7 +364,7 @@ public:
     Nomad::Contracts::ResolveDaily(world, knowledge, events, nullptr);
     Assert::AreEqual(before + pay, world.Companies().Get(company).treasury, L"the second part never arrived after private attribution");
     Assert::IsTrue(world.Contracts().Get(raid).state == Nomad::ContractState::Completed);
-    Assert::AreEqual(std::size_t{0}, knowledge.Accusations().Count(), L"a contracted raid produced an accusation, which is not private");
+    Assert::AreEqual(0u, knowledge.Accusations().Count(), L"a contracted raid produced an accusation, which is not private");
   }
 
   TEST_METHOD(AnUnattributedRaidIsWrittenOffAndCountsAsDiscretion)
