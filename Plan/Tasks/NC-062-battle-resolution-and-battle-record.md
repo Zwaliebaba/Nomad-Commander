@@ -151,7 +151,7 @@ reached.
 
 **Verified.** `python Build\CheckFormat.py` (239 files) and `python Build\CheckProjectFiles.py` (9 projects) pass.
 **245 test methods across the four suites pass on clang-18 locally**, 11 of them new in `BattleTests.cpp`.
-clang-tidy-18 is clean over every file this task touched. `World` schema 14 → 15 (the fleet's plan and its cooldown);
+clang-tidy-18 is clean over every file this task touched (see the CI paragraph below — it was not, at first). `World` schema 14 → 15 (the fleet's plan and its cooldown);
 the NC-048 soak hash moved with it and every other measured figure — NC-045's, NC-047's, NC-055's, NC-060's,
 NC-066's — is unchanged.
 
@@ -163,3 +163,22 @@ combat. Giving the soak a fighting player is NC-090's scenario work, not this ta
 **Not done, and not claimable:** no `msbuild` and no `vstest.console.exe` **run by me** — there is no Windows
 toolchain here, so the MSVC build and the real CppUnitTest framework are CI's word and not mine. The task needs no
 desktop run.
+
+**What CI then confirmed, and the one thing it caught.** On `bb5867b` the Windows job built Debug|x64 and ran all
+four suites under the real CppUnitTest framework: **420 of 420 tests pass**. Every measured figure agrees with
+clang-18 on Linux to the digit — the NC-048 soak hash `6152001022014570065`, all five `[NC-062]` lines, and
+NC-043's, NC-045's, NC-047's, NC-055's, NC-060's and NC-066's besides. **That is the cross-compiler determinism R16
+rests on, measured across two compilers, two standard libraries and two operating systems rather than assumed.**
+
+The same run was red, on clang-tidy 22.1.8 rather than on the model: `bugprone-inc-dec-in-conditions` on the two
+lines of the round loop that decremented `withdrawRoundsLeft` inside the condition that read it. The short-circuit
+made it correct and the check is still right — nobody should have to reason about sequencing to know what a round
+does. Decrementing before the test fixes it with identical behaviour (a left break still pre-empts the right side's
+tick, and the counter is never read after the loop), and every figure above is unchanged by it.
+
+**That was the second CI failure on this task from a check the local harness did not run**, after MSVC's C4244 on the
+same two lines' ancestors. Both gaps are now closed in the session harness: `-Wunused-parameter` and
+`-Wshorten-64-to-32` on the compile, and a clang-tidy-18 pre-filter over `GameLogic` and `NeuronCore` using the
+repository's own `.clang-tidy`. The pre-filter is not a substitute for CI — CI pins 22.1.8 and drives it against the
+real Windows SDK, where this runs 18 against a shim — and it carries a measured false-positive floor of three
+findings in files CI passes. It reproduced both of Battle.cpp's findings exactly, which is what it was built for.
