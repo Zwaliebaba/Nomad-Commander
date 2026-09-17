@@ -3,6 +3,7 @@
 #include "TickResolver.h"
 
 #include "Answers.h"
+#include "Contracts.h"
 #include "Couriers.h"
 #include "CovertRaid.h"
 #include "Economy.h"
@@ -86,6 +87,14 @@ void ResolveInputs(World& _world, Knowledge& _knowledge, std::span<const Input> 
 
     case InputKind::Fence:
       (void)Economy::Fence(_world, input.company, input.fleet, input.good, input.units, _outEvents);
+      break;
+
+    case InputKind::AcceptOffer:
+      (void)Contracts::Accept(_world, _knowledge, input, _outEvents, _log);
+      break;
+
+    case InputKind::DeclineOffer:
+      (void)Contracts::Decline(_world, _knowledge, input, _outEvents, _log);
       break;
 
     case InputKind::MoveFleet:
@@ -188,35 +197,17 @@ void ResolveDaily(World& _world, Knowledge& _knowledge, [[maybe_unused]] std::ve
   CovertRaid::ResolveDailyCovertRaids(_world, _knowledge, _outEvents, _log);
   Memory::ResolveDailyMemory(_world, _knowledge, _outEvents);
   Inference::ResolveDailyInference(_world, _knowledge, _outEvents, _log);
+  // **After inference**, because GDD §4's second payment waits on the employer having worked out who did it, and
+  // the pass above is what works it out. A contract evaluated first would pay a day late every time (NC-056).
+  Contracts::ResolveDaily(_world, _knowledge, _outEvents, _log);
   Fabricator::ResolveDaily(_world, _outEvents);
 
-  // GDD §15 requires "at least two willing employers after two months", which is a series and not a reading, so it
-  // is written every day from the first. **One line per company**: the metric is about a nomad, and a count that did
-  // not say whose would answer nothing (R22, R24). NC-051 gave it its meaning -- it is the empires whose threat
-  // assessment of that company has not reached `Revoked` -- and NC-101 reads the same name it always did.
-  if (_log != nullptr)
-  {
-    for (std::uint32_t companyIndex = 0; companyIndex < _world.Companies().Count(); ++companyIndex)
-    {
-      const auto companyId = CompanyId::FromIndex(companyIndex);
-      if (!_world.Companies().Get(companyId).alive)
-      {
-        continue;
-      }
-      std::uint32_t willing = 0;
-      for (std::uint32_t empireIndex = 0; empireIndex < _world.Empires().Count(); ++empireIndex)
-      {
-        const auto empireId = EmpireId::FromIndex(empireIndex);
-        if (_world.Empires().Get(empireId).alive && Memory::IsWillingToEmploy(_knowledge, empireId, companyId))
-        {
-          ++willing;
-        }
-      }
-      const std::array<LogField, 2> fields = {LogField{LogEvent::Field::COMPANY, std::to_string(companyIndex)},
-                                              LogField{LogEvent::Field::COUNT, std::to_string(willing)}};
-      _log->Write(_world.CurrentTick(), LogEvent::EMPLOYERS_WILLING, fields);
-    }
-  }
+  // GDD §15's "at least two willing employers after two months" used to be counted here, from
+  // `Memory::IsWillingToEmploy` alone. **NC-056 moved it into `Contracts::ResolveDaily` and made the answer
+  // wider**: a leader greedy enough to hire somebody they suspect is a willing employer, and §9 puts that release
+  // valve in the design precisely so one accusation does not end the player's employment. Counting it here as well
+  // would write the name twice a day with two different numbers, which is the one thing R24's naming rule exists to
+  // prevent.
 }
 
 /// Phase 7 -- the board. What the player finds on return (GDD §3).

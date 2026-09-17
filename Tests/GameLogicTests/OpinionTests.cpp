@@ -23,10 +23,10 @@ constexpr std::uint32_t EMPIRES = 3;
   Nomad::World world{_seed};
   const Nomad::UniverseGenerator::Desc desc{SYSTEMS, EMPIRES};
   Assert::IsTrue(Nomad::UniverseGenerator::Generate(desc, world), L"the world could not be generated");
-  // **The generator makes no people yet**: NC-060 brings the three or four admirals GDD §15 asks for, and until it
-  // does, a test that wants one adds it. Named here rather than worked around quietly, because the moment NC-060
-  // lands this helper becomes the thing to delete.
-  Assert::AreEqual(0u, world.Characters().Count(), L"the generator grew people, and these tests should use them");
+  // **The generator makes one person per empire and no more**: NC-056 seeds each empire's leader beside its goals,
+  // because an offer is made by somebody and a refusal lowers *their* opinion. The admirals GDD §15 asks for are
+  // NC-060's, and until it lands a test that wants one adds it -- which is what the helper below is for.
+  Assert::AreEqual(EMPIRES, world.Characters().Count(), L"the generator grew people beyond the empires' own leaders");
   return world;
 }
 

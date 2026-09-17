@@ -14,6 +14,7 @@
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
+#include "Contract.h"
 #include "WreckAnalysis.h"
 
 #include "Random.h"
@@ -45,10 +46,11 @@ enum class RandomStream : std::uint64_t
   Economy,
   Empires,
   Inference,
-  Admirals
+  Admirals,
+  Contracts
 };
 
-inline constexpr std::uint32_t RANDOM_STREAM_COUNT = 8;
+inline constexpr std::uint32_t RANDOM_STREAM_COUNT = 9;
 
 /// Reality: the whole world state, and the only thing in this tree that holds the truth (`Plan/Glossary.md`).
 ///
@@ -74,7 +76,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 11;
+  static constexpr std::uint16_t SCHEMA_VERSION = 12;
 
   explicit World(std::uint64_t _seed);
 
@@ -218,6 +220,20 @@ public:
     return m_wreckAnalyses;
   }
 
+  /// Every offer an empire has made and what became of it (GDD §8, NC-056).
+  ///
+  /// **An offer is reality**: the empire made it, at a price, with a deadline. What the player *believes* about
+  /// whether it can be met is reports, and the wire record carries no answer to that question (`WireContract.h`).
+  [[nodiscard]] Table<Contract, ContractId>& Contracts() noexcept
+  {
+    return m_contracts;
+  }
+
+  [[nodiscard]] const Table<Contract, ContractId>& Contracts() const noexcept
+  {
+    return m_contracts;
+  }
+
   /// The couriers still in the air, in dispatch order (NC-053).
   ///
   /// **Derived state, and it exists for a measured reason.** Rows are never erased from any table here, so the
@@ -308,6 +324,7 @@ private:
   Table<Courier, CourierId> m_couriers;
   std::vector<CourierId> m_couriersInFlight;
   Table<WreckAnalysis, WreckAnalysisId> m_wreckAnalyses;
+  Table<Contract, ContractId> m_contracts;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

@@ -91,7 +91,9 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Courier | §4, §9 | `Courier`, `CourierId`, `CourierPayload`, `CourierState`, `Couriers` | `Courier.h`, `Couriers.h` | NC-053 |
 | Covert raid by an empire | §6 | `CovertRaid` | `CovertRaid.h` | NC-055 |
 | Marked goods, the loot trail, fencing | §5 | `CargoMark` | `Cargo.h` | NC-055 |
-| Contract, offer, payout by attribution | §4, §8 | `Contract`, `ContractKind`, `ContractOffer` | `Contract.h` | NC-056 |
+| Contract, offer, payout by attribution | §4, §8 | `Contract`, `ContractId`, `ContractKind`, `ContractState`, `ContractOffer`, `Contracts`, `WireContractOffer` | `Contract.h`, `Contracts.h`, `WireContract.h` | NC-056 |
+| The floor's work, as a contract | §5 | `ContractKind::MothershipWork` | `Contract.h` | NC-056 |
+| A covert raider, drawn from the pool for one raid | §5, §6 | `FleetRole::Raider` | `Fleet.h` | NC-055 |
 | Admiral traits and desperation | §8 | `AdmiralTraits`, `Desperation` | `Admiral.h` | NC-060 |
 | The eight templates | §8 | `BattleTemplate` | `BattleTemplate.h` | NC-060 |
 | Template selection from belief | §8 | `TemplateSelection`, `BelievedSituation` | `TemplateSelection.h` | NC-060 |

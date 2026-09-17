@@ -47,6 +47,11 @@ struct Input
   AccusationAnswer answer;
   Credits settlement;
   std::vector<EvidenceOffer> offered;
+
+  /// GDD §8's offers (NC-056). `flyMarked` is the company's own choice and not the employer's: §4 makes marked and
+  /// unmarked two different payout paths, and which one a raid ends up on is decided when the job is taken.
+  ContractId contract;
+  bool flyMarked;
 };
 
 [[nodiscard]] inline WireInput ToWire(const Input& _input)
@@ -81,6 +86,8 @@ struct Input
   {
     wire.evidenceOffers.push_back(static_cast<std::uint8_t>(offer));
   }
+  wire.contractIndex = WireIndexOf(_input.contract);
+  wire.flyMarked = _input.flyMarked;
   return wire;
 }
 

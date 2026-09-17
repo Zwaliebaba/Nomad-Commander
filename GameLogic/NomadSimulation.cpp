@@ -108,6 +108,17 @@ namespace
     }
     break;
 
+  case InputKind::AcceptOffer:
+  case InputKind::DeclineOffer:
+    // The offer is a `World` row, so this seam can check it names one; whether it is still open is `Contracts`'
+    // question, because an offer that expired between the client sending this and the tick it applies at is a race
+    // the design expects (GDD §3's expiry times) rather than a malformed record.
+    if (_wire.contractIndex == WIRE_INDEX_NONE || _wire.contractIndex >= _world.Contracts().Count())
+    {
+      return false;
+    }
+    break;
+
   case InputKind::SendCourier:
     // **Lighter than MoveFleet's check, on purpose.** A courier's order is validated against where the fleet will be
     // when it lands, which nobody knows yet -- GDD §4 puts the delay there precisely so an order can be overtaken by
@@ -261,6 +272,8 @@ void WriteInput(Neuron::ByteWriter& _writer, const Input& _input)
   {
     _outInput.offered.push_back(static_cast<EvidenceOffer>(offer));
   }
+  _outInput.contract = wire.contractIndex == WIRE_INDEX_NONE ? ContractId{} : ContractId::FromIndex(wire.contractIndex);
+  _outInput.flyMarked = wire.flyMarked;
   return true;
 }
 

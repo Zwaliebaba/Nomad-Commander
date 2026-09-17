@@ -52,10 +52,16 @@ enum class InputKind : std::uint8_t
 
   /// GDD §5: selling through an intermediary, which "costs a cut and buys distance". Same fields as `Sell`; the
   /// difference is the price and that nobody writes it down.
-  Fence
+  Fence,
+
+  /// GDD §8's offers. Taking one "stakes their reputation with the Oren and, if the Varn ever attribute it, their
+  /// claims at Kessel" (§3); declining one is not free (§6). **Both are inputs and neither is required**: the
+  /// player must always be able to act without a contract, so nothing in §12's verbs asks whether there is one.
+  AcceptOffer,
+  DeclineOffer
 };
 
-inline constexpr std::uint8_t INPUT_KIND_COUNT = 14;
+inline constexpr std::uint8_t INPUT_KIND_COUNT = 16;
 
 /// The four ship classes, as the wire counts them. A wire header sees only NeuronCore (ADR-001), so it cannot include
 /// the enumerator; `Mobility.cpp` static_asserts that this and `SHIP_CLASS_COUNT` are the same number, which is where
@@ -113,6 +119,12 @@ struct WireInput
   /// `Credits` is this width; `Input` is where it becomes the named type.
   std::int64_t settlement;
   std::vector<std::uint8_t> evidenceOffers;
+
+  /// AcceptOffer and DeclineOffer: which offer, and -- for an accepted raid -- whether the company intends to fly
+  /// marked. GDD §4 makes that the player's choice and not the employer's: `requiresMarked` on the offer is what
+  /// the employer will pay for, and this is what the company says it will do.
+  std::uint32_t contractIndex;
+  bool flyMarked;
 };
 
 inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
@@ -146,6 +158,8 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
   {
     _writer.Write(offer);
   }
+  _writer.Write(_input.contractIndex);
+  _writer.WriteBool(_input.flyMarked);
 }
 
 [[nodiscard]] inline bool Deserialize(Neuron::ByteReader& _reader, WireInput& _outInput)
@@ -199,6 +213,11 @@ inline void Serialize(Neuron::ByteWriter& _writer, const WireInput& _input)
     {
       return false;
     }
+  }
+
+  if (!_reader.Read(_outInput.contractIndex) || !_reader.ReadBool(_outInput.flyMarked))
+  {
+    return false;
   }
 
   _outInput.kind = static_cast<InputKind>(kind);

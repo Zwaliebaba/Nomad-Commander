@@ -93,6 +93,7 @@
     <ClCompile Include="Couriers.cpp" />
     <ClCompile Include="Answers.cpp" />
     <ClCompile Include="CovertRaid.cpp" />
+    <ClCompile Include="Contracts.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -138,6 +139,9 @@
     <ClInclude Include="Answers.h" />
     <ClInclude Include="Cargo.h" />
     <ClInclude Include="CovertRaid.h" />
+    <ClInclude Include="Contracts.h" />
+    <ClInclude Include="WireContract.h" />
+    <ClInclude Include="Contract.h" />
     <ClInclude Include="WreckAnalysis.h" />
     <ClInclude Include="WireAccusation.h" />
     <ClInclude Include="Opinion.h" />

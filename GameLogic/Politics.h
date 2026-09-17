@@ -81,6 +81,10 @@ public:
   /// Whether any pair is at war. GDD §7: "A three-empire world at peace is a bug."
   [[nodiscard]] static bool AnyWarActive(const World& _world);
 
+  /// Whether this one is at war with anybody. GDD §6 prices a refusal only "during its war", which is a fact about
+  /// the employer and not about the region (NC-056).
+  [[nodiscard]] static bool IsAtWar(const World& _world, EmpireId _empire);
+
   /// How large an escort a convoy of this empire's should carry, which follows the war state (NC-045 reads it).
   [[nodiscard]] static std::uint32_t EscortStrengthFor(const World& _world, EmpireId _empire);
 };

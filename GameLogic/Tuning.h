@@ -294,6 +294,69 @@ inline constexpr Neuron::Tick LOOT_TRAIL_TICKS = 10 * Neuron::TICKS_PER_DAY;
 /// §5: fencing "costs a cut and buys distance".
 inline constexpr Neuron::Hundredths FENCE_CUT_HUNDREDTHS = Neuron::Hundredths::FromRaw(35);
 
+// --- GDD §8 and §4: contracts, and what an employer pays for what it can attribute -----------------------------
+//
+// "Contracts are offers, not quests. Offers are generated from empire goals and dry up when the goal is met" (§8),
+// and "an employer pays for what it can attribute" (§4). Every number below is open and answered by play.
+
+/// What each kind is worth before the marked premium, indexed by `ContractKind`. GDD §3's worked offer is the anchor
+/// for the raid: "9,000 credits on completion, payable on their own observation of the result". An escort is worth
+/// less because the risk is lower and the employer's own escort is already there; the floor's work is a day's pay for
+/// a crew with no fleet and is set against `MOTHERSHIP_STANDING_INCOME_CREDITS_PER_DAY`, which it replaces.
+inline constexpr Credits CONTRACT_PAY_BASE[3] = {5000, 9000, 80};
+
+/// **What flying marked is worth** (GDD §4: "flying marked is a real choice: full pay, safe passage under the
+/// employer's flag during the contract, and open enmity with the victim"). A premium on the price, because the
+/// employer is buying a result it can point at.
+inline constexpr Neuron::Hundredths CONTRACT_MARKED_PREMIUM_HUNDREDTHS = Neuron::Hundredths::FromRaw(20);
+
+/// **GDD §4's two-part payment for an unmarked raid**: "the employer pays a reduced sum when its own reports confirm
+/// the result, and the rest only if it can later attribute the raid to the player privately." This is the first
+/// part; the remainder waits on the employer's own belief crossing `ACCUSE_THRESHOLD` against the company, which is
+/// the same §6 arithmetic that would accuse them of it. **Deniability therefore has a price**, and this number is it.
+inline constexpr Neuron::Hundredths UNMARKED_PAY_ON_EVIDENCE_HUNDREDTHS = Neuron::Hundredths::FromRaw(60);
+
+/// How long the employer keeps the second part on the table before writing the job off as unattributable. Long
+/// enough for a courier to bring a sighting in and for the daily inference pass to run several times.
+inline constexpr Neuron::Tick UNMARKED_ATTRIBUTION_WINDOW_TICKS = 14 * Neuron::TICKS_PER_DAY;
+
+/// "An offer lasts at least one full day, so a player who checks in daily never misses one" (GDD §7). The floor is a
+/// day exactly; the lifetime is longer so the day is a floor rather than a coincidence, and `Contracts.cpp`
+/// static-asserts the relation rather than trusting the two numbers to stay in order.
+inline constexpr Neuron::Tick CONTRACT_OFFER_LIFETIME_TICKS = 2 * Neuron::TICKS_PER_DAY;
+
+/// How long after the offer is made the work itself is due. GDD §3's offer has a "deadline in two days" and expires
+/// later than it is read, so the deadline is measured from the offer and not from acceptance.
+inline constexpr Neuron::Tick CONTRACT_DEADLINE_TICKS = 4 * Neuron::TICKS_PER_DAY;
+
+/// The chance per empire per day that an unsatisfied goal produces an offer at all. Not every want becomes a job on
+/// the day it is wanted, and a board with three new offers every morning is a board nobody reads (GDD §3).
+inline constexpr std::uint32_t CONTRACT_OFFER_CHANCE_PER_DAY = 25;
+
+/// **"Refusal is not free"** (GDD §6). "Declining an employer's offer during its war lowers its opinion a little;
+/// declining repeatedly lowers it a lot." The step is the little; each consecutive refusal adds another step, up to
+/// the cap, which is the a lot. A refusal outside the employer's war costs nothing, which is what makes neutrality
+/// have a price only "when both sides are asking".
+inline constexpr Neuron::Hundredths REFUSAL_OPINION_HUNDREDTHS = Neuron::Hundredths::FromRaw(4);
+inline constexpr std::uint32_t REFUSAL_COMPOUNDING_CAP = 5;
+
+/// What a kept contract is worth to the leader who offered it (GDD §8's "reliable").
+inline constexpr Neuron::Hundredths CONTRACT_KEPT_OPINION_HUNDREDTHS = Neuron::Hundredths::FromRaw(6);
+
+/// What a betrayal costs (GDD §8: "Betraying an employer, by selling the cargo you were hired to escort, is
+/// deniable raiding applied to employers"). It costs this much only when the employer works it out; until then it is
+/// deniable, which is the whole of what the word is doing in that sentence.
+inline constexpr Neuron::Hundredths CONTRACT_BETRAYAL_OPINION_HUNDREDTHS = Neuron::Hundredths::FromRaw(30);
+
+/// **GDD §9's release valve.** "A greedy leader offers to a suspected company anyway": the share of leaders, in
+/// hundredths, who will hire somebody they believe raided them, because a world where one accusation ends the game
+/// is a world where the §6 hook is a punishment rather than a situation.
+inline constexpr Neuron::Hundredths LEADER_GREED_HUNDREDTHS = Neuron::Hundredths::FromRaw(30);
+
+/// How many days of the floor's work one `MothershipWork` contract is (GDD §5). Short, because the point of the
+/// floor is that there is always another one.
+inline constexpr std::uint32_t FLOOR_WORK_DAYS = 3;
+
 // --- GDD §9 and §11: memory, and what an empire makes of a company -----------------------------------------------
 
 /// **The steps an empire's threat assessment moves through**, as the consequence each one carries. A step and not a

@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "Economy.h"
 
+#include "Contracts.h"
 #include "CovertRaid.h"
 #include "Mobility.h"
 #include "Politics.h"
@@ -712,8 +713,16 @@ bool Economy::Fence(World& _world, CompanyId _company, FleetId _fleet, Good _goo
 {
   // GDD §5: "fencing costs a cut and buys distance." **No `Knowledge&` reaches this function**, so there is no way
   // for it to write the report an honest sale would -- the distance it buys is structural rather than remembered.
-  return SellInto(_world, _company, _fleet, _good, _units, Tuning::FENCE_CUT_HUNDREDTHS, _outEvents, EventKind::GoodsFenced,
-                  ReasonCode::SoldThroughAnIntermediary) >= 0;
+  const CargoMark mark = _world.Fleets().Holds(_fleet) ? _world.Fleets().Get(_fleet).cargoMark : CargoMark{};
+  if (SellInto(_world, _company, _fleet, _good, _units, Tuning::FENCE_CUT_HUNDREDTHS, _outEvents, EventKind::GoodsFenced,
+               ReasonCode::SoldThroughAnIntermediary) < 0)
+  {
+    return false;
+  }
+  // The escort contract is still finished -- the cargo is gone and the employer will not be paying for it -- but
+  // nothing here can move an opinion, because nothing here holds a `Knowledge&` to move one in (GDD §8's deniable).
+  Contracts::Betray(_world, Contracts::EscortOver(_world, _company, mark), _outEvents);
+  return true;
 }
 
 bool Economy::Sell(World& _world, Knowledge& _knowledge, CompanyId _company, FleetId _fleet, Good _good, std::uint32_t _units,
@@ -730,7 +739,8 @@ bool Economy::Sell(World& _world, Knowledge& _knowledge, CompanyId _company, Fle
 
   // **Loot is evidence** (GDD §5). Goods carrying somebody's marks, sold this near where they were taken and this
   // soon after, are a thing traders say -- and what traders say reaches the empire whose marks they are.
-  if (CovertRaid::WouldLeaveATrail(_world, mark, sellingAt))
+  const bool leftATrail = CovertRaid::WouldLeaveATrail(_world, mark, sellingAt);
+  if (leftATrail)
   {
     CovertRaid::ReportMarkedGoods(_world, _knowledge, mark, _company, sellingAt);
     EventSubjects subjects{};
@@ -738,6 +748,19 @@ bool Economy::Sell(World& _world, Knowledge& _knowledge, CompanyId _company, Fle
     subjects.empire = mark.origin;
     subjects.system = sellingAt;
     _outEvents.emplace_back(_world.CurrentTick(), EventKind::MarkedGoodsSoldNearby, subjects, Because(ReasonCode::LootWasRecognised));
+  }
+
+  // **Betrayal** (GDD §8: "selling the cargo you were hired to escort"). The contract is finished either way; the
+  // employer's opinion moves only where the sale was one somebody noticed, which is the *deniable* in the design's
+  // own phrase.
+  const ContractId escorted = Contracts::EscortOver(_world, _company, mark);
+  if (escorted.IsValid())
+  {
+    Contracts::Betray(_world, escorted, _outEvents);
+    if (leftATrail)
+    {
+      Contracts::BetrayalNoticed(_world, _knowledge, escorted, _outEvents);
+    }
   }
   return true;
 }

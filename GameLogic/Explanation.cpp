@@ -119,6 +119,26 @@ namespace
     return "you sold it through somebody who does not ask questions";
   case ReasonCode::LootWasRecognised:
     return "goods carrying their marks were sold where somebody noticed";
+  case ReasonCode::AGoalWantedSomethingDone:
+    return "an empire wants something done and is willing to pay for it";
+  case ReasonCode::YouTookTheJob:
+    return "you took the job";
+  case ReasonCode::YouTurnedItDown:
+    return "you turned the job down";
+  case ReasonCode::NobodyTookIt:
+    return "the offer stood until it expired";
+  case ReasonCode::TheEmployerSawTheResult:
+    return "the employer's own reports confirm the result";
+  case ReasonCode::TheEmployerWorkedOutWhoDidIt:
+    return "the employer worked out privately that it was you";
+  case ReasonCode::TheDeadlinePassed:
+    return "the deadline passed with the work undone";
+  case ReasonCode::TheEmployerCouldNotAttributeIt:
+    return "the employer never worked out who did it";
+  case ReasonCode::YouSoldWhatYouWereHiredToEscort:
+    return "you sold the cargo you were hired to escort";
+  case ReasonCode::TheCrewFoundWork:
+    return "the crew found work that needs no fleet";
   }
   return "something happened that nobody recorded a reason for";
 }

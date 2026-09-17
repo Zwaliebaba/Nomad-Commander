@@ -522,6 +522,44 @@ void WriteWreckAnalysis(Neuron::ByteWriter& _writer, const WreckAnalysis& _analy
          ReadShipCounts(_reader, _outAnalysis.found) && _reader.ReadBool(_outAnalysis.complete) && _reader.ReadBool(_outAnalysis.abandoned);
 }
 
+void WriteContract(Neuron::ByteWriter& _writer, const Contract& _contract)
+{
+  _writer.WriteId(_contract.offer.employer);
+  _writer.WriteId(_contract.offer.leader);
+  WriteEnum(_writer, _contract.offer.kind);
+  _writer.Write(_contract.offer.goalIndex);
+  _writer.WriteId(_contract.offer.targetFleet);
+  _writer.WriteId(_contract.offer.targetSystem);
+  _writer.Write(_contract.offer.pay);
+  _writer.WriteBool(_contract.offer.requiresMarked);
+  _writer.WriteTick(_contract.offer.offeredAtTick);
+  _writer.WriteTick(_contract.offer.expiresAtTick);
+  _writer.WriteTick(_contract.offer.deadlineTick);
+  _writer.WriteId(_contract.company);
+  _writer.WriteTick(_contract.acceptedAtTick);
+  WriteEnum(_writer, _contract.state);
+  _writer.WriteBool(_contract.declined);
+  _writer.WriteBool(_contract.expired);
+  _writer.Write(_contract.paidCredits);
+  _writer.Write(_contract.pendingAttribution);
+  _writer.WriteId(_contract.incident);
+  _writer.WriteTick(_contract.settledAtTick);
+}
+
+[[nodiscard]] bool ReadContract(Neuron::ByteReader& _reader, Contract& _outContract)
+{
+  return _reader.ReadId(_outContract.offer.employer) && _reader.ReadId(_outContract.offer.leader) &&
+         ReadEnum(_reader, _outContract.offer.kind, WIRE_CONTRACT_KIND_COUNT) && _reader.Read(_outContract.offer.goalIndex) &&
+         _reader.ReadId(_outContract.offer.targetFleet) && _reader.ReadId(_outContract.offer.targetSystem) &&
+         _reader.Read(_outContract.offer.pay) && _reader.ReadBool(_outContract.offer.requiresMarked) &&
+         _reader.ReadTick(_outContract.offer.offeredAtTick) && _reader.ReadTick(_outContract.offer.expiresAtTick) &&
+         _reader.ReadTick(_outContract.offer.deadlineTick) && _reader.ReadId(_outContract.company) &&
+         _reader.ReadTick(_outContract.acceptedAtTick) && ReadEnum(_reader, _outContract.state, WIRE_CONTRACT_STATE_COUNT) &&
+         _reader.ReadBool(_outContract.declined) && _reader.ReadBool(_outContract.expired) && _reader.Read(_outContract.paidCredits) &&
+         _reader.Read(_outContract.pendingAttribution) && _reader.ReadId(_outContract.incident) &&
+         _reader.ReadTick(_outContract.settledAtTick);
+}
+
 void WriteCourier(Neuron::ByteWriter& _writer, const Courier& _courier)
 {
   WriteFleetOwner(_writer, _courier.sender);
@@ -781,6 +819,7 @@ void World::Serialize(Neuron::ByteWriter& _writer) const
   WriteTable(_writer, m_incidents, WriteIncident);
   WriteTable(_writer, m_couriers, WriteCourier);
   WriteTable(_writer, m_wreckAnalyses, WriteWreckAnalysis);
+  WriteTable(_writer, m_contracts, WriteContract);
 
   _writer.Write(static_cast<std::uint32_t>(m_randomStreams.size()));
   for (const Neuron::Random& stream : m_randomStreams)
@@ -810,7 +849,7 @@ bool World::Deserialize(Neuron::ByteReader& _reader)
       !ReadTable(_reader, loaded.m_lanes, ReadLane) || !ReadTable(_reader, loaded.m_markets, ReadMarket) ||
       !ReadTable(_reader, loaded.m_mothballs, ReadMothballedHull) || !ReadTable(_reader, loaded.m_relations, ReadRelation) ||
       !ReadTable(_reader, loaded.m_incidents, ReadIncident) || !ReadTable(_reader, loaded.m_couriers, ReadCourier) ||
-      !ReadTable(_reader, loaded.m_wreckAnalyses, ReadWreckAnalysis))
+      !ReadTable(_reader, loaded.m_wreckAnalyses, ReadWreckAnalysis) || !ReadTable(_reader, loaded.m_contracts, ReadContract))
   {
     return false;
   }

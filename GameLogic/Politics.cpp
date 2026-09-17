@@ -109,6 +109,18 @@ bool Politics::AnyWarActive(const World& _world)
   return false;
 }
 
+bool Politics::IsAtWar(const World& _world, EmpireId _empire)
+{
+  for (const Relation& relation : _world.Relations().Rows())
+  {
+    if (relation.state == RelationState::War && (relation.first == _empire || relation.second == _empire))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::uint32_t Politics::EscortStrengthFor(const World& _world, EmpireId _empire)
 {
   for (const Relation& relation : _world.Relations().Rows())
@@ -216,6 +228,22 @@ void Politics::Seed(World& _world)
   {
     const auto empireId = EmpireId::FromIndex(index);
     Empire& empire = _world.Empires().Get(empireId);
+
+    // **The leader the goals belong to.** GDD §8 states them as one thing -- "Each leader pursues a small set of
+    // persistent goals" -- and the goals below were seeded here without one, which left `Empire::leader` invalid in
+    // every generated world. Nothing needed a leader until contracts did: an offer is made by a person, a refusal
+    // lowers that person's opinion, and §9's release valve is a *greedy leader* hiring somebody they suspect
+    // (NC-056). An empire with no leader has none of that, so the person is seeded beside the wants.
+    if (!empire.leader.IsValid())
+    {
+      Character leader{};
+      leader.name = empire.name + " leadership";
+      leader.role = CharacterRole::Leader;
+      leader.allegiance.empire = empireId;
+      leader.commandCapacity = 0;
+      leader.alive = true;
+      empire.leader = _world.Characters().Add(leader);
+    }
 
     EmpireGoal hold{};
     hold.kind = GoalKind::HoldSystem;
