@@ -99,6 +99,7 @@
     <ClCompile Include="TickResolverTests.cpp" />
     <ClCompile Include="WireTests.cpp" />
     <ClCompile Include="SoakTests.cpp" />
+    <ClCompile Include="SensorTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

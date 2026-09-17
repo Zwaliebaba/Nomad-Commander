@@ -16,7 +16,7 @@ namespace
 
 [[nodiscard]] Nomad::CompanyId AddCompany(Nomad::World& _world)
 {
-  Nomad::Company company;
+  Nomad::Company company{};
   company.name = "Sedu Compact";
   company.activeWindow =
     Nomad::ActiveWindow{Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_START_TICK_OF_DAY, Nomad::Tuning::DEFAULT_ACTIVE_WINDOW_LENGTH_TICKS};

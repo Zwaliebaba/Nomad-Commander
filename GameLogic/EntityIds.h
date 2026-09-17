@@ -25,6 +25,7 @@ struct LaneTag;
 struct EventTag;
 struct MothballTag;
 struct RelationTag;
+struct ReportTag;
 
 /// The nomad (GDD §11, §14). Named Company because `namespace Nomad` already exists and a type of that name inside it
 /// would shadow the namespace for every qualified name in game code (`Plan/Glossary.md`).
@@ -47,5 +48,9 @@ using MothballId = Neuron::Id<MothballTag>;
 
 /// Where one pair of empires stands (NC-047).
 using RelationId = Neuron::Id<RelationTag>;
+
+/// One thing somebody was told, with its source, its age and its reliability (GDD §4, NC-050). Everything the AI and
+/// the client ever reason from is one of these; reality is `World` and nothing outside `GameLogic` holds one.
+using ReportId = Neuron::Id<ReportTag>;
 
 } // namespace Nomad

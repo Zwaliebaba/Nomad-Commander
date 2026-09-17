@@ -3,6 +3,7 @@
 
 #include "EmpireGoal.h"
 #include "EntityIds.h"
+#include "Report.h"
 
 #include <cstdint>
 #include <string>
@@ -35,6 +36,10 @@ struct Empire
   /// Companies this empire has revoked (GDD §5: hulls are "unavailable from an empire that has revoked the
   /// player's tolerance"). A list on the empire until NC-051 gives tolerance a belief behind it.
   std::vector<CompanyId> revokedCompanies;
+
+  /// What each kind of source has been right and wrong about, for this observer (GDD §4, NC-050). The reliability a
+  /// board shows comes from here and from nowhere else -- never from whether the report happened to be correct.
+  SourceRecord recordBySource[REPORT_SOURCE_COUNT];
 
   /// NC-047 brings goals, wars and truces; NC-066 brings the fees an empire charges. Named here, built there.
   bool alive;

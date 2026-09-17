@@ -36,6 +36,17 @@ struct BelievedSituation
 
   /// Its grudge against each empire, as it holds it. Its own feeling, not a fact about the world.
   std::vector<Neuron::Hundredths> grudgeByEmpire;
+
+  /// **What its own reports say it has seen of somebody else's hulls** (NC-050), counted only from reports that have
+  /// actually been delivered. This is the first field here that is not simply something the empire owns, and it is
+  /// the one that makes the type mean what R18 says: the number is what its observers wrote down -- spread by
+  /// distance, possibly wrong, and never corrected against the world. An empire that has looked at nothing believes
+  /// nothing is there.
+  std::uint32_t sightedForeignHulls;
+
+  /// How many delivered reports that figure was built from, so a routine can tell "nobody is out there" from "nobody
+  /// has looked" (NC-060 will care; today it is what the test asserts against).
+  std::uint32_t reportsRead;
 };
 
 /// Empires that want things for years and fight about them (GDD §8).

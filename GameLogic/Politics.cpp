@@ -2,6 +2,8 @@
 #include "pch.h"
 #include "Politics.h"
 
+#include "Report.h"
+
 #include "Tuning.h"
 
 #include "IntegerMath.h"
@@ -158,6 +160,23 @@ BelievedSituation Politics::Believe(const World& _world, EmpireId _empire)
     {
       ++situation.warsFought;
     }
+  }
+
+  // **And what it has been told**, which is the only way anything about anybody else reaches this type (NC-050,
+  // R18). Delivered reports only: one in a courier's hold has reached nobody, and an empire cannot act on it.
+  //
+  // The counts added up here are the ones its observers wrote down -- spread by distance and never checked against
+  // the world -- so two empires looking at one fleet believe different things about it, which is the point.
+  const Neuron::Tick now = _world.CurrentTick();
+  for (const Report& report : _world.Reports().Rows())
+  {
+    const auto* observer = std::get_if<EmpireId>(&report.observer);
+    if (observer == nullptr || *observer != _empire || !IsDelivered(report, now))
+    {
+      continue;
+    }
+    ++situation.reportsRead;
+    situation.sightedForeignHulls += report.sighting.countsSeen.Total();
   }
   return situation;
 }

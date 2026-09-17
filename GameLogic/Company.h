@@ -4,6 +4,7 @@
 #include "Credits.h"
 #include "EntityIds.h"
 #include "Mothership.h"
+#include "Report.h"
 
 #include "Tick.h"
 
@@ -49,6 +50,10 @@ struct Company
   std::vector<EventId> record;
 
   ActiveWindow activeWindow;
+
+  /// What each kind of source has been right and wrong about, for this observer (GDD §4, NC-050). The reliability a
+  /// board shows comes from here and from nowhere else -- never from whether the report happened to be correct.
+  SourceRecord recordBySource[REPORT_SOURCE_COUNT];
 
   bool alive;
 };

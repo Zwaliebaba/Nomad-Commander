@@ -107,7 +107,7 @@ private:
   const Nomad::UniverseGenerator::Desc desc{SCRIPT_SYSTEMS, SCRIPT_EMPIRES};
   Assert::IsTrue(Nomad::UniverseGenerator::Generate(desc, _simulation.MutableWorld()), L"the map could not be generated");
 
-  Nomad::Company company;
+  Nomad::Company company{};
   company.name = "Sedu Compact";
   company.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(0), Nomad::MothershipState::Healthy,
                                          Nomad::Tuning::MOTHERSHIP_RESERVE_FUEL, Nomad::ShipClass::Scout, 0};

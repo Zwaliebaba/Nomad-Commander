@@ -9,6 +9,7 @@
 #include "Market.h"
 #include "MothballedHull.h"
 #include "Relation.h"
+#include "Report.h"
 #include "Outpost.h"
 #include "StarSystem.h"
 #include "Table.h"
@@ -64,7 +65,7 @@ class World
 public:
   /// Bumped when the layout below changes in any way that an older store could not be read as. ADR-004 puts one of
   /// these at the head of each store; this is the game's half of that number.
-  static constexpr std::uint16_t SCHEMA_VERSION = 6;
+  static constexpr std::uint16_t SCHEMA_VERSION = 7;
 
   explicit World(std::uint64_t _seed);
 
@@ -168,6 +169,19 @@ public:
     return m_relations;
   }
 
+  /// Everything anybody was ever told (GDD §4, NC-050). **Reality is the tables above; this is what is known of
+  /// it**, and the two are never the same thing (R18). Rows stay after delivery like every other row, because the
+  /// board, the dossiers and NC-052's evidence all refer back to them.
+  [[nodiscard]] Table<Report, ReportId>& Reports() noexcept
+  {
+    return m_reports;
+  }
+
+  [[nodiscard]] const Table<Report, ReportId>& Reports() const noexcept
+  {
+    return m_reports;
+  }
+
   /// What JumpsBetween answers when there is no route at all. A disconnected map is a generator bug (NC-041 asserts
   /// connectivity), but a route to a system that does not exist is an ordinary caller error and gets an answer.
   static constexpr std::uint32_t UNREACHABLE = 0xFFFFFFFFu;
@@ -236,6 +250,7 @@ private:
   Table<Market, SystemId> m_markets;
   Table<MothballedHull, MothballId> m_mothballs;
   Table<Relation, RelationId> m_relations;
+  Table<Report, ReportId> m_reports;
 
   std::vector<Neuron::Random> m_randomStreams;
   Neuron::Tick m_tick = 0;

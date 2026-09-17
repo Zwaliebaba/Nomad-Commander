@@ -14,6 +14,7 @@
     <ClCompile Include="TickResolverTests.cpp" />
     <ClCompile Include="WireTests.cpp" />
     <ClCompile Include="SoakTests.cpp" />
+    <ClCompile Include="SensorTests.cpp" />
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>

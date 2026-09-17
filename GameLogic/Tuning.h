@@ -160,6 +160,26 @@ inline constexpr std::uint32_t COURIER_SPEED_MULTIPLIER_HUNDREDTHS = 60;
 inline constexpr Neuron::Tick INTERDICTION_MIN_TICKS = 2 * Neuron::TICKS_PER_HOUR;
 inline constexpr Neuron::Tick INTERDICTION_MAX_TICKS = 12 * Neuron::TICKS_PER_HOUR;
 
+// --- GDD §4 and §12: what anyone can see -------------------------------------------------------------------------
+//
+// The sensor range per class is `ShipStats::sensorRangeJumps` in the table at the top of this file, because it is a
+// property of a hull like its fuel and its cargo. What is here is what detection does with it.
+
+/// How much a sighting's counts are spread, per jump of distance, in hundredths of the true count. At three jumps a
+/// scout reports a number that may be off by most of what is there, which is what makes a long-range sighting a
+/// reading rather than a fact (GDD §4: "the player's advantage over the AI is interpretation, not information").
+inline constexpr std::uint32_t SIGHTING_NOISE_HUNDREDTHS_PER_JUMP = 30;
+
+/// What a courier costs in time, per jump, when a report has to travel to reach its reader (GDD §4: "orders travel").
+/// **This is NC-053's number, spent early.** Detection needs a delivery tick before couriers exist, and a report that
+/// arrived instantly from four jumps away would make the fog a formality; when NC-053 lands, its courier carries the
+/// report and this constant is what it should be measured against rather than a second opinion beside it.
+inline constexpr Neuron::Tick COURIER_TICKS_PER_JUMP = 45 * Neuron::TICKS_PER_MINUTE;
+
+/// How long a public event takes to become common knowledge (GDD §4: a marked raid is seen by everyone). NC-055 and
+/// NC-062 are what emit them; the delay is here so that the first of them does not invent one.
+inline constexpr Neuron::Tick NEWS_DELAY_TICKS = 6 * Neuron::TICKS_PER_HOUR;
+
 // --- GDD §6: how an empire decides who did it --------------------------------------------------------------------
 //
 // The weights are §6's table, verbatim, as fractions of a full attribution in integer hundredths (ADR-003). NC-052 is

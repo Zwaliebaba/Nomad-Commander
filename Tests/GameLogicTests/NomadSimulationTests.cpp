@@ -24,7 +24,7 @@ namespace
 /// A simulation over a generated map with one company on it, which is the smallest world an input can be aimed at.
 [[nodiscard]] Nomad::CompanyId AddCompany(Nomad::World& _world, const char* _name)
 {
-  Nomad::Company company;
+  Nomad::Company company{};
   company.name = _name;
   company.mothership = Nomad::Mothership{Nomad::SystemId::FromIndex(0), Nomad::MothershipState::Healthy,
                                          Nomad::Tuning::MOTHERSHIP_RESERVE_FUEL, Nomad::ShipClass::Scout, 0};

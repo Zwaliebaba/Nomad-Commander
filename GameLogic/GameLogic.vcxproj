@@ -85,6 +85,7 @@
     <ClCompile Include="NomadSimulation.cpp" />
     <ClCompile Include="Mobility.cpp" />
     <ClCompile Include="Politics.cpp" />
+    <ClCompile Include="Sensor.cpp" />
     <ClCompile Include="Economy.cpp" />
     <ClCompile Include="Fabricator.cpp" />
     <ClCompile Include="Shipyard.cpp" />
@@ -116,6 +117,9 @@
     <ClInclude Include="EmpireGoal.h" />
     <ClInclude Include="Politics.h" />
     <ClInclude Include="Relation.h" />
+    <ClInclude Include="Report.h" />
+    <ClInclude Include="Sensor.h" />
+    <ClInclude Include="WireReport.h" />
     <ClInclude Include="Economy.h" />
     <ClInclude Include="Fabricator.h" />
     <ClInclude Include="Shipyard.h" />

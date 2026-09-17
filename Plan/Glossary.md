@@ -75,7 +75,8 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | Player input | §3, §4 | `Input`, `InputKind` | `Input.h` | NC-042 |
 | The game's `Simulation` | — | `NomadSimulation` | `NomadSimulation.h` | NC-042 |
 | Wire schema the client may see (R18, ADR-018) | §4, §9 | `WireInput`, `WireEvent`, `WireExplanation`, `InputKind`, `EventKind`, `ReasonCode`, `WIRE_INDEX_NONE` | `WireInput.h`, `WireEvent.h`, `WireExplanation.h` | NC-042 onward |
-| Report: source, age, reliability | §4 | `Report`, `ReportSource`, `SourceRecord` | `Report.h` | NC-050 |
+| Report: source, age, reliability | §4 | `Report`, `ReportSource`, `SourceRecord`, `SightedFleet`, `Observer` | `Report.h` | NC-050 |
+| A report as the client is told it | §4 | `WireReport` | `WireReport.h` | NC-050 |
 | Sensor range and detection | §12 | `Sensor` | `Sensor.h` | NC-050 |
 | Incident (a raid or attack an empire suffered) | §6 | `Incident`, `IncidentId` | `Incident.h` | NC-051 |
 | Belief: one per empire about events | §6, §9 | `Belief`, `Suspicion` | `Belief.h` | NC-051 |

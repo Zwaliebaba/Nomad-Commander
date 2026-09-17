@@ -7,10 +7,12 @@
 #include "LogEvent.h"
 #include "Mobility.h"
 #include "Politics.h"
+#include "Sensor.h"
 #include "Upkeep.h"
 #include "Tuning.h"
 
 #include <array>
+#include <span>
 
 namespace Nomad
 {
@@ -86,9 +88,12 @@ void ResolveMovement(World& _world, std::vector<Event>& _outEvents)
 }
 
 /// Phase 3 -- detection. Who saw what, and the reports it produced (GDD §4's source, age and reliability).
-void ResolveDetection([[maybe_unused]] World& _world, [[maybe_unused]] std::vector<Event>& _outEvents)
+///
+/// **After movement on purpose**: it reads the arrivals and departures that phase just wrote and reports on those,
+/// so a sighting is a record of a change rather than a sample of the clock (NC-050, `Sensor.h`).
+void ResolveDetection(World& _world, std::span<const Event> _eventsThisTick)
 {
-  // NC-050.
+  Sensor::ResolveDetection(_world, _eventsThisTick);
 }
 
 /// Phase 4 -- couriers. Orders, denials and rumours moving physically along the lanes (GDD §9).
@@ -148,9 +153,13 @@ void TickResolver::Advance(World& _world, std::span<const Input> _inputs, std::v
   // The table of contents. Each line is one phase, in the order the header documents, and the order is an ADR's to
   // change (TickResolver.h). A phase that is not built yet is a call to an empty function rather than a gap, so that
   // adding its body is a change to one file and the order cannot be got wrong by accident.
+  // Where this tick's events begin. Detection is handed only these, because the caller's vector holds every event
+  // since it was last drained and a headless year never drains one (Sensor.h).
+  const std::size_t firstEventOfTick = _outEvents.size();
+
   ResolveInputs(_world, _inputs, _outEvents, _log);
   ResolveMovement(_world, _outEvents);
-  ResolveDetection(_world, _outEvents);
+  ResolveDetection(_world, std::span<const Event>{_outEvents}.subspan(firstEventOfTick));
   ResolveCouriers(_world, _outEvents);
   ResolveEncounters(_world, _outEvents);
   if (IsDailyTick(_world.CurrentTick()))
