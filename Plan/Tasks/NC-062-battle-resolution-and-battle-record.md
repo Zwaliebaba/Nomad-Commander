@@ -150,7 +150,7 @@ left the new plan's scalars indeterminate — braced now, and carrying a real pl
 reached.
 
 **Verified.** `python Build\CheckFormat.py` (239 files) and `python Build\CheckProjectFiles.py` (9 projects) pass.
-**245 test methods across the four suites pass on clang-18 locally**, 11 of them new in `BattleTests.cpp`.
+**245 test methods across the four suites pass on clang-18 locally**, 12 of them new in `BattleTests.cpp`.
 clang-tidy-18 is clean over every file this task touched (see the CI paragraph below — it was not, at first). `World` schema 14 → 15 (the fleet's plan and its cooldown);
 the NC-048 soak hash moved with it and every other measured figure — NC-045's, NC-047's, NC-055's, NC-060's,
 NC-066's — is unchanged.
