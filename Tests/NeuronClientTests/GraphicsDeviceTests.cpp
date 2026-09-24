@@ -108,6 +108,23 @@ constexpr float CLEAR_COLOR[4] = {CLEAR_RED / 255.0f, CLEAR_GREEN / 255.0f, CLEA
   return waited;
 }
 
+/// One axis of PresentPass::ScenePixelUnder at the four client pixels an off-by-one would move (NC-033): the first and
+/// last inside the placement must land inside the scene, and the first outside on either side must land outside it.
+void CheckTheWayBack(std::int32_t _origin, std::uint32_t _extent, std::uint32_t _sceneExtent, const std::wstring& _where)
+{
+  const std::int32_t first = _origin;
+  const std::int32_t last = _origin + static_cast<std::int32_t>(_extent) - 1;
+  const auto scene = static_cast<std::int32_t>(_sceneExtent);
+  const std::int32_t beforeFirst = Neuron::PresentPass::ScenePixelUnder(first - 1, _origin, _extent, _sceneExtent);
+  const std::int32_t atFirst = Neuron::PresentPass::ScenePixelUnder(first, _origin, _extent, _sceneExtent);
+  const std::int32_t atLast = Neuron::PresentPass::ScenePixelUnder(last, _origin, _extent, _sceneExtent);
+  const std::int32_t afterLast = Neuron::PresentPass::ScenePixelUnder(last + 1, _origin, _extent, _sceneExtent);
+  Assert::IsTrue(beforeFirst < 0, (L"the pixel before the placement landed in the scene " + _where).c_str());
+  Assert::IsTrue(atFirst >= 0 && atFirst < scene, (L"the placement's first pixel landed outside the scene " + _where).c_str());
+  Assert::IsTrue(atLast >= 0 && atLast < scene, (L"the placement's last pixel landed outside the scene " + _where).c_str());
+  Assert::IsTrue(afterLast >= scene, (L"the pixel after the placement landed in the scene " + _where).c_str());
+}
+
 } // namespace
 
 TEST_CLASS(GraphicsDeviceTests)
@@ -231,6 +248,47 @@ public:
                                    static_cast<std::int64_t>(placement.heightPixels) * Neuron::SCREEN_WIDTH_PIXELS;
         const std::int64_t tolerance = Neuron::SCREEN_WIDTH_PIXELS + Neuron::SCREEN_HEIGHT_PIXELS;
         Assert::IsTrue(cross <= tolerance && -cross <= tolerance, (L"the shape was not kept" + at).c_str());
+      }
+    }
+  }
+
+  TEST_METHOD(TheWayBackIsTheIdentityAtOneToOneAndADivisionAtAnExactMultiple)
+  {
+    // NC-033. ADR-009's first two cases are the ones where the answer is known without the arithmetic: 1:1 is the
+    // identity for every coordinate, negative ones under capture included, and an exact 2x is a halving rounded down --
+    // down, not towards zero, so the pixel before the scene is -1 and never 0.
+    for (std::int32_t client = -64; client < 2048; ++client)
+    {
+      if (Neuron::PresentPass::ScenePixelUnder(client, 0, 1920, 1920) != client)
+      {
+        Assert::Fail((L"1:1 moved client pixel " + std::to_wstring(client)).c_str());
+      }
+    }
+    for (std::int32_t client = 0; client < 4096; ++client)
+    {
+      if (Neuron::PresentPass::ScenePixelUnder(client, 0, 3840, 1920) != client / 2)
+      {
+        Assert::Fail((L"2x did not halve client pixel " + std::to_wstring(client)).c_str());
+      }
+    }
+    Assert::AreEqual(-1, Neuron::PresentPass::ScenePixelUnder(-1, 0, 3840, 1920));
+    Assert::AreEqual(-1, Neuron::PresentPass::ScenePixelUnder(-2, 0, 3840, 1920));
+    Assert::AreEqual(-2, Neuron::PresentPass::ScenePixelUnder(-3, 0, 3840, 1920));
+  }
+
+  TEST_METHOD(TheWayBackKeepsThePlacementInTheSceneAndTheBarsOutOfIt)
+  {
+    // NC-033. ScenePixelUnder is Fit run backwards, so it is swept over the client areas Fit's own property is, and at
+    // each one it is checked at the placement's edges on both axes -- where a wrong origin, a wrong extent or rounding
+    // towards zero would show.
+    for (std::uint32_t width = 320; width <= 4096; width += 17)
+    {
+      for (std::uint32_t height = 240; height <= 2304; height += 23)
+      {
+        const auto placement = Neuron::PresentPass::Fit(Neuron::SCREEN_WIDTH_PIXELS, Neuron::SCREEN_HEIGHT_PIXELS, width, height);
+        const std::wstring at = L"at " + std::to_wstring(width) + L"x" + std::to_wstring(height);
+        CheckTheWayBack(placement.leftPixels, placement.widthPixels, Neuron::SCREEN_WIDTH_PIXELS, L"across, " + at);
+        CheckTheWayBack(placement.topPixels, placement.heightPixels, Neuron::SCREEN_HEIGHT_PIXELS, L"down, " + at);
       }
     }
   }

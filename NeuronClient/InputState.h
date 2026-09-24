@@ -2,6 +2,7 @@
 #pragma once
 
 #include "NeuronCore.h"
+#include "PresentPass.h"
 
 #include <array>
 #include <cstdint>
@@ -18,7 +19,10 @@ enum class MouseButton : std::uint8_t
   Middle
 };
 
-/// A position in the window's client pixels, with the origin at the top left.
+/// A position in the scene's pixels (ADR-009), with the origin at the scene's top left: the space every rectangle the
+/// desk lays out lives in, whatever the display. Windows reports the mouse in the client area's pixels, and InputState
+/// takes each point back through the present step's placement before anything reads it (NC-033). It can lie outside
+/// the scene -- in a letterbox bar, or beyond the window while a drag has the mouse captured.
 struct MousePoint
 {
   std::int32_t xPixels;
@@ -56,12 +60,23 @@ public:
   /// Takes one window message. True if it was one this cares about, which is the answer Window forwards.
   [[nodiscard]] bool HandleMessage(UINT _message, WPARAM _wparam, LPARAM _lparam) noexcept;
 
+  /// Where the present step put the scene in the client area, and how big the scene is: what every mouse position is
+  /// taken back through from here on (NC-033). The placement is PresentPass::Fit's and nobody else's -- this is handed
+  /// the answer rather than working one out, so there is still exactly one place that knows how big the window is
+  /// (ADR-009).
+  ///
+  /// Until it is called a client pixel is reported as a scene pixel, which is ADR-009's 1:1 case: right on a 1920x1080
+  /// display, and what a test that never places the scene is written against.
+  void SetScenePlacement(const PresentPass::Placement& _placement, std::uint32_t _sceneWidthPixels,
+                         std::uint32_t _sceneHeightPixels) noexcept;
+
+  /// Where the mouse is, in scene pixels.
   [[nodiscard]] MousePoint MousePosition() const noexcept
   {
     return m_mouse;
   }
 
-  /// How far the mouse moved this frame. Zero on the frame it first arrives, which is what stops a jump.
+  /// How far the mouse moved this frame, in scene pixels. Zero on the frame it first arrives, which is what stops a jump.
   [[nodiscard]] MousePoint MouseDelta() const noexcept
   {
     return m_mouseDelta;
@@ -101,6 +116,13 @@ private:
   /// widget holding a drag needs the release edge, not just the absence of the button.
   void ReleaseEverything() noexcept;
 
+  /// A point as a window message carries it, in client pixels, taken back into the scene.
+  [[nodiscard]] MousePoint ToScene(MousePoint _client) const noexcept;
+
+  /// Empty until SetScenePlacement: an unplaced scene is the 1:1 case, and ToScene passes a point through untouched.
+  PresentPass::Placement m_scenePlacement{};
+  std::uint32_t m_sceneWidthPixels = 0;
+  std::uint32_t m_sceneHeightPixels = 0;
   std::array<bool, MOUSE_BUTTON_COUNT> m_mouseDown{};
   std::array<bool, MOUSE_BUTTON_COUNT> m_mousePressed{};
   std::array<bool, MOUSE_BUTTON_COUNT> m_mouseReleased{};

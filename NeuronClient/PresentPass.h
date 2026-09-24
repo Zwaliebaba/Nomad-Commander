@@ -62,6 +62,19 @@ public:
   [[nodiscard]] static Placement Fit(std::uint32_t _sceneWidthPixels, std::uint32_t _sceneHeightPixels, std::uint32_t _clientWidthPixels,
                                      std::uint32_t _clientHeightPixels) noexcept;
 
+  /// The way back, along one axis: which scene pixel a client pixel shows (NC-033). Windows reports the mouse in the
+  /// client area's pixels and everything it is compared with is laid out in the scene's, so a point has to be taken
+  /// back through the placement Fit chose before it means anything. It lives here, beside Fit, so that the one place
+  /// that knows how the scene was fitted also knows how to undo it (ADR-009's first decision).
+  ///
+  /// Measured at the client pixel's centre, which lands on the texel whose footprint holds that centre -- the texel a
+  /// point sampler reads there, and the rule PresentScaleTests measures this pass against -- so a pointer answers to the
+  /// scene pixel the glass shows under it: the identity at 1:1 and a plain division at an exact multiple. Rounded
+  /// towards negative infinity, so a pixel in a bar, or beyond the window while a drag has the mouse captured, lands
+  /// outside the scene rather than on its edge.
+  [[nodiscard]] static std::int32_t ScenePixelUnder(std::int32_t _clientPixel, std::int32_t _placementOriginPixels,
+                                                    std::uint32_t _placementExtentPixels, std::uint32_t _sceneExtentPixels) noexcept;
+
   /// Builds the root signature, the pipeline and the one shader-visible descriptor that names the scene target.
   [[nodiscard]] static bool Create(GraphicsDevice& _device, const SceneTarget& _scene, PresentPass& _outPass) noexcept;
 

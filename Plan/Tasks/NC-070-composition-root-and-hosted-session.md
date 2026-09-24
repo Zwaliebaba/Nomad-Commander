@@ -4,7 +4,7 @@
 |---|---|---|---|---|---|
 | 5 | NomadCommander | M | **yes** | no | Open |
 
-**Depends on:** NC-030, NC-031, NC-032, NC-043, NC-025
+**Depends on:** NC-030, NC-031, NC-032, NC-043, NC-025, NC-033
 **Read first:** AGENTS.md §2 (NomadCommander: "the one thing that sees both halves"), R13 whole (the two files beside the executable; *It is a role and not a binary*; the working-directory ban), R21; GDD §15 (a compressed local clock); `Plan/Roadmap.md` A7, *Conventions* (launch options; `App.cpp` is the one file that includes GameLogic)
 
 ## Goal
