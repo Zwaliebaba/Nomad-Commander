@@ -248,7 +248,13 @@ bool PresentPass::Create(GraphicsDevice& _device, const SceneTarget& _scene, Pre
 void PresentPass::Execute(ID3D12GraphicsCommandList* _commandList, SceneTarget& _scene, SwapChainTarget& _swapChain) noexcept
 {
   // The frame's own call. A back buffer's extent IS the client area ADR-009 fits against, so there is nothing to
-  // decide here beyond naming the two.
+  // decide here beyond naming the two. BeginFrame bound the back buffer, but the frame's own passes bind the scene
+  // target over it, so it is bound again here: the scaled path's draw would otherwise land in the very target it reads.
+  const D3D12_CPU_DESCRIPTOR_HANDLE backBufferView = _swapChain.BackBufferView();
+  if (_commandList != nullptr)
+  {
+    _commandList->OMSetRenderTargets(1, &backBufferView, FALSE, nullptr);
+  }
   Execute(_commandList, _scene, _swapChain.BackBuffer(), _swapChain.WidthPixels(), _swapChain.HeightPixels());
 }
 
