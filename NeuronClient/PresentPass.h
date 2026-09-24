@@ -65,7 +65,8 @@ public:
   /// Builds the root signature, the pipeline and the one shader-visible descriptor that names the scene target.
   [[nodiscard]] static bool Create(GraphicsDevice& _device, const SceneTarget& _scene, PresentPass& _outPass) noexcept;
 
-  /// Records the present step into an open frame. The back buffer is already a bound, cleared render target.
+  /// Records the present step into an open frame. The back buffer is already cleared; this binds it again as the render
+  /// target, because the frame's passes bind the scene target over it.
   void Execute(ID3D12GraphicsCommandList* _commandList, SceneTarget& _scene, SwapChainTarget& _swapChain) noexcept;
 
   /// The same step against any destination of a known size, which is what the one above is written in terms of.
