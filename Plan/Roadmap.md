@@ -106,10 +106,13 @@ The three engine libraries as AGENTS.md §2 describes them, minus what A2 defers
 | NC-030 | `Session` | NeuronServer | M | NC-014, NC-015 |
 | NC-031 | The universe store *(owner-visible)* | NeuronServer, NeuronCore | M | NC-014 |
 | NC-032 | The instrumentation log | NeuronServer | S | NC-010 |
+| NC-033 | The mouse in scene pixels — ADR-009's missing inverse | NeuronClient, NomadCommander | S | NC-021, NC-024 |
 
 **Exit:** `NomadCommander.exe` opens a borderless window covering the monitor and presents a 1920×1080 scene target into it at the display's rate (ADR-009, ADR-010), draws text and primitives *and a depth-tested sphere in perspective*, reacts to the mouse and **closes on Escape or Alt+F4 — there is no close box**; someone ran it and said so. Each of the four suites holds real tests and no `SuiteSmoke`. `Session` drives a stub `Simulation` deterministically in tests; the store round-trips and the log writes, both into a directory the test chooses.
 
 **Phase 1's build is complete; NC-029 is its unpaid measurement.** It was added after the fact (README.md, *Adding, splitting and dropping tasks*) because NC-021, NC-027 and NC-028 each reported ADR-009's figures as owed and each was read as needing a second monitor. It adds no engine capability, nothing depends on it, and **Phase 2 starts without it** — it is here rather than later because it is `NeuronClient` work that can run beside NC-040, and Phase 2 has room for exactly one agent otherwise.
+
+**NC-033 is a defect found after the fact**, on the owner's first desktop run on a display that is not 1920×1080 (a 3:2 panel, 2026-09-24): NC-024's crosshair sat about 3 cm below and to the right of the Windows pointer, because the mouse reached the widgets in the client area's pixels while everything they are laid out in is the scene's. Every earlier desktop run had been on a 1920×1080 monitor, the one size where the two are the same. It lands before NC-070, which moves the frame loop into `App.cpp` and must carry the placement call with it.
 
 ### Phase 2 — The simulation kernel, headless
 
@@ -173,7 +176,7 @@ The desk session (GDD §3) on the map (§13: the map is 3D, the desk around it i
 
 | Task | Title | Project(s) | Size | Depends on |
 |---|---|---|---|---|
-| NC-070 | The composition root and the hosted session | NomadCommander | M | NC-030, NC-031, NC-032, NC-043, NC-025 |
+| NC-070 | The composition root and the hosted session | NomadCommander | M | NC-030, NC-031, NC-032, NC-043, NC-025, NC-033 |
 | NC-071 | The client model from the wire | NomadCommander | M | NC-070, NC-067 |
 | NC-072 | The map screen | NomadCommander | L | NC-071 |
 | NC-073 | The situation board screen | NomadCommander | M | NC-071, NC-026 |

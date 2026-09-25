@@ -22,7 +22,7 @@ One name per thing, fixed here before two tasks invent two. A row gives the GDD 
 | The D3D12 device and queue | `GraphicsDevice` | `GraphicsDevice.h` | NeuronClient | NC-021 |
 | The 1920×1080 target every pass draws into | `SceneTarget`, `TargetFault` | `SceneTarget.h` | NeuronClient | NC-021 |
 | The swap chain, the back buffers and the frame's fencing | `SwapChainTarget` | `SwapChainTarget.h` | NeuronClient | NC-021 |
-| The present scale: the scene target into the client area (ADR-009) | `PresentPass`, `PresentPass::Placement`, `PresentPass::Filter` | `PresentPass.h` | NeuronClient | NC-021 |
+| The present scale: the scene target into the client area (ADR-009), and the way back that the mouse is taken through | `PresentPass`, `PresentPass::Placement`, `PresentPass::Filter`, `PresentPass::ScenePixelUnder` | `PresentPass.h` | NeuronClient | NC-021, NC-033 |
 | Shared pipeline defaults (opaque by default; MSAA is unavailable on a flip-model back buffer) | `PipelineDefaults` | `PipelineDefaults.h` | NeuronClient | NC-022 |
 | 2D primitives in pixel space | `PrimitiveBatch`, `PrimitiveVertex`, `Point`, `PrimitivePipeline` | `PrimitiveBatch.h`, `PrimitivePipeline.h` | NeuronClient | NC-006, NC-022 |
 | The desk's text faces, baked as coverage (R13, ADR-016) | `Font`, `FontMetrics`, `MetricsOf`, `FONT_FIRST_CODEPOINT`, `FONT_LINE_HEIGHT_PIXELS` | `Font.h`; generated `FontData.h`, `FontCoverage.h` | NeuronClient | NC-028 |

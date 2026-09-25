@@ -417,6 +417,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
 
   Neuron::InputState input;
   window.SetMessageSink(&Neuron::InputState::MessageSink, &input);
+  // The mouse arrives in the client area's pixels and everything it is compared with is laid out in the scene's
+  // (NC-033). Where the one sits in the other is the present step's to decide, so the mouse is handed that decision --
+  // Fit, over the same four sizes PresentPass::Execute gives it every frame -- rather than reaching one of its own. The
+  // window never changes size (ADR-010), so telling it once is telling it for the whole run.
+  input.SetScenePlacement(
+    Neuron::PresentPass::Fit(scene.WidthPixels(), scene.HeightPixels(), swapChain.WidthPixels(), swapChain.HeightPixels()),
+    scene.WidthPixels(), scene.HeightPixels());
   Neuron::Ui ui(batch, text, input);
   DeskDemo demo;
 

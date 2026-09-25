@@ -37,6 +37,28 @@ bool InputState::MessageSink(void* _context, UINT _message, WPARAM _wparam, LPAR
   return static_cast<InputState*>(_context)->HandleMessage(_message, _wparam, _lparam);
 }
 
+void InputState::SetScenePlacement(const PresentPass::Placement& _placement, std::uint32_t _sceneWidthPixels,
+                                   std::uint32_t _sceneHeightPixels) noexcept
+{
+  // Fit returns an empty placement only for an empty client area or scene, which Window::Create and SceneTarget::Create
+  // both refuse. An empty one here would leave nothing to point at, and ToScene would treat it as unplaced.
+  NOMAD_ASSERT(_placement.widthPixels != 0 && _placement.heightPixels != 0 && _sceneWidthPixels != 0 && _sceneHeightPixels != 0);
+  m_scenePlacement = _placement;
+  m_sceneWidthPixels = _sceneWidthPixels;
+  m_sceneHeightPixels = _sceneHeightPixels;
+}
+
+MousePoint InputState::ToScene(MousePoint _client) const noexcept
+{
+  if (m_scenePlacement.widthPixels == 0 || m_scenePlacement.heightPixels == 0)
+  {
+    return _client;
+  }
+  return MousePoint{
+    PresentPass::ScenePixelUnder(_client.xPixels, m_scenePlacement.leftPixels, m_scenePlacement.widthPixels, m_sceneWidthPixels),
+    PresentPass::ScenePixelUnder(_client.yPixels, m_scenePlacement.topPixels, m_scenePlacement.heightPixels, m_sceneHeightPixels)};
+}
+
 void InputState::BeginFrame() noexcept
 {
   m_mousePressed.fill(false);
@@ -75,7 +97,9 @@ bool InputState::HandleMessage(UINT _message, WPARAM _wparam, LPARAM _lparam) no
   {
   case WM_MOUSEMOVE:
   {
-    const MousePoint position = PointFromLParam(_lparam);
+    // Into the scene before anything is stored, so the delta below is in scene pixels too and no reader of this class
+    // ever holds a client-space point (NC-033).
+    const MousePoint position = ToScene(PointFromLParam(_lparam));
     if (m_haveMousePosition)
     {
       m_mouseDelta.xPixels += position.xPixels - m_mouse.xPixels;
@@ -94,7 +118,7 @@ bool InputState::HandleMessage(UINT _message, WPARAM _wparam, LPARAM _lparam) no
                                : _message == WM_RBUTTONDOWN ? MouseButton::Right
                                                             : MouseButton::Middle;
     const std::size_t index = ButtonIndex(button);
-    m_mouse = PointFromLParam(_lparam);
+    m_mouse = ToScene(PointFromLParam(_lparam));
     m_haveMousePosition = true;
     // The edge is set by the message, not by comparing frames, so a click and a release inside one frame both land.
     m_mousePressed[index] = true;
@@ -110,7 +134,7 @@ bool InputState::HandleMessage(UINT _message, WPARAM _wparam, LPARAM _lparam) no
                                : _message == WM_RBUTTONUP ? MouseButton::Right
                                                           : MouseButton::Middle;
     const std::size_t index = ButtonIndex(button);
-    m_mouse = PointFromLParam(_lparam);
+    m_mouse = ToScene(PointFromLParam(_lparam));
     m_haveMousePosition = true;
     m_mouseReleased[index] = true;
     m_mouseDown[index] = false;

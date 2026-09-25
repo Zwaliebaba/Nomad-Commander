@@ -115,6 +115,28 @@ PresentPass::Placement PresentPass::Fit(std::uint32_t _sceneWidthPixels, std::ui
   return placement;
 }
 
+std::int32_t PresentPass::ScenePixelUnder(std::int32_t _clientPixel, std::int32_t _placementOriginPixels,
+                                          std::uint32_t _placementExtentPixels, std::uint32_t _sceneExtentPixels) noexcept
+{
+  NOMAD_ASSERT(_placementExtentPixels != 0);
+  if (_placementExtentPixels == 0)
+  {
+    return _clientPixel;
+  }
+
+  // Twice the distance from the placement's edge to the pixel's centre, so the half pixel stays a whole number, and 64
+  // bits for Fit's reason: the product is of two screen extents.
+  const std::int64_t twiceOffset = 2 * (static_cast<std::int64_t>(_clientPixel) - _placementOriginPixels) + 1;
+  const std::int64_t numerator = twiceOffset * _sceneExtentPixels;
+  const std::int64_t denominator = 2 * static_cast<std::int64_t>(_placementExtentPixels);
+
+  // C++ rounds a quotient towards zero, which would fold the first pixel before the scene onto its first pixel, and a
+  // widget on the edge would answer to a pointer that is not on it. The denominator is positive, so only a negative
+  // numerator ever needs taking down one.
+  const std::int64_t quotient = numerator / denominator;
+  return static_cast<std::int32_t>(numerator % denominator < 0 ? quotient - 1 : quotient);
+}
+
 bool PresentPass::Create(GraphicsDevice& _device, const SceneTarget& _scene, PresentPass& _outPass) noexcept
 {
   NOMAD_ASSERT(_outPass.m_pipeline == nullptr);
